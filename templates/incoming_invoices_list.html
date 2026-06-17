@@ -21,31 +21,32 @@
 {% if invoices %}
 <!-- إجمالي + فلتر -->
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">
-  <div class="d-flex gap-2">
-    <button class="filter-tab-inv active" data-filter="all">
-      <i class="fas fa-list me-1"></i> الكل
-      <span class="tab-badge">{{ invoices|length }}</span>
-    </button>
-    <button class="filter-tab-inv" data-filter="open">
-      <i class="fas fa-lock-open me-1"></i> المفتوحة
-      <span class="tab-badge" id="cnt-open">
+  <div class="filter-bar">
+    <span class="filter-label">عرض:</span>
+    <select id="filter-select" class="filter-select-box" onchange="applyInvFilter()">
+      <option value="all">📋 الكل ({{ invoices|length }})</option>
+      <option value="open">🔓 المفتوحة (
         {%- set oc = namespace(n=0) -%}
         {%- for inv in invoices if not inv.is_closed -%}{%- set oc.n = oc.n + 1 -%}{%- endfor -%}
-        {{ oc.n }}
-      </span>
-    </button>
-    <button class="filter-tab-inv" data-filter="closed">
-      <i class="fas fa-lock me-1"></i> المغلقة
-      <span class="tab-badge" id="cnt-closed">
+        {{ oc.n }})</option>
+      <option value="closed">🔒 المغلقة (
         {%- set cc = namespace(n=0) -%}
         {%- for inv in invoices if inv.is_closed -%}{%- set cc.n = cc.n + 1 -%}{%- endfor -%}
-        {{ cc.n }}
-      </span>
-    </button>
+        {{ cc.n }})</option>
+      <option value="paid">✅ المدفوعة (
+        {%- set pc = namespace(n=0) -%}
+        {%- for inv in invoices if inv.is_paid -%}{%- set pc.n = pc.n + 1 -%}{%- endfor -%}
+        {{ pc.n }})</option>
+      <option value="unpaid">⏳ غير المدفوعة (
+        {%- set upc = namespace(n=0) -%}
+        {%- for inv in invoices if not inv.is_paid -%}{%- set upc.n = upc.n + 1 -%}{%- endfor -%}
+        {{ upc.n }})</option>
+    </select>
   </div>
   <div style="font-weight:800;color:#1a6b3a;">
     <i class="fas fa-coins me-1" style="color:#f0a500;"></i>
-    الإجمالي الكلي: <span id="visible-total">{{ "%.2f"|format(total_all) }}</span>
+    الإجمالي: <span id="visible-total">{{ "%.2f"|format(total_all) }}</span>
+    &nbsp;|&nbsp; عدد: <span id="visible-count">{{ invoices|length }}</span>
   </div>
 </div>
 
@@ -53,7 +54,9 @@
 <div id="invoices-container">
 {% for inv in invoices %}
 <div class="invoice-card-full mb-3" id="inv-{{ inv.id }}"
-     data-status="{{ 'closed' if inv.is_closed else 'open' }}">
+     data-status="{{ 'closed' if inv.is_closed else 'open' }}"
+     data-paid="{{ 'paid' if inv.is_paid else 'unpaid' }}"
+     data-total="{{ inv.total }}">
 
   <!-- رأس الفاتورة -->
   <div class="icf-header {% if inv.is_closed %}icf-closed{% else %}icf-open{% endif %}">
@@ -351,32 +354,26 @@
 <script>
 const todayStr = "{{ today_str }}";
 
-// ── فلتر تبويبات ──
-const allCards = document.querySelectorAll('.invoice-card-full');
-const totalEl  = document.getElementById('visible-total');
-
-document.querySelectorAll('.filter-tab-inv').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-tab-inv').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const f = btn.dataset.filter;
-    let tot = 0;
-    allCards.forEach(card => {
-      const show = f === 'all' || card.dataset.status === f;
-      card.style.display = show ? 'block' : 'none';
-      if (show && card.dataset.total) tot += parseFloat(card.dataset.total) || 0;
-    });
-    if (totalEl) totalEl.textContent = tot.toFixed(2);
+// ── فلتر القائمة المنسدلة ──
+function applyInvFilter() {
+  const f = document.getElementById('filter-select').value;
+  const cards = document.querySelectorAll('.invoice-card-full');
+  let count = 0, total = 0;
+  cards.forEach(card => {
+    let show = false;
+    if (f === 'all')    show = true;
+    else if (f === 'open')   show = card.dataset.status === 'open';
+    else if (f === 'closed') show = card.dataset.status === 'closed';
+    else if (f === 'paid')   show = card.dataset.paid === 'paid';
+    else if (f === 'unpaid') show = card.dataset.paid === 'unpaid';
+    card.style.display = show ? '' : 'none';
+    if (show) { count++; total += parseFloat(card.dataset.total) || 0; }
   });
-});
-
-// تخزين إجمالي كل فاتورة على الـ card
-allCards.forEach(card => {
-  const totalSpan = card.querySelector('.fw-bold[style*="color:#1a6b3a"][style*="font-size:1rem"]');
-  // بديل بسيط: نضع data-total من خلال Jinja — لكن بما أننا في JS نعتمد على tfoot
-  const tfoot = card.querySelector('tfoot td:last-child');
-  if (tfoot) card.dataset.total = tfoot.textContent.trim() || '0';
-});
+  const totEl = document.getElementById('visible-total');
+  const cntEl = document.getElementById('visible-count');
+  if (totEl) totEl.textContent = total.toFixed(2);
+  if (cntEl) cntEl.textContent = count;
+}
 
 // ── جداول إضافة أصناف ──
 function newRow() {
@@ -425,12 +422,11 @@ function printSingleInv(bodyId, supplier, num) {
 </script>
 
 <style>
-/* تبويبات الفلتر */
-.filter-tab-inv { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:2px solid #d0d0d0;border-radius:20px;background:#fff;font-size:.82rem;font-weight:700;cursor:pointer;color:#6c7a72;transition:all .2s; }
-.filter-tab-inv:hover { border-color:#1565c0;color:#1565c0; }
-.filter-tab-inv.active { border-color:#1565c0;background:#e3f2fd;color:#1565c0; }
-.tab-badge { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;background:rgba(0,0,0,.08);border-radius:10px;font-size:.72rem;padding:0 5px; }
-.filter-tab-inv.active .tab-badge { background:rgba(21,101,192,.15); }
+/* شريط الفلتر */
+.filter-bar { display:flex;align-items:center;gap:8px; }
+.filter-label { font-size:.82rem;font-weight:700;color:#6c7a72; }
+.filter-select-box { padding:5px 12px;border:2px solid #d0d0d0;border-radius:20px;font-size:.82rem;font-weight:700;cursor:pointer;color:#555;background:#fff;outline:none;transition:border-color .2s; }
+.filter-select-box:focus { border-color:#1565c0; }
 
 /* بطاقة الفاتورة الكاملة */
 .invoice-card-full { border-radius:12px;overflow:hidden;border:2px solid #d0d0d0; }

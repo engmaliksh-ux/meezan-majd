@@ -1988,7 +1988,7 @@ def outgoing_invoices_list():
     for inv in invoices_rows:
         inv_d = dict(inv)
         c.execute("""
-            SELECT oi.quantity, oi.unit_price, oi.total_price,
+            SELECT oi.id, oi.quantity, oi.unit_price, oi.total_price,
                    p.name as product_name, p.unit
             FROM outgoing_invoice_items oi
             JOIN products p ON p.id = oi.product_id
@@ -2002,9 +2002,10 @@ def outgoing_invoices_list():
         total_all += inv_total
         invoices.append(inv_d)
 
+    today_str = datetime.now().strftime("%Y-%m-%d")
     conn.close()
     return render_template("outgoing_invoices_list.html",
-                           invoices=invoices, total_all=total_all)
+                           invoices=invoices, total_all=total_all, today_str=today_str)
 
 
 # ══════════════════════════════════════════
@@ -2082,6 +2083,39 @@ def close_outgoing_invoice(id):
     conn.close()
     flash("✅ تم إغلاق فاتورة الصرف", "success")
     return redirect(url_for("outgoing_invoices_list"))
+
+
+@app.route("/outgoing_invoice/<int:id>/update", methods=["POST"])
+@invoices_required
+def update_outgoing_invoice(id):
+    """تعديل رأس فاتورة الصرف المفتوحة (أدمن فقط)"""
+    if session.get("role") != "admin":
+        flash("هذا الإجراء مخصص للأدمن فقط", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT is_closed FROM outgoing_invoices WHERE id=? AND org_id=?", (id, org_id))
+    inv = c.fetchone()
+    if not inv or inv["is_closed"]:
+        conn.close()
+        flash("الفاتورة مغلقة أو غير موجودة", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+
+    invoice_number = request.form.get("invoice_number", "").strip()
+    invoice_date   = request.form.get("invoice_date", "").strip()
+    beneficiary    = request.form.get("beneficiary", "").strip()
+    notes          = request.form.get("notes", "").strip()
+
+    c.execute("""
+        UPDATE outgoing_invoices
+        SET invoice_number=?, invoice_date=?, beneficiary=?, notes=?
+        WHERE id=? AND org_id=?
+    """, (invoice_number, invoice_date, beneficiary, notes, id, org_id))
+    conn.commit()
+    conn.close()
+    flash("✅ تم حفظ التعديلات", "success")
+    return redirect(url_for("outgoing_invoices_list") + f"#inv-{id}")
 
 
 if __name__ == "__main__":
