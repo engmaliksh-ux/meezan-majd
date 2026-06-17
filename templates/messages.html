@@ -19,7 +19,7 @@
   <div class="chat-messages" id="chat-messages">
     {% for msg in msgs %}
     {% set is_mine = (msg.sender_id == session.get('user_id')) %}
-    <div class="chat-msg {% if is_mine %}msg-mine{% else %}msg-other{% endif %}"
+    <div class="chat-msg msg-{{ msg.sender_role }} {% if is_mine %}msg-mine{% endif %}"
          data-id="{{ msg.id }}" data-sender="{{ msg.sender_id }}">
       <div class="msg-meta">
         <span class="msg-role">
@@ -159,7 +159,7 @@ function buildMsg(id, senderId, name, role, content, attachment, time, edited) {
   const delBtn   = canAct ? `<button class="msg-action-btn msg-del-btn" onclick="deleteMsg(${id})"><i class="fas fa-trash"></i></button>` : '';
 
   const div = document.createElement('div');
-  div.className = `chat-msg ${isMine ? 'msg-mine' : 'msg-other'}`;
+  div.className = `chat-msg msg-${role}${isMine ? ' msg-mine' : ''}`;
   div.dataset.id = id;
   div.dataset.sender = senderId;
   div.innerHTML = `
@@ -381,46 +381,53 @@ document.getElementById('msg-input').addEventListener('keydown', function(e) {
   display: flex; flex-direction: column;
   max-width: 68%;
 }
-.msg-mine  { align-self: flex-end;  }
-.msg-other { align-self: flex-start; }
+/* تموضع: رسالتي على اليمين، الطرف الآخر على اليسار */
+.msg-mine { align-self: flex-end; }
+.chat-msg:not(.msg-mine) { align-self: flex-start; }
 
 /* meta */
 .msg-meta {
-  font-size: .65rem; color: #c0c0c0;
+  font-size: .64rem; color: #c0c0c0;
   margin-bottom: 2px;
   display: flex; gap: 4px; align-items: center;
 }
-.msg-mine  .msg-meta { justify-content: flex-end; }
-.msg-other .msg-meta { justify-content: flex-start; }
+.msg-mine .msg-meta { justify-content: flex-end; }
+.chat-msg:not(.msg-mine) .msg-meta { justify-content: flex-start; }
 .msg-role   { font-weight: 600; color: #b5bbb8; }
 .msg-time   { color: #ccc; }
 .msg-edited { color: #ccc; font-style: italic; }
 
 /* bubble wrap */
-.msg-bubble-wrap {
-  display: flex; align-items: flex-end; gap: 3px;
-}
-.msg-mine  .msg-bubble-wrap { flex-direction: row-reverse; }
-.msg-other .msg-bubble-wrap { flex-direction: row; }
+.msg-bubble-wrap { display: flex; align-items: flex-end; gap: 3px; }
+.msg-mine .msg-bubble-wrap         { flex-direction: row-reverse; }
+.chat-msg:not(.msg-mine) .msg-bubble-wrap { flex-direction: row; }
 
-/* فقاعة موحدة */
+/* فقاعة — حجم خفيف وخط صغير */
 .msg-bubble {
-  padding: 7px 12px;
+  padding: 6px 11px;
   border-radius: 16px;
-  font-size: .8rem; line-height: 1.45;
+  font-size: .79rem; line-height: 1.43;
   word-break: break-word; white-space: pre-wrap;
+  display: inline-block;
+  max-width: 100%;
 }
-/* رسالتي = أخضر */
-.msg-mine  .msg-bubble {
+
+/* أدمن = أخضر دائماً */
+.msg-admin.msg-bubble,
+.msg-admin .msg-bubble {
   background: #1a6b3a; color: #fff;
-  border-bottom-right-radius: 4px;
 }
-/* رسالة الطرف الآخر = رمادي فاتح — نفس الشكل لكلا المستخدمين */
-.msg-other .msg-bubble {
-  background: #ffffff; color: #2d2d2d;
+.msg-admin.msg-mine .msg-bubble   { border-bottom-right-radius: 4px; }
+.msg-admin:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 4px; }
+
+/* مراقب = أبيض دائماً */
+.msg-observer.msg-bubble,
+.msg-observer .msg-bubble {
+  background: #fff; color: #2d2d2d;
   border: 1px solid #e4e4e4;
-  border-bottom-left-radius: 4px;
 }
+.msg-observer.msg-mine .msg-bubble    { border-bottom-right-radius: 4px; }
+.msg-observer:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 4px; }
 
 /* أزرار (تظهر عند hover) */
 .msg-actions {
@@ -441,24 +448,20 @@ document.getElementById('msg-input').addEventListener('keydown', function(e) {
 
 /* ترجمة */
 .msg-translation {
-  font-size: .75rem;
-  color: #555;
-  margin-top: 3px;
-  padding: 4px 10px;
-  background: rgba(255,255,255,.8);
-  border-radius: 8px;
-  border: 1px dashed #c8d8cc;
-  max-width: 100%;
-  word-break: break-word;
+  font-size: .74rem; color: #666;
+  margin-top: 3px; padding: 4px 10px;
+  background: rgba(255,255,255,.85);
+  border-radius: 8px; border: 1px dashed #d0d8d4;
+  max-width: 100%; word-break: break-word;
 }
-.msg-mine .msg-translation {
-  text-align: right;
-  background: rgba(255,255,255,.15);
-  border-color: rgba(255,255,255,.3);
-  color: #e8f5ee;
+.msg-mine.msg-admin .msg-translation {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.25);
+  color: #dff0e8;
 }
-.tr-icon  { color: #1a6b3a; font-size: .7rem; margin-inline-end: 4px; }
-.tr-loading { color: #aaa; }
+.msg-mine.msg-admin .tr-icon { color: #a8d5b8; }
+.tr-icon    { color: #1a6b3a; font-size: .7rem; margin-inline-end: 4px; }
+.tr-loading { color: #bbb; }
 
 /* صور ومرفقات */
 .msg-img-wrap { margin-top: 5px; }
