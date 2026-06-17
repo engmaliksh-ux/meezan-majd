@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}المشتريات – ميزان مجد{% endblock %}
+{% block title %}كشف المشتريات – ميزان مجد{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-cart-shopping"></i> المشتريات</h2>
+  <h2 class="page-title"><i class="fas fa-cart-shopping"></i> كشف المشتريات</h2>
   <div class="d-flex gap-2">
     <a href="{{ url_for('incoming_invoices_list') }}" class="btn btn-outline-primary btn-sm">
       <i class="fas fa-archive me-1"></i> الفواتير المضافة
@@ -12,89 +12,15 @@
       <i class="fas fa-warehouse me-1"></i> المخزن
     </a>
     {% if session.get('role') != 'observer' %}
-    <button type="button" class="btn btn-primary" id="toggle-add-invoice">
+    <a href="{{ url_for('add_incoming_invoice') }}" class="btn btn-primary">
       <i class="fas fa-plus me-1"></i> إضافة فاتورة
-    </button>
+    </a>
     {% endif %}
   </div>
 </div>
 
-<!-- ══ فورم إضافة فاتورة جديدة ══ -->
-{% if session.get('role') != 'observer' %}
-<div class="card mb-4" id="add-invoice-card" style="display:none;">
-  <div class="card-header" style="background:#e3f2fd;border-bottom:2px solid #90caf9;">
-    <i class="fas fa-file-invoice" style="color:#1565c0;"></i>
-    <strong style="color:#1565c0;">فاتورة مشتريات جديدة</strong>
-  </div>
-  <div class="card-body">
-    <form method="POST" action="/incoming_invoice" enctype="multipart/form-data">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="row g-3 mb-3">
-        <div class="col-md-4">
-          <label class="form-label">المورد <span class="text-danger">*</span></label>
-          <input class="form-control" name="supplier" placeholder="اسم المورد أو الشركة" required>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">تاريخ الفاتورة <span class="text-danger">*</span></label>
-          <input type="date" class="form-control" name="invoice_date" value="{{ today_str }}" required>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">صورة الفاتورة <span style="color:#aaa;font-size:.74rem;">(اختياري)</span></label>
-          <input type="file" class="form-control" name="invoice_image" accept="image/png,image/jpeg,image/webp">
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-bordered m-0">
-          <thead style="background:#e3f2fd;">
-            <tr>
-              <th style="width:28%;">اسم الصنف</th>
-              <th style="width:12%;">الوحدة</th>
-              <th>الكمية</th>
-              <th>سعر الوحدة</th>
-              <th>التاريخ</th>
-              <th>الإجمالي</th>
-              <th style="width:50px;"></th>
-            </tr>
-          </thead>
-          <tbody id="new-items-body">
-            <tr class="item-row">
-              <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="products-datalist" placeholder="اسم الصنف..." required></td>
-              <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]" placeholder="كيلو..."></td>
-              <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
-              <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>
-              <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="{{ today_str }}" required></td>
-              <td><input type="text" class="form-control form-control-sm row-total" readonly placeholder="0.00" style="background:#f8f9fa;"></td>
-              <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row" disabled><i class="fas fa-times"></i></button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <datalist id="products-datalist">
-        {% for p in existing_products %}
-        <option value="{{ p.name }}" data-unit="{{ p.unit }}">{{ p.unit }}</option>
-        {% endfor %}
-      </datalist>
-
-      <div class="d-flex justify-content-between align-items-center mt-3">
-        <button type="button" class="btn btn-outline-primary btn-sm" id="add-row-btn">
-          <i class="fas fa-plus me-1"></i> إضافة صنف
-        </button>
-        <div style="font-weight:700;">الإجمالي: <span id="grand-total" style="color:#1a6b3a;font-size:1.1rem;margin-right:6px;">0.00</span></div>
-      </div>
-      <div class="mt-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> حفظ الفاتورة</button>
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-invoice-card').style.display='none'">إلغاء</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
-
-<!-- ══ الكشف المختصر ══ -->
 {% if summary %}
-<div class="table-wrapper mb-4">
+<div class="table-wrapper">
   <div class="table-header">
     <h5><i class="fas fa-list-alt me-2" style="color:#1565c0;"></i>كشف الفواتير</h5>
     <span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ summary|length }}</span>
@@ -103,32 +29,27 @@
     <table class="table table-hover mb-0">
       <thead style="background:#e3f2fd;">
         <tr>
-          <th style="width:60px;">#</th>
+          <th style="width:56px;">#</th>
           <th>المورد</th>
           <th>تاريخ الفاتورة</th>
           <th>الإجمالي</th>
           <th>الدفع</th>
           <th>الحالة</th>
-          <th style="width:130px;">الإجراءات</th>
         </tr>
       </thead>
       <tbody>
         {% for inv in summary %}
-        <tr class="inv-summary-row {% if not inv.is_closed %}inv-open-row{% endif %}"
-            id="row-inv-{{ inv.id }}"
-            {% if inv.is_closed %}
-            style="cursor:pointer;"
+        <tr class="inv-summary-row"
             onclick="window.location='{{ url_for('incoming_invoices_list') }}#inv-{{ inv.id }}'"
-            title="عرض التفاصيل في صفحة الفواتير المضافة"
-            {% endif %}>
+            title="عرض تفاصيل الفاتورة">
           <td><span class="seq-num-badge">{{ inv.display_num }}</span></td>
           <td class="fw-bold">
             {{ inv.supplier }}
-            {% if inv.is_closed %}
-            <i class="fas fa-external-link-alt ms-1" style="font-size:.7rem;color:#aaa;"></i>
-            {% endif %}
+            <i class="fas fa-external-link-alt ms-1" style="font-size:.65rem;color:#aaa;"></i>
           </td>
-          <td style="white-space:nowrap;color:#6c7a72;">{{ inv.invoice_date or inv.created_at[:10] if inv.created_at else '—' }}</td>
+          <td style="color:#6c7a72;white-space:nowrap;">
+            {{ inv.invoice_date or (inv.created_at[:10] if inv.created_at else '—') }}
+          </td>
           <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(inv.total) }}</td>
           <td>
             {% if inv.is_paid %}
@@ -144,26 +65,6 @@
               <span class="badge" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-lock-open me-1"></i>مفتوحة</span>
             {% endif %}
           </td>
-          <td onclick="event.stopPropagation()">
-            {% if not inv.is_closed and session.get('role') != 'observer' %}
-            <button class="btn btn-outline-primary btn-sm" title="تفاصيل/تعديل"
-                    onclick="toggleInvCard({{ inv.id }})">
-              <i class="fas fa-edit"></i>
-            </button>
-            <a href="/incoming_invoice/{{ inv.id }}/close"
-               class="btn btn-outline-warning btn-sm" title="إغلاق"
-               onclick="return confirm('سيتم إغلاق الفاتورة نهائياً. متأكد؟')">
-              <i class="fas fa-lock"></i>
-            </a>
-            {% endif %}
-            {% if session.get('role') in ['admin','accountant'] %}
-            <a href="/incoming_invoice/{{ inv.id }}/delete"
-               class="btn btn-outline-danger btn-sm" title="حذف"
-               onclick="return confirm('هل تريد حذف الفاتورة وإعادة الترقيم؟')">
-              <i class="fas fa-trash"></i>
-            </a>
-            {% endif %}
-          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -176,318 +77,24 @@
   </div>
 </div>
 
-<!-- ══ بطاقات الفواتير المفتوحة (التعديل والإضافة والصور) ══ -->
-{% for inv in open_invoices %}
-<div class="invoice-edit-card" id="inv-{{ inv.id }}" style="display:none;">
-  <div class="iec-header">
-    <div>
-      <i class="fas fa-file-invoice me-2" style="color:#1565c0;"></i>
-      فاتورة <strong>#{{ inv.display_num }}</strong>
-      <span style="color:#888;font-size:.85rem;margin-right:8px;">{{ inv.supplier }}</span>
-    </div>
-    <button class="btn btn-sm btn-outline-secondary" onclick="toggleInvCard({{ inv.id }})">
-      <i class="fas fa-times"></i> إغلاق
-    </button>
-  </div>
-
-  <!-- تعديل الرأس (أدمن فقط) -->
-  {% if session.get('role') == 'admin' %}
-  <div class="iec-section">
-    <div class="iec-section-title"><i class="fas fa-pen me-1"></i> تعديل بيانات الفاتورة</div>
-    <form method="POST" action="/incoming_invoice/{{ inv.id }}/update">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="row g-2 mb-3">
-        <div class="col-md-4">
-          <label class="form-label">المورد</label>
-          <input class="form-control form-control-sm" name="supplier" value="{{ inv.supplier }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">تاريخ الفاتورة</label>
-          <input type="date" class="form-control form-control-sm" name="invoice_date"
-                 value="{{ inv.invoice_date or today_str }}">
-        </div>
-      </div>
-      <div class="table-responsive mb-2">
-        <table class="table table-bordered table-sm">
-          <thead style="background:#e3f2fd;font-size:.82rem;">
-            <tr><th>#</th><th>اسم الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>التاريخ</th><th>الإجمالي</th></tr>
-          </thead>
-          <tbody>
-            {% for item in inv.lines %}
-            <tr>
-              <input type="hidden" name="item_id[]" value="{{ item.id }}">
-              <td style="color:#aaa;font-size:.8rem;">{{ loop.index }}</td>
-              <td><input type="text" class="form-control form-control-sm" name="prod_name[]"
-                         value="{{ item.product_name }}" list="products-datalist"></td>
-              <td><span class="badge" style="background:#f0f4f8;color:#333;">{{ "%.2f"|format(item.quantity) }} {{ item.product_unit }}</span></td>
-              <td><input type="number" class="form-control form-control-sm edit-price"
-                         name="unit_price[]" step="0.01" value="{{ "%.2f"|format(item.unit_price) }}"></td>
-              <td><input type="date" class="form-control form-control-sm"
-                         name="prod_date[]" value="{{ item.purchase_date or today_str }}"></td>
-              <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.total_price) }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> حفظ التعديلات</button>
-    </form>
-  </div>
-  {% else %}
-  <!-- عرض أصناف الفاتورة بدون تعديل -->
-  <div class="iec-section">
-    <div class="iec-section-title"><i class="fas fa-boxes me-1"></i> أصناف الفاتورة</div>
-    <div class="table-responsive">
-      <table class="table table-sm table-bordered mb-0">
-        <thead style="background:#e3f2fd;"><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-        <tbody>
-          {% for item in inv.lines %}
-          <tr>
-            <td>{{ item.product_name }}</td>
-            <td>{{ "%.2f"|format(item.quantity) }} {{ item.product_unit }}</td>
-            <td>{{ "%.2f"|format(item.unit_price) }}</td>
-            <td class="fw-bold">{{ "%.2f"|format(item.total_price) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- إضافة أصناف جديدة -->
-  {% if session.get('role') != 'observer' %}
-  <div class="iec-section">
-    <div class="iec-section-title"><i class="fas fa-plus-circle me-1"></i> إضافة أصناف</div>
-    <form method="POST" action="/incoming_invoice/{{ inv.id }}/add_items">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="table-responsive mb-2">
-        <table class="table table-bordered table-sm m-0">
-          <thead style="background:#e3f2fd;font-size:.82rem;">
-            <tr><th style="width:28%;">الصنف</th><th style="width:12%;">الوحدة</th><th>الكمية</th><th>السعر</th><th>التاريخ</th><th>الإجمالي</th><th style="width:45px;"></th></tr>
-          </thead>
-          <tbody id="add-body-{{ inv.id }}">
-            <tr class="item-row">
-              <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="products-datalist" required></td>
-              <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]"></td>
-              <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" required></td>
-              <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" required></td>
-              <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="{{ today_str }}" required></td>
-              <td><input type="text" class="form-control form-control-sm row-total" readonly style="background:#f8f9fa;"></td>
-              <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row" disabled><i class="fas fa-times"></i></button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-primary btn-sm add-row-btn-inv" data-inv="{{ inv.id }}"><i class="fas fa-plus me-1"></i> صنف</button>
-        <div style="font-size:.85rem;font-weight:700;">المجموع: <span class="add-total-inv" data-inv="{{ inv.id }}" style="color:#1a6b3a;">0.00</span></div>
-      </div>
-      <div class="mt-2">
-        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> حفظ الأصناف</button>
-      </div>
-    </form>
-  </div>
-
-  <!-- الصور الثلاث -->
-  <div class="iec-section">
-    <div class="iec-section-title"><i class="fas fa-images me-1"></i> المرفقات والصور</div>
-    <div class="row g-3">
-
-      <!-- صورة الفاتورة -->
-      <div class="col-md-4">
-        <div class="img-upload-box">
-          <div class="img-upload-label"><i class="fas fa-file-image me-1" style="color:#1565c0;"></i> صورة الفاتورة</div>
-          {% if inv.invoice_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank">
-            <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" class="img-thumb" alt="فاتورة">
-          </a>
-          <div class="mt-1" style="font-size:.72rem;color:#1a6b3a;"><i class="fas fa-check-circle me-1"></i>تم الرفع</div>
-          {% else %}
-          <div class="img-placeholder"><i class="fas fa-cloud-upload-alt fa-2x" style="color:#ccc;"></i><div style="font-size:.74rem;color:#aaa;margin-top:4px;">لم ترفع بعد</div></div>
-          {% endif %}
-          <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/invoice" enctype="multipart/form-data" class="mt-2">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input type="file" name="img_file" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm mb-1">
-            <button type="submit" class="btn btn-outline-primary btn-sm w-100"><i class="fas fa-upload me-1"></i> {{ 'تغيير' if inv.invoice_image else 'رفع' }}</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- سند قبض التاجر -->
-      <div class="col-md-4">
-        <div class="img-upload-box {% if inv.receipt_image %}img-paid-box{% endif %}">
-          <div class="img-upload-label">
-            <i class="fas fa-receipt me-1" style="color:#1a6b3a;"></i> سند قبض التاجر
-            {% if inv.is_paid %}
-            <span class="badge ms-1" style="background:#e8f5ee;color:#1a6b3a;font-size:.65rem;">مدفوعة</span>
-            {% else %}
-            <span class="badge ms-1" style="background:#fde8e8;color:#c62828;font-size:.65rem;">غير مدفوعة</span>
-            {% endif %}
-          </div>
-          {% if inv.receipt_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" target="_blank">
-            <img src="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" class="img-thumb" alt="سند القبض">
-          </a>
-          <div class="mt-1" style="font-size:.72rem;color:#1a6b3a;"><i class="fas fa-check-circle me-1"></i>تم الرفع — الفاتورة مدفوعة</div>
-          {% else %}
-          <div class="img-placeholder"><i class="fas fa-cloud-upload-alt fa-2x" style="color:#ccc;"></i><div style="font-size:.74rem;color:#c62828;margin-top:4px;">لم يرفع — الفاتورة غير مدفوعة</div></div>
-          {% endif %}
-          <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/receipt" enctype="multipart/form-data" class="mt-2">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input type="file" name="img_file" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm mb-1">
-            <button type="submit" class="btn btn-outline-success btn-sm w-100"><i class="fas fa-upload me-1"></i> {{ 'تغيير' if inv.receipt_image else 'رفع (سيُحدّث الدفع)' }}</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- ملحق مختوم -->
-      <div class="col-md-4">
-        <div class="img-upload-box">
-          <div class="img-upload-label"><i class="fas fa-stamp me-1" style="color:#856404;"></i> ملحق المختوم بترويسة</div>
-          {% if inv.attachment_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" target="_blank">
-            <img src="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" class="img-thumb" alt="ملحق مختوم">
-          </a>
-          <div class="mt-1" style="font-size:.72rem;color:#1a6b3a;"><i class="fas fa-check-circle me-1"></i>تم الرفع</div>
-          {% else %}
-          <div class="img-placeholder"><i class="fas fa-cloud-upload-alt fa-2x" style="color:#ccc;"></i><div style="font-size:.74rem;color:#aaa;margin-top:4px;">لم يرفع بعد</div></div>
-          {% endif %}
-          <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/attachment" enctype="multipart/form-data" class="mt-2">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input type="file" name="img_file" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm mb-1">
-            <button type="submit" class="btn btn-outline-warning btn-sm w-100"><i class="fas fa-upload me-1"></i> {{ 'تغيير' if inv.attachment_image else 'رفع' }}</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- إغلاق الفاتورة -->
-  <div class="iec-footer">
-    <div style="font-weight:800;color:#1565c0;font-size:1rem;">
-      <i class="fas fa-coins me-1" style="color:#f0a500;"></i>
-      إجمالي الفاتورة: {{ "%.2f"|format(inv.total) }}
-    </div>
-    <a href="/incoming_invoice/{{ inv.id }}/close" class="btn btn-danger btn-sm"
-       onclick="return confirm('سيتم إغلاق الفاتورة نهائياً وتُحفظ في الأرشيف. متأكد؟')">
-      <i class="fas fa-lock me-1"></i> إغلاق الفاتورة
-    </a>
-  </div>
-  {% endif %}
-</div>
-{% endfor %}
-
 {% else %}
 <div class="text-center py-5" style="color:#6c7a72;">
   <i class="fas fa-file-invoice fa-3x mb-3" style="color:#d8e8de;"></i>
   <p class="fw-bold">لا توجد فواتير مشتريات حتى الآن</p>
+  {% if session.get('role') != 'observer' %}
+  <a href="{{ url_for('add_incoming_invoice') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i> إضافة أول فاتورة
+  </a>
+  {% endif %}
 </div>
 {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-<script>
-const todayStr = "{{ today_str }}";
-
-// ── تبديل إظهار بطاقة فاتورة مفتوحة ──
-function toggleInvCard(id) {
-  const card = document.getElementById('inv-' + id);
-  const row  = document.getElementById('row-inv-' + id);
-  if (!card) return;
-  const show = card.style.display === 'none';
-  card.style.display = show ? 'block' : 'none';
-  if (show) card.scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-// ── صف الفاتورة الجديدة ──
-function newRow() {
-  return `<tr class="item-row">
-    <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="products-datalist" placeholder="اسم الصنف..." required></td>
-    <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]" placeholder="كيلو..."></td>
-    <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
-    <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>
-    <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="${todayStr}" required></td>
-    <td><input type="text" class="form-control form-control-sm row-total" readonly placeholder="0.00" style="background:#f8f9fa;"></td>
-    <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row"><i class="fas fa-times"></i></button></td>
-  </tr>`;
-}
-
-function setupTable(tbodyId, addBtnId, totalId) {
-  const tbody = document.getElementById(tbodyId);
-  const addBtn = document.getElementById(addBtnId);
-  const totEl = totalId ? document.getElementById(totalId) : null;
-  if (!tbody || !addBtn) return;
-  function calcRow(row) {
-    const q = parseFloat(row.querySelector('.qty-input').value) || 0;
-    const p = parseFloat(row.querySelector('.price-input').value) || 0;
-    row.querySelector('.row-total').value = (q * p).toFixed(2);
-    if (totEl) { let t=0; tbody.querySelectorAll('.row-total').forEach(e=>t+=parseFloat(e.value)||0); totEl.textContent=t.toFixed(2); }
-  }
-  function updateBtns() { const rows=tbody.querySelectorAll('.item-row'); rows.forEach(r=>r.querySelector('.remove-row').disabled=rows.length===1); }
-  addBtn.addEventListener('click', ()=>{ tbody.insertAdjacentHTML('beforeend', newRow()); updateBtns(); });
-  tbody.addEventListener('input', e=>{ const r=e.target.closest('.item-row'); if(r) calcRow(r); });
-  tbody.addEventListener('click', e=>{ if(e.target.closest('.remove-row')){ e.target.closest('.item-row').remove(); updateBtns(); } });
-  updateBtns();
-}
-
-setupTable('new-items-body','add-row-btn','grand-total');
-
-// ── جداول إضافة أصناف للفواتير المفتوحة ──
-document.querySelectorAll('.add-row-btn-inv').forEach(btn => {
-  const id    = btn.dataset.inv;
-  const tbody = document.getElementById('add-body-'+id);
-  const totEl = document.querySelector('.add-total-inv[data-inv="'+id+'"]');
-  if (!tbody) return;
-  function updateBtns() { const rows=tbody.querySelectorAll('.item-row'); rows.forEach(r=>r.querySelector('.remove-row').disabled=rows.length===1); }
-  btn.addEventListener('click', ()=>{ tbody.insertAdjacentHTML('beforeend', newRow()); updateBtns(); });
-  tbody.addEventListener('input', e=>{
-    const r=e.target.closest('.item-row');
-    if(r){ const q=parseFloat(r.querySelector('.qty-input').value)||0; const p=parseFloat(r.querySelector('.price-input').value)||0; r.querySelector('.row-total').value=(q*p).toFixed(2); if(totEl){let t=0;tbody.querySelectorAll('.row-total').forEach(e=>t+=parseFloat(e.value)||0);totEl.textContent=t.toFixed(2);} }
-  });
-  tbody.addEventListener('click', e=>{ if(e.target.closest('.remove-row')){ e.target.closest('.item-row').remove(); updateBtns(); } });
-  updateBtns();
-});
-
-// ── زر إضافة فاتورة جديدة ──
-const toggleAddInvoice = document.getElementById('toggle-add-invoice');
-if (toggleAddInvoice) {
-  toggleAddInvoice.addEventListener('click', ()=>{
-    const card = document.getElementById('add-invoice-card');
-    const show = card.style.display === 'none';
-    card.style.display = show ? 'block' : 'none';
-    if (show) card.scrollIntoView({behavior:'smooth', block:'start'});
-  });
-}
-
-// ── فتح بطاقة من الـ anchor ──
-const hash = window.location.hash;
-if (hash && hash.startsWith('#inv-')) {
-  const id = hash.replace('#inv-','');
-  const card = document.getElementById('inv-' + id);
-  if (card) { card.style.display = 'block'; card.scrollIntoView({behavior:'smooth', block:'start'}); }
-}
-</script>
-
 <style>
+.inv-summary-row { cursor:pointer; transition:background .15s; }
+.inv-summary-row:hover { background:#e3f2fd !important; }
 .seq-num-badge { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#1565c0;color:#fff;border-radius:8px;font-weight:800;font-size:.88rem; }
-.inv-summary-row:hover { background:#f0f7ff !important; }
-.inv-open-row { border-right:4px solid #1565c0; }
-
-/* بطاقة التعديل */
-.invoice-edit-card { background:#fff;border:2px solid #90caf9;border-radius:12px;margin-bottom:20px;overflow:hidden; }
-.iec-header { background:#e3f2fd;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;font-weight:700; }
-.iec-section { padding:16px 18px;border-bottom:1px solid #e3f2fd; }
-.iec-section-title { font-weight:800;font-size:.88rem;color:#1565c0;margin-bottom:10px; }
-.iec-footer { padding:14px 18px;display:flex;justify-content:space-between;align-items:center;background:#f8fbff; }
-
-/* صناديق الصور */
-.img-upload-box { border:2px solid #d8e8de;border-radius:10px;padding:14px;text-align:center; }
-.img-paid-box { border-color:#66bb6a;background:#f9fff9; }
-.img-upload-label { font-weight:700;font-size:.82rem;margin-bottom:10px;text-align:right; }
-.img-thumb { width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #e0e0e0;cursor:pointer;transition:opacity .2s; }
-.img-thumb:hover { opacity:.85; }
-.img-placeholder { padding:20px 0;text-align:center; }
 </style>
 {% endblock %}

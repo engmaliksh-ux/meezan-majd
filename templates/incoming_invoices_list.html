@@ -2,198 +2,345 @@
 {% block title %}الفواتير المضافة – ميزان مجد{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h2 class="page-title"><i class="fas fa-archive"></i> الفواتير المضافة (المغلقة)</h2>
+<div class="page-header" id="top">
+  <h2 class="page-title"><i class="fas fa-archive"></i> الفواتير المضافة</h2>
   <div class="d-flex gap-2">
     <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
-      <i class="fas fa-print me-1"></i> طباعة الكشف
+      <i class="fas fa-print me-1"></i> طباعة
     </button>
+    <a href="{{ url_for('add_incoming_invoice') }}" class="btn btn-primary btn-sm no-print"
+       {% if session.get('role') == 'observer' %}style="display:none"{% endif %}>
+      <i class="fas fa-plus me-1"></i> فاتورة جديدة
+    </a>
     <a href="{{ url_for('incoming_invoice') }}" class="btn btn-secondary btn-sm no-print">
-      <i class="fas fa-arrow-right me-1"></i> العودة للمشتريات
+      <i class="fas fa-list me-1"></i> الكشف المختصر
     </a>
   </div>
 </div>
 
 {% if invoices %}
-<!-- ملخص إجمالي -->
-<div class="table-wrapper mb-3 no-print">
-  <div class="inventory-total-box">
-    <i class="fas fa-coins me-2" style="color:#f0a500;"></i>
-    إجمالي الفواتير المضافة:
-    <span class="inventory-total-value">{{ "%.2f"|format(total_all) }}</span>
-    &nbsp;|&nbsp; عدد الفواتير: <strong>{{ invoices|length }}</strong>
+<!-- إجمالي + فلتر -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">
+  <div class="d-flex gap-2">
+    <button class="filter-tab-inv active" data-filter="all">
+      <i class="fas fa-list me-1"></i> الكل
+      <span class="tab-badge">{{ invoices|length }}</span>
+    </button>
+    <button class="filter-tab-inv" data-filter="open">
+      <i class="fas fa-lock-open me-1"></i> المفتوحة
+      <span class="tab-badge" id="cnt-open">
+        {%- set oc = namespace(n=0) -%}
+        {%- for inv in invoices if not inv.is_closed -%}{%- set oc.n = oc.n + 1 -%}{%- endfor -%}
+        {{ oc.n }}
+      </span>
+    </button>
+    <button class="filter-tab-inv" data-filter="closed">
+      <i class="fas fa-lock me-1"></i> المغلقة
+      <span class="tab-badge" id="cnt-closed">
+        {%- set cc = namespace(n=0) -%}
+        {%- for inv in invoices if inv.is_closed -%}{%- set cc.n = cc.n + 1 -%}{%- endfor -%}
+        {{ cc.n }}
+      </span>
+    </button>
+  </div>
+  <div style="font-weight:800;color:#1a6b3a;">
+    <i class="fas fa-coins me-1" style="color:#f0a500;"></i>
+    الإجمالي الكلي: <span id="visible-total">{{ "%.2f"|format(total_all) }}</span>
   </div>
 </div>
 
-<!-- فهرس سريع -->
-<div class="quick-index mb-4 no-print">
-  <div class="qi-title"><i class="fas fa-list-ol me-1"></i> انتقال سريع:</div>
-  <div class="qi-links">
-    {% for inv in invoices %}
-    <a href="#inv-{{ inv.id }}" class="qi-link">
-      <span class="qi-num">#{{ inv.display_num }}</span>
-      <span class="qi-name">{{ inv.supplier }}</span>
-    </a>
-    {% endfor %}
-  </div>
-</div>
-
+<!-- قائمة الفواتير -->
+<div id="invoices-container">
 {% for inv in invoices %}
-<div class="card mb-4 invoice-card" id="inv-{{ inv.id }}">
+<div class="invoice-card-full mb-3" id="inv-{{ inv.id }}"
+     data-status="{{ 'closed' if inv.is_closed else 'open' }}">
+
   <!-- رأس الفاتورة -->
-  <div class="card-header d-flex justify-content-between align-items-center"
-       style="background:#e3f2fd;border-bottom:2px solid #90caf9;">
+  <div class="icf-header {% if inv.is_closed %}icf-closed{% else %}icf-open{% endif %}">
     <div class="d-flex align-items-center gap-3">
-      <div class="inv-num-circle">{{ inv.display_num }}</div>
+      <div class="inv-circle {% if inv.is_closed %}inv-circle-closed{% endif %}">{{ inv.display_num }}</div>
       <div>
-        <div class="fw-bold" style="font-size:1rem;color:#1565c0;">{{ inv.supplier }}</div>
-        <div style="font-size:.8rem;color:#888;">
-          <i class="fas fa-calendar me-1"></i>{{ inv.invoice_date or (inv.created_at[:10] if inv.created_at else '—') }}
-          &nbsp;|&nbsp;
-          <i class="fas fa-user me-1"></i>{{ inv.created_by or '—' }}
+        <div class="fw-bold" style="font-size:.98rem;">{{ inv.supplier }}</div>
+        <div style="font-size:.78rem;color:#888;">
+          <i class="fas fa-calendar me-1"></i>
+          {{ inv.invoice_date or (inv.created_at[:10] if inv.created_at else '—') }}
         </div>
       </div>
     </div>
-    <div class="d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center gap-2">
       <!-- حالة الدفع -->
       {% if inv.is_paid %}
-        <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.82rem;padding:6px 10px;">
+        <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.78rem;padding:5px 9px;">
           <i class="fas fa-check-circle me-1"></i>مدفوعة
         </span>
       {% else %}
-        <span class="badge" style="background:#fde8e8;color:#c62828;font-size:.82rem;padding:6px 10px;">
+        <span class="badge" style="background:#fde8e8;color:#c62828;font-size:.78rem;padding:5px 9px;">
           <i class="fas fa-clock me-1"></i>غير مدفوعة
         </span>
       {% endif %}
-      <span class="fw-bold" style="color:#1a6b3a;font-size:1.05rem;">{{ "%.2f"|format(inv.total) }}</span>
-      <button class="btn btn-outline-secondary btn-sm no-print"
-              onclick="printSingleInvoice('inv-body-{{ inv.id }}', '{{ inv.supplier }}', '{{ inv.display_num }}')">
-        <i class="fas fa-print"></i>
-      </button>
+      <!-- حالة الإغلاق -->
+      {% if inv.is_closed %}
+        <span class="badge" style="background:#f0f0f0;color:#6c7a72;font-size:.78rem;padding:5px 9px;">
+          <i class="fas fa-lock me-1"></i>مغلقة
+        </span>
+      {% else %}
+        <span class="badge" style="background:#e3f2fd;color:#1565c0;font-size:.78rem;padding:5px 9px;">
+          <i class="fas fa-lock-open me-1"></i>مفتوحة
+        </span>
+      {% endif %}
+      <span class="fw-bold" style="color:#1a6b3a;font-size:1rem;">{{ "%.2f"|format(inv.total) }}</span>
+      <!-- أزرار الإجراءات -->
+      <div class="no-print d-flex gap-1">
+        <button class="btn btn-outline-secondary btn-sm"
+                onclick="printSingleInv('icf-body-{{ inv.id }}', '{{ inv.supplier }}', '{{ inv.display_num }}')"
+                title="طباعة">
+          <i class="fas fa-print"></i>
+        </button>
+        {% if not inv.is_closed and session.get('role') != 'observer' %}
+        <a href="/incoming_invoice/{{ inv.id }}/close" class="btn btn-outline-warning btn-sm"
+           onclick="return confirm('سيتم إغلاق الفاتورة نهائياً. متأكد؟')" title="إغلاق">
+          <i class="fas fa-lock"></i>
+        </a>
+        {% endif %}
+        {% if session.get('role') in ['admin','accountant'] %}
+        <a href="/incoming_invoice/{{ inv.id }}/delete" class="btn btn-outline-danger btn-sm"
+           onclick="return confirm('هل تريد حذف الفاتورة وإعادة الترقيم؟')" title="حذف">
+          <i class="fas fa-trash"></i>
+        </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 
-  <div class="card-body" id="inv-body-{{ inv.id }}">
-    <!-- جدول الأصناف -->
-    <div class="table-responsive mb-3">
-      <table class="table table-sm table-bordered mb-0">
-        <thead style="background:#e3f2fd;font-size:.82rem;">
-          <tr>
-            <th style="width:36px;">#</th>
-            <th>اسم الصنف</th>
-            <th>الوحدة</th>
-            <th>الكمية</th>
-            <th>سعر الوحدة</th>
-            <th>تاريخ الشراء</th>
-            <th>الإجمالي</th>
-          </tr>
-        </thead>
-        <tbody>
+  <!-- جسم الفاتورة -->
+  <div class="icf-body" id="icf-body-{{ inv.id }}">
+
+    <!-- تعديل رأس الفاتورة (أدمن + مفتوحة فقط) -->
+    {% if not inv.is_closed and session.get('role') == 'admin' %}
+    <div class="icf-section no-print">
+      <div class="icf-section-title"><i class="fas fa-pen me-1"></i> تعديل بيانات الفاتورة</div>
+      <form method="POST" action="/incoming_invoice/{{ inv.id }}/update">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-2 mb-2">
+          <div class="col-md-5">
+            <label class="form-label">المورد</label>
+            <input class="form-control form-control-sm" name="supplier" value="{{ inv.supplier }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">تاريخ الفاتورة</label>
+            <input type="date" class="form-control form-control-sm" name="invoice_date"
+                   value="{{ inv.invoice_date or today_str }}">
+          </div>
+        </div>
+        <div class="table-responsive mb-2">
+          <table class="table table-sm table-bordered mb-0">
+            <thead style="background:#e3f2fd;font-size:.8rem;">
+              <tr><th>#</th><th>اسم الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>التاريخ</th><th>الإجمالي</th></tr>
+            </thead>
+            <tbody>
+              {% for item in inv.lines %}
+              <tr>
+                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                <td style="color:#aaa;font-size:.75rem;">{{ loop.index }}</td>
+                <td><input type="text" class="form-control form-control-sm" name="prod_name[]"
+                           value="{{ item.product_name }}" list="products-datalist-{{ inv.id }}"></td>
+                <td><span style="font-size:.8rem;color:#555;">{{ "%.2f"|format(item.quantity) }} {{ item.product_unit }}</span></td>
+                <td><input type="number" class="form-control form-control-sm" name="unit_price[]"
+                           step="0.01" value="{{ "%.2f"|format(item.unit_price) }}"></td>
+                <td><input type="date" class="form-control form-control-sm" name="prod_date[]"
+                           value="{{ item.purchase_date or today_str }}"></td>
+                <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.total_price) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <datalist id="products-datalist-{{ inv.id }}">
           {% for item in inv.lines %}
-          <tr>
-            <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
-            <td class="fw-bold">{{ item.product_name }}</td>
-            <td style="color:#6c7a72;">{{ item.product_unit or '—' }}</td>
-            <td><span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ "%.2f"|format(item.quantity) }}</span></td>
-            <td>{{ "%.2f"|format(item.unit_price) }}</td>
-            <td style="color:#6c7a72;white-space:nowrap;">{{ item.purchase_date or '—' }}</td>
-            <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.total_price) }}</td>
-          </tr>
+          <option value="{{ item.product_name }}">
           {% endfor %}
-        </tbody>
-        <tfoot style="background:#f5f5f5;">
-          <tr>
-            <td colspan="6" class="text-end fw-bold" style="color:#1565c0;">إجمالي الفاتورة</td>
-            <td class="fw-bold" style="color:#1a6b3a;font-size:1rem;">{{ "%.2f"|format(inv.total) }}</td>
-          </tr>
-        </tfoot>
-      </table>
+        </datalist>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> حفظ التعديلات</button>
+      </form>
+    </div>
+    {% else %}
+    <!-- عرض الأصناف بدون تعديل -->
+    <div class="icf-section">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0">
+          <thead style="background:{% if inv.is_closed %}#f5f5f5{% else %}#e3f2fd{% endif %};font-size:.8rem;">
+            <tr><th>#</th><th>اسم الصنف</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>تاريخ الشراء</th><th>الإجمالي</th></tr>
+          </thead>
+          <tbody>
+            {% for item in inv.lines %}
+            <tr>
+              <td style="color:#aaa;font-size:.75rem;">{{ loop.index }}</td>
+              <td class="fw-bold">{{ item.product_name }}</td>
+              <td style="color:#6c7a72;">{{ item.product_unit or '—' }}</td>
+              <td>{{ "%.2f"|format(item.quantity) }}</td>
+              <td>{{ "%.2f"|format(item.unit_price) }}</td>
+              <td style="color:#6c7a72;white-space:nowrap;">{{ item.purchase_date or '—' }}</td>
+              <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.total_price) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot style="background:#f8f8f8;">
+            <tr>
+              <td colspan="6" class="text-end fw-bold" style="color:#1565c0;font-size:.85rem;">الإجمالي</td>
+              <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(inv.total) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- إضافة أصناف (مفتوحة فقط) -->
+    {% if not inv.is_closed and session.get('role') != 'observer' %}
+    <div class="icf-section no-print">
+      <div class="icf-section-title"><i class="fas fa-plus-circle me-1"></i> إضافة أصناف</div>
+      <form method="POST" action="/incoming_invoice/{{ inv.id }}/add_items">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="table-responsive mb-2">
+          <table class="table table-bordered table-sm m-0">
+            <thead style="background:#e3f2fd;font-size:.8rem;">
+              <tr><th style="width:26%;">الصنف</th><th style="width:10%;">الوحدة</th><th>الكمية</th><th>السعر</th><th>التاريخ</th><th>الإجمالي</th><th style="width:38px;"></th></tr>
+            </thead>
+            <tbody class="add-body" data-inv="{{ inv.id }}">
+              <tr class="item-row">
+                <td><input type="text" class="form-control form-control-sm" name="product_name[]" required></td>
+                <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]"></td>
+                <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" required></td>
+                <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" required></td>
+                <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="{{ today_str }}" required></td>
+                <td><input type="text" class="form-control form-control-sm row-total" readonly style="background:#f8f9fa;"></td>
+                <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row" disabled><i class="fas fa-times"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-primary btn-sm add-row-btn" data-inv="{{ inv.id }}"><i class="fas fa-plus me-1"></i> صنف</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> حفظ الأصناف</button>
+        </div>
+      </form>
     </div>
 
     <!-- الصور الثلاث -->
-    <div class="row g-3 mb-2">
-
-      <!-- صورة الفاتورة -->
-      <div class="col-md-4">
-        <div class="img-card">
-          <div class="img-card-title">
-            <i class="fas fa-file-image me-1" style="color:#1565c0;"></i> صورة الفاتورة
-          </div>
-          {% if inv.invoice_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank" class="img-link">
-            <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}"
-                 class="inv-img" alt="صورة الفاتورة">
-            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
-          </a>
-          {% else %}
-          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div>لا توجد صورة</div></div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- سند قبض التاجر -->
-      <div class="col-md-4">
-        <div class="img-card {% if inv.receipt_image %}img-card-paid{% endif %}">
-          <div class="img-card-title">
-            <i class="fas fa-receipt me-1" style="color:#1a6b3a;"></i> سند قبض التاجر
-            {% if inv.is_paid %}
-              <span class="badge ms-1" style="background:#e8f5ee;color:#1a6b3a;font-size:.62rem;">مدفوعة</span>
+    <div class="icf-section no-print">
+      <div class="icf-section-title"><i class="fas fa-images me-1"></i> المرفقات</div>
+      <div class="row g-3">
+        <!-- صورة الفاتورة -->
+        <div class="col-md-4">
+          <div class="img-upload-box">
+            <div class="img-upload-label"><i class="fas fa-file-image me-1" style="color:#1565c0;"></i> صورة الفاتورة</div>
+            {% if inv.invoice_image %}
+            <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank">
+              <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" class="img-thumb">
+            </a>
             {% else %}
-              <span class="badge ms-1" style="background:#fde8e8;color:#c62828;font-size:.62rem;">غير مدفوعة</span>
+            <div class="img-placeholder-sm"><i class="fas fa-cloud-upload-alt" style="color:#ccc;"></i> لم ترفع</div>
             {% endif %}
+            <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/invoice" enctype="multipart/form-data" class="mt-2">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="file" name="img_file" accept="image/*" class="form-control form-control-sm mb-1">
+              <button type="submit" class="btn btn-outline-primary btn-sm w-100"><i class="fas fa-upload me-1"></i>{{ 'تغيير' if inv.invoice_image else 'رفع' }}</button>
+            </form>
           </div>
-          {% if inv.receipt_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" target="_blank" class="img-link">
-            <img src="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}"
-                 class="inv-img" alt="سند القبض">
-            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
-          </a>
-          {% else %}
-          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div style="color:#c62828;font-size:.75rem;">لم يرفع — غير مدفوعة</div></div>
-          {% endif %}
+        </div>
+        <!-- سند قبض التاجر -->
+        <div class="col-md-4">
+          <div class="img-upload-box {% if inv.receipt_image %}img-paid-box{% endif %}">
+            <div class="img-upload-label">
+              <i class="fas fa-receipt me-1" style="color:#1a6b3a;"></i> سند قبض التاجر
+              <span class="badge ms-1" style="{% if inv.is_paid %}background:#e8f5ee;color:#1a6b3a;{% else %}background:#fde8e8;color:#c62828;{% endif %}font-size:.6rem;">
+                {{ 'مدفوعة' if inv.is_paid else 'غير مدفوعة' }}
+              </span>
+            </div>
+            {% if inv.receipt_image %}
+            <a href="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" target="_blank">
+              <img src="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" class="img-thumb">
+            </a>
+            {% else %}
+            <div class="img-placeholder-sm" style="color:#c62828;"><i class="fas fa-cloud-upload-alt" style="color:#ccc;"></i> لم يرفع</div>
+            {% endif %}
+            <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/receipt" enctype="multipart/form-data" class="mt-2">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="file" name="img_file" accept="image/*" class="form-control form-control-sm mb-1">
+              <button type="submit" class="btn btn-outline-success btn-sm w-100"><i class="fas fa-upload me-1"></i>{{ 'تغيير' if inv.receipt_image else 'رفع (يُحدّث الدفع)' }}</button>
+            </form>
+          </div>
+        </div>
+        <!-- ملحق مختوم -->
+        <div class="col-md-4">
+          <div class="img-upload-box">
+            <div class="img-upload-label"><i class="fas fa-stamp me-1" style="color:#856404;"></i> ملحق المختوم</div>
+            {% if inv.attachment_image %}
+            <a href="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" target="_blank">
+              <img src="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" class="img-thumb">
+            </a>
+            {% else %}
+            <div class="img-placeholder-sm"><i class="fas fa-cloud-upload-alt" style="color:#ccc;"></i> لم يرفع</div>
+            {% endif %}
+            <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload/attachment" enctype="multipart/form-data" class="mt-2">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="file" name="img_file" accept="image/*" class="form-control form-control-sm mb-1">
+              <button type="submit" class="btn btn-outline-warning btn-sm w-100"><i class="fas fa-upload me-1"></i>{{ 'تغيير' if inv.attachment_image else 'رفع' }}</button>
+            </form>
+          </div>
         </div>
       </div>
-
-      <!-- ملحق مختوم -->
-      <div class="col-md-4">
-        <div class="img-card">
-          <div class="img-card-title">
-            <i class="fas fa-stamp me-1" style="color:#856404;"></i> ملحق المختوم بترويسة
-          </div>
-          {% if inv.attachment_image %}
-          <a href="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" target="_blank" class="img-link">
-            <img src="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}"
-                 class="inv-img" alt="ملحق مختوم">
-            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
-          </a>
-          {% else %}
-          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div>لا توجد صورة</div></div>
-          {% endif %}
-        </div>
-      </div>
-
-    </div><!-- /row -->
-
-    <!-- شريط تذييل الفاتورة -->
-    <div class="inv-footer-bar">
-      <div>
-        <i class="fas fa-lock me-1" style="color:#6c7a72;"></i>
-        <span style="color:#6c7a72;font-size:.82rem;">فاتورة مغلقة — {{ inv.created_at or '' }}</span>
-      </div>
-      <a href="#top" class="btn btn-outline-secondary btn-sm no-print">
-        <i class="fas fa-arrow-up me-1"></i> للأعلى
-      </a>
     </div>
-  </div><!-- /card-body -->
-</div><!-- /card -->
+    {% else %}
+    <!-- عرض الصور للمغلقة (للقراءة فقط) -->
+    {% if inv.invoice_image or inv.receipt_image or inv.attachment_image %}
+    <div class="icf-section">
+      <div class="row g-2">
+        {% if inv.invoice_image %}
+        <div class="col-md-4">
+          <div class="img-ro-label"><i class="fas fa-file-image me-1" style="color:#1565c0;"></i> صورة الفاتورة</div>
+          <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank">
+            <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" class="img-thumb-sm">
+          </a>
+        </div>
+        {% endif %}
+        {% if inv.receipt_image %}
+        <div class="col-md-4">
+          <div class="img-ro-label"><i class="fas fa-receipt me-1" style="color:#1a6b3a;"></i> سند القبض</div>
+          <a href="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" target="_blank">
+            <img src="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" class="img-thumb-sm">
+          </a>
+        </div>
+        {% endif %}
+        {% if inv.attachment_image %}
+        <div class="col-md-4">
+          <div class="img-ro-label"><i class="fas fa-stamp me-1" style="color:#856404;"></i> ملحق مختوم</div>
+          <a href="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" target="_blank">
+            <img src="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" class="img-thumb-sm">
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- تذييل -->
+    <div class="icf-footer">
+      <span style="color:#aaa;font-size:.78rem;"><i class="fas fa-clock me-1"></i>{{ inv.created_at or '' }}</span>
+      <a href="#top" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-arrow-up me-1"></i>للأعلى</a>
+    </div>
+  </div><!-- /icf-body -->
+</div><!-- /invoice-card-full -->
 {% endfor %}
+</div><!-- /invoices-container -->
 
 {% else %}
 <div class="text-center py-5" style="color:#6c7a72;">
   <i class="fas fa-archive fa-3x mb-3" style="color:#d8e8de;"></i>
-  <p class="fw-bold">لا توجد فواتير مغلقة حتى الآن</p>
-  <a href="{{ url_for('incoming_invoice') }}" class="btn btn-primary btn-sm">
-    <i class="fas fa-arrow-right me-1"></i> العودة للمشتريات
+  <p class="fw-bold">لا توجد فواتير بعد</p>
+  <a href="{{ url_for('add_incoming_invoice') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i> إضافة فاتورة
   </a>
 </div>
 {% endif %}
@@ -202,66 +349,116 @@
 
 {% block scripts %}
 <script>
-function printSingleInvoice(bodyId, supplier, num) {
+const todayStr = "{{ today_str }}";
+
+// ── فلتر تبويبات ──
+const allCards = document.querySelectorAll('.invoice-card-full');
+const totalEl  = document.getElementById('visible-total');
+
+document.querySelectorAll('.filter-tab-inv').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab-inv').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    let tot = 0;
+    allCards.forEach(card => {
+      const show = f === 'all' || card.dataset.status === f;
+      card.style.display = show ? 'block' : 'none';
+      if (show && card.dataset.total) tot += parseFloat(card.dataset.total) || 0;
+    });
+    if (totalEl) totalEl.textContent = tot.toFixed(2);
+  });
+});
+
+// تخزين إجمالي كل فاتورة على الـ card
+allCards.forEach(card => {
+  const totalSpan = card.querySelector('.fw-bold[style*="color:#1a6b3a"][style*="font-size:1rem"]');
+  // بديل بسيط: نضع data-total من خلال Jinja — لكن بما أننا في JS نعتمد على tfoot
+  const tfoot = card.querySelector('tfoot td:last-child');
+  if (tfoot) card.dataset.total = tfoot.textContent.trim() || '0';
+});
+
+// ── جداول إضافة أصناف ──
+function newRow() {
+  return `<tr class="item-row">
+    <td><input type="text" class="form-control form-control-sm" name="product_name[]" required></td>
+    <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]"></td>
+    <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" required></td>
+    <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" required></td>
+    <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="${todayStr}" required></td>
+    <td><input type="text" class="form-control form-control-sm row-total" readonly style="background:#f8f9fa;"></td>
+    <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row"><i class="fas fa-times"></i></button></td>
+  </tr>`;
+}
+
+document.querySelectorAll('.add-row-btn').forEach(btn => {
+  const id    = btn.dataset.inv;
+  const tbody = document.querySelector('.add-body[data-inv="'+id+'"]');
+  if (!tbody) return;
+  function upd() { const rows=tbody.querySelectorAll('.item-row'); rows.forEach(r=>r.querySelector('.remove-row').disabled=rows.length===1); }
+  btn.addEventListener('click', ()=>{ tbody.insertAdjacentHTML('beforeend', newRow()); upd(); });
+  tbody.addEventListener('input', e=>{ const r=e.target.closest('.item-row'); if(r){ const q=parseFloat(r.querySelector('.qty-input').value)||0; const p=parseFloat(r.querySelector('.price-input').value)||0; r.querySelector('.row-total').value=(q*p||'').toFixed?((q*p).toFixed(2)):''; } });
+  tbody.addEventListener('click', e=>{ if(e.target.closest('.remove-row')){ e.target.closest('.item-row').remove(); upd(); } });
+  upd();
+});
+
+// ── انتقال anchor ──
+const hash = window.location.hash;
+if (hash && hash.startsWith('#inv-')) {
+  const el = document.getElementById(hash.replace('#',''));
+  if (el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}), 200);
+}
+
+// ── طباعة فاتورة واحدة ──
+function printSingleInv(bodyId, supplier, num) {
   const body = document.getElementById(bodyId);
   if (!body) return;
   const w = window.open('', '_blank', 'width=900,height=650');
-  w.document.write(`
-    <html dir="rtl"><head><meta charset="utf-8">
-    <title>فاتورة #${num} — ${supplier}</title>
-    <style>
-      body{font-family:Arial,sans-serif;padding:20px;direction:rtl;}
-      table{width:100%;border-collapse:collapse;}
-      th,td{border:1px solid #ccc;padding:6px 10px;text-align:right;font-size:13px;}
-      th{background:#e3f2fd;}
-      .fw-bold{font-weight:700;}
-      .text-end{text-align:left;}
-      img{max-width:200px;max-height:140px;border:1px solid #eee;border-radius:6px;margin:4px;}
-      h2{color:#1565c0;}
-      .meta{color:#888;font-size:12px;margin-bottom:10px;}
-      @media print{button{display:none;}}
-    </style></head><body>
-    <h2>فاتورة مشتريات #${num}</h2>
-    <div class="meta">المورد: <strong>${supplier}</strong></div>
-    ${body.innerHTML}
-    <script>setTimeout(()=>{ window.print(); },300);<\/script>
-    </body></html>
-  `);
+  w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>فاتورة #${num}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;direction:rtl;}
+  table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;font-size:13px;}
+  th{background:#e3f2fd;}.no-print{display:none;}h2{color:#1565c0;}</style></head>
+  <body><h2>فاتورة مشتريات #${num} — ${supplier}</h2>${body.innerHTML}
+  <script>setTimeout(()=>window.print(),300);<\/script></body></html>`);
   w.document.close();
 }
 </script>
 
 <style>
-/* فهرس سريع */
-.quick-index { background:#f8fbff;border:1px solid #90caf9;border-radius:10px;padding:12px 16px; }
-.qi-title { font-weight:800;font-size:.82rem;color:#1565c0;margin-bottom:8px; }
-.qi-links { display:flex;flex-wrap:wrap;gap:8px; }
-.qi-link { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#fff;border:1px solid #90caf9;border-radius:16px;font-size:.78rem;text-decoration:none;color:#1565c0;transition:all .2s; }
-.qi-link:hover { background:#e3f2fd;border-color:#1565c0;color:#0d47a1; }
-.qi-num { font-weight:800; }
-.qi-name { color:#444; }
+/* تبويبات الفلتر */
+.filter-tab-inv { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:2px solid #d0d0d0;border-radius:20px;background:#fff;font-size:.82rem;font-weight:700;cursor:pointer;color:#6c7a72;transition:all .2s; }
+.filter-tab-inv:hover { border-color:#1565c0;color:#1565c0; }
+.filter-tab-inv.active { border-color:#1565c0;background:#e3f2fd;color:#1565c0; }
+.tab-badge { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;background:rgba(0,0,0,.08);border-radius:10px;font-size:.72rem;padding:0 5px; }
+.filter-tab-inv.active .tab-badge { background:rgba(21,101,192,.15); }
 
-/* رقم الفاتورة الدائري */
-.inv-num-circle { display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:#1565c0;color:#fff;border-radius:50%;font-weight:900;font-size:1rem;flex-shrink:0; }
+/* بطاقة الفاتورة الكاملة */
+.invoice-card-full { border-radius:12px;overflow:hidden;border:2px solid #d0d0d0; }
+.icf-header { display:flex;justify-content:space-between;align-items:center;padding:12px 16px; }
+.icf-open { background:#e3f2fd;border-bottom:2px solid #90caf9; }
+.icf-closed { background:#f5f5f5;border-bottom:2px solid #d0d0d0; }
+.icf-body { background:#fff; }
+.icf-section { padding:14px 16px;border-bottom:1px solid #f0f0f0; }
+.icf-section-title { font-weight:800;font-size:.84rem;color:#1565c0;margin-bottom:10px; }
+.icf-footer { padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:#fafafa; }
 
-/* بطاقات الصور */
-.img-card { border:2px solid #d8e8de;border-radius:10px;overflow:hidden; }
-.img-card-paid { border-color:#66bb6a; }
-.img-card-title { padding:8px 12px;font-weight:700;font-size:.8rem;border-bottom:1px solid #e0e0e0;background:#f8f8f8; }
-.img-link { display:block;position:relative;overflow:hidden;background:#fafafa; }
-.inv-img { width:100%;max-height:160px;object-fit:contain;display:block;padding:8px; }
-.img-overlay { position:absolute;inset:0;background:rgba(0,0,0,.35);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;opacity:0;transition:opacity .2s; }
-.img-link:hover .img-overlay { opacity:1; }
-.img-placeholder-card { padding:30px;text-align:center;color:#aaa;font-size:.78rem;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fafafa; }
+/* دائرة رقم الفاتورة */
+.inv-circle { display:flex;align-items:center;justify-content:center;width:38px;height:38px;background:#1565c0;color:#fff;border-radius:50%;font-weight:900;font-size:.95rem;flex-shrink:0; }
+.inv-circle-closed { background:#9e9e9e; }
 
-/* تذييل الفاتورة */
-.inv-footer-bar { margin-top:8px;padding:8px 4px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e3f2fd; }
+/* الصور */
+.img-upload-box { border:2px solid #d8e8de;border-radius:10px;padding:12px;text-align:center; }
+.img-paid-box { border-color:#66bb6a;background:#f9fff9; }
+.img-upload-label { font-weight:700;font-size:.78rem;margin-bottom:8px;text-align:right; }
+.img-thumb { width:100%;max-height:110px;object-fit:contain;border-radius:6px;border:1px solid #e0e0e0; }
+.img-thumb-sm { width:100%;max-height:90px;object-fit:contain;border-radius:6px;border:1px solid #e0e0e0; }
+.img-placeholder-sm { padding:16px;color:#aaa;font-size:.75rem; }
+.img-ro-label { font-size:.75rem;font-weight:700;color:#6c7a72;margin-bottom:4px; }
 
-/* طباعة */
 @media print {
   .no-print { display:none !important; }
-  .card { break-inside:avoid;margin-bottom:20px;border:1px solid #ccc; }
-  .quick-index { display:none; }
+  .invoice-card-full { break-inside:avoid;margin-bottom:16px; }
+  .filter-tab-inv { display:none; }
 }
 </style>
 {% endblock %}

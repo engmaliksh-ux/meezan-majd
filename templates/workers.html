@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}العاملين – ميزان مجد{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-hard-hat"></i> العاملين</h2>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
+      <i class="fas fa-print me-1"></i> طباعة
+    </button>
+    {% if session.get('role') != 'observer' %}
+    <button class="btn btn-primary" onclick="document.getElementById('add-worker-card').style.display='block'">
+      <i class="fas fa-plus me-1"></i> إضافة عامل
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- فورم الإضافة -->
+{% if session.get('role') != 'observer' %}
+<div class="card mb-4 no-print" id="add-worker-card" style="display:none;max-width:700px;">
+  <div class="card-header" style="background:#e8f5ee;border-bottom:2px solid #a5d6a7;">
+    <i class="fas fa-user-plus" style="color:#1a6b3a;"></i>
+    <strong style="color:#1a6b3a;margin-right:8px;">إضافة عامل جديد</strong>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('add_worker') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">اسم العامل <span class="text-danger">*</span></label>
+          <input class="form-control" name="full_name" placeholder="الاسم الكامل" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">رقم الهوية</label>
+          <input class="form-control" name="id_number" placeholder="رقم الهوية الوطنية" inputmode="numeric" maxlength="9">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <label class="form-label fw-bold">اسم المشروع</label>
+          <input class="form-control" name="project_name" list="projects-list" placeholder="اختر أو اكتب اسم المشروع">
+          <datalist id="projects-list">
+            {% for p in programs %}
+            <option value="{{ p }}">
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">طبيعة العمل</label>
+          <select class="form-select" name="job_type">
+            <option value="">-- اختر --</option>
+            <option value="منسق">منسق</option>
+            <option value="مصور">مصور</option>
+            <option value="عامل">عامل</option>
+            <option value="سائق">سائق</option>
+            <option value="مشرف">مشرف</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">المكافأة الشهرية</label>
+          <input type="number" class="form-control" name="monthly_salary" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">ملاحظات</label>
+        <input class="form-control" name="notes" placeholder="ملاحظات إضافية (اختياري)">
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> حفظ</button>
+        <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('add-worker-card').style.display='none'">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- جدول العاملين -->
+{% if workers %}
+<div class="table-wrapper">
+  <div class="table-header">
+    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i> قائمة العاملين</h5>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ workers|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead style="background:#e8f5ee;">
+        <tr>
+          <th>#</th>
+          <th>اسم العامل</th>
+          <th>رقم الهوية</th>
+          <th>المشروع</th>
+          <th>طبيعة العمل</th>
+          <th>المكافأة الشهرية</th>
+          <th>ملاحظات</th>
+          {% if session.get('role') in ['admin','accountant'] %}
+          <th class="no-print">حذف</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in workers %}
+        <tr>
+          <td style="color:#aaa;font-size:.8rem;">{{ loop.index }}</td>
+          <td class="fw-bold">{{ w.full_name }}</td>
+          <td style="font-family:monospace;font-size:.82rem;">{{ w.id_number or '—' }}</td>
+          <td>
+            {% if w.project_name %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ w.project_name }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if w.job_type %}
+              <span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ w.job_type }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="fw-bold" style="color:#1a6b3a;">
+            {% if w.monthly_salary %}{{ "%.2f"|format(w.monthly_salary) }}{% else %}—{% endif %}
+          </td>
+          <td style="font-size:.82rem;color:#6c7a72;">{{ w.notes or '—' }}</td>
+          {% if session.get('role') in ['admin','accountant'] %}
+          <td class="no-print">
+            <a href="{{ url_for('delete_worker', id=w.id) }}" class="btn btn-outline-danger btn-sm"
+               onclick="return confirm('تأكيد حذف العامل؟')">
+              <i class="fas fa-trash"></i>
+            </a>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if workers %}
+      <tfoot style="background:#f8f8f8;">
+        <tr>
+          <td colspan="4" class="text-end fw-bold" style="color:#1565c0;">إجمالي المكافآت الشهرية</td>
+          <td class="fw-bold" style="color:#1a6b3a;">
+            {{ "%.2f"|format(workers | sum(attribute='monthly_salary')) }}
+          </td>
+          <td colspan="2"></td>
+          {% if session.get('role') in ['admin','accountant'] %}<td></td>{% endif %}
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#6c7a72;">
+  <i class="fas fa-hard-hat fa-3x mb-3" style="color:#d8e8de;"></i>
+  <p class="fw-bold">لا يوجد عاملون مضافون حتى الآن</p>
+  {% if session.get('role') != 'observer' %}
+  <button class="btn btn-primary btn-sm"
+          onclick="document.getElementById('add-worker-card').style.display='block';this.closest('.text-center').scrollIntoView()">
+    <i class="fas fa-plus me-1"></i> إضافة أول عامل
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+@media print { .no-print { display:none !important; } }
+</style>
+{% endblock %}

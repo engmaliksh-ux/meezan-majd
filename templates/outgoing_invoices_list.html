@@ -33,25 +33,32 @@
       <strong style="color:#c62828;">{{ t.col_invoice_num }} #{{ inv.invoice_number }}</strong>
       <span class="ms-3 text-muted" style="font-size:.85rem;">{{ inv.invoice_date }}</span>
     </div>
-    <div class="d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center gap-2">
+      {% if inv.is_closed %}
+        <span class="badge" style="background:#f0f0f0;color:#6c7a72;font-size:.76rem;"><i class="fas fa-lock me-1"></i>مغلقة</span>
+      {% else %}
+        <span class="badge" style="background:#e3f2fd;color:#1565c0;font-size:.76rem;"><i class="fas fa-lock-open me-1"></i>مفتوحة</span>
+      {% endif %}
       <span class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(inv.total) }}</span>
       <button class="btn btn-outline-secondary btn-sm no-print"
               onclick="printInvoice('inv-{{ inv.id }}')">
         <i class="fas fa-print"></i>
       </button>
+      {% if not inv.is_closed and session.get('role') in ['admin','accountant'] %}
+      <a href="/outgoing_invoice/{{ inv.id }}/close" class="btn btn-outline-warning btn-sm no-print"
+         onclick="return confirm('سيتم إغلاق الفاتورة نهائياً. متأكد؟')" title="إغلاق">
+        <i class="fas fa-lock"></i>
+      </a>
+      {% endif %}
     </div>
   </div>
   <div class="card-body" id="inv-{{ inv.id }}">
     <div class="row mb-2" style="font-size:.88rem;color:#6c7a72;">
-      <div class="col-md-4">
+      <div class="col-md-6">
         <i class="fas fa-user me-1"></i>
         <strong>{{ t.col_beneficiary_entity }}:</strong> {{ inv.beneficiary or '—' }}
       </div>
-      <div class="col-md-4">
-        <i class="fas fa-user-edit me-1"></i>
-        <strong>{{ t.created_by_label }}:</strong> {{ inv.created_by or '—' }}
-      </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         <i class="fas fa-clock me-1"></i>
         <strong>{{ t.save_time_label }}:</strong> {{ inv.created_at or '—' }}
       </div>

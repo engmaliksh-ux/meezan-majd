@@ -3,9 +3,34 @@
 {% block content %}
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-users"></i> {{ t.page_beneficiaries }}</h2>
-  {% if session.get('role') != 'observer' %}
-  <a href="/add_beneficiary" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i> {{ t.add_beneficiary_btn }}</a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm no-print" onclick="openPrintDialog()">
+      <i class="fas fa-print me-1"></i> طباعة كشف
+    </button>
+    {% if session.get('role') != 'observer' %}
+    <a href="/add_beneficiary" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i> {{ t.add_beneficiary_btn }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- modal طباعة -->
+<div id="print-dialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="font-size:1.1rem;font-weight:800;color:#1a6b3a;margin-bottom:6px;"><i class="fas fa-print me-2"></i> خيارات الطباعة</div>
+    <div style="color:#6c7a72;font-size:.85rem;margin-bottom:20px;">اختر نوع الكشف الذي تريد طباعته</div>
+    <div class="d-flex flex-column gap-3">
+      <button class="btn btn-primary w-100" onclick="doPrint('all')">
+        <i class="fas fa-users me-2"></i> طباعة الكشف كامل — كل المستفيدين
+      </button>
+      <button class="btn btn-warning w-100" onclick="doPrint('camp')">
+        <i class="fas fa-tents me-2"></i> طباعة إدارة المخيمات
+      </button>
+      <button class="btn btn-info w-100" style="color:#fff;" onclick="doPrint('person')">
+        <i class="fas fa-users me-2"></i> طباعة النازحين (أشخاص وأسر)
+      </button>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm mt-4" onclick="closePrintDialog()">إلغاء</button>
+  </div>
 </div>
 
 <!-- إحصاء الأيتام -->
@@ -172,5 +197,58 @@ document.querySelectorAll('.filter-tab').forEach(btn => {
     document.getElementById('count-badge').textContent = visible;
   });
 });
+
+// ── طباعة المستفيدين ──
+function openPrintDialog() {
+  const d = document.getElementById('print-dialog');
+  d.style.display = 'flex';
+}
+function closePrintDialog() {
+  document.getElementById('print-dialog').style.display = 'none';
+}
+document.getElementById('print-dialog').addEventListener('click', function(e) {
+  if (e.target === this) closePrintDialog();
+});
+
+function doPrint(filter) {
+  closePrintDialog();
+  const rows = document.querySelectorAll('#beneficiaries-tbody tr');
+  const titles = { all: 'كشف كامل المستفيدين', camp: 'إدارة المخيمات', person: 'كشف النازحين (أشخاص وأسر)' };
+
+  // جمع الصفوف المطلوبة
+  let tableRows = '';
+  rows.forEach(row => {
+    const type = row.dataset.type || 'person';
+    if (filter === 'all' || type === filter) {
+      tableRows += row.outerHTML;
+    }
+  });
+
+  // رأس الجدول
+  const thead = document.querySelector('#beneficiaries-tbody').closest('table').querySelector('thead');
+
+  const w = window.open('', '_blank', 'width=1100,height=750');
+  w.document.write(`
+    <html dir="rtl"><head><meta charset="utf-8"><title>${titles[filter]}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:16px;direction:rtl;font-size:12px;}
+      h2{color:#1a6b3a;margin-bottom:4px;}
+      .sub{color:#888;font-size:11px;margin-bottom:14px;}
+      table{width:100%;border-collapse:collapse;}
+      th,td{border:1px solid #ccc;padding:5px 8px;text-align:right;}
+      th{background:#e8f5ee;font-weight:bold;}
+      .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;}
+      tr:nth-child(even){background:#f9f9f9;}
+      .no-print,.btn{display:none;}
+      @media print{button{display:none;}}
+    </style></head><body>
+    <h2>${titles[filter]}</h2>
+    <div class="sub">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}</div>
+    <table>${thead.outerHTML}<tbody>${tableRows}</tbody></table>
+    <script>setTimeout(()=>window.print(),400);<\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
 </script>
 {% endblock %}

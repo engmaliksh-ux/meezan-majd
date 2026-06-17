@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}إضافة فاتورة مشتريات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-file-invoice"></i> إضافة فاتورة مشتريات جديدة</h2>
+  <a href="{{ url_for('incoming_invoice') }}" class="btn btn-secondary btn-sm">
+    <i class="fas fa-arrow-right me-1"></i> العودة للكشف
+  </a>
+</div>
+
+<div class="card" style="max-width:900px;">
+  <div class="card-header" style="background:#e3f2fd;border-bottom:2px solid #90caf9;">
+    <i class="fas fa-file-invoice" style="color:#1565c0;"></i>
+    <strong style="color:#1565c0;">بيانات الفاتورة</strong>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('add_incoming_invoice') }}" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-5">
+          <label class="form-label fw-bold">المورد <span class="text-danger">*</span></label>
+          <input class="form-control" name="supplier" placeholder="اسم المورد أو الشركة" required autofocus>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">تاريخ الفاتورة <span class="text-danger">*</span></label>
+          <input type="date" class="form-control" name="invoice_date" value="{{ today_str }}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">صورة الفاتورة <span style="color:#aaa;font-size:.74rem;">(اختياري)</span></label>
+          <input type="file" class="form-control" name="invoice_image" accept="image/png,image/jpeg,image/webp">
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered m-0">
+          <thead style="background:#e3f2fd;">
+            <tr>
+              <th style="width:28%;">اسم الصنف <span class="text-danger">*</span></th>
+              <th style="width:10%;">الوحدة</th>
+              <th style="width:10%;">الكمية <span class="text-danger">*</span></th>
+              <th style="width:12%;">سعر الوحدة <span class="text-danger">*</span></th>
+              <th style="width:14%;">تاريخ الشراء <span class="text-danger">*</span></th>
+              <th style="width:12%;">الإجمالي</th>
+              <th style="width:44px;"></th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            <tr class="item-row">
+              <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="products-datalist" placeholder="اسم الصنف..." required></td>
+              <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]" placeholder="كيلو..."></td>
+              <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
+              <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>
+              <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="{{ today_str }}" required></td>
+              <td><input type="text" class="form-control form-control-sm row-total" readonly style="background:#f8f9fa;font-weight:700;color:#1a6b3a;" placeholder="0.00"></td>
+              <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row" disabled><i class="fas fa-times"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <datalist id="products-datalist">
+        {% for p in existing_products %}
+        <option value="{{ p.name }}">{{ p.unit }}</option>
+        {% endfor %}
+      </datalist>
+
+      <div class="d-flex justify-content-between align-items-center mt-3 mb-4">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="add-row-btn">
+          <i class="fas fa-plus me-1"></i> إضافة صنف
+        </button>
+        <div style="font-weight:800;font-size:1rem;">
+          الإجمالي الكلي:
+          <span id="grand-total" style="color:#1a6b3a;margin-right:8px;font-size:1.1rem;">0.00</span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i> حفظ الفاتورة
+        </button>
+        <a href="{{ url_for('incoming_invoice') }}" class="btn btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const todayStr = "{{ today_str }}";
+
+function newRow() {
+  return `<tr class="item-row">
+    <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="products-datalist" placeholder="اسم الصنف..." required></td>
+    <td><input type="text" class="form-control form-control-sm unit-input" name="product_unit[]" placeholder="كيلو..."></td>
+    <td><input type="number" class="form-control form-control-sm qty-input" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
+    <td><input type="number" class="form-control form-control-sm price-input" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>
+    <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="${todayStr}" required></td>
+    <td><input type="text" class="form-control form-control-sm row-total" readonly style="background:#f8f9fa;font-weight:700;color:#1a6b3a;" placeholder="0.00"></td>
+    <td class="text-center"><button type="button" class="btn btn-danger btn-sm remove-row"><i class="fas fa-times"></i></button></td>
+  </tr>`;
+}
+
+const tbody   = document.getElementById('items-body');
+const addBtn  = document.getElementById('add-row-btn');
+const grandEl = document.getElementById('grand-total');
+
+function calcAll() {
+  let t = 0;
+  tbody.querySelectorAll('.item-row').forEach(row => {
+    const q = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const p = parseFloat(row.querySelector('.price-input').value) || 0;
+    const tot = q * p;
+    row.querySelector('.row-total').value = tot ? tot.toFixed(2) : '';
+    t += tot;
+  });
+  grandEl.textContent = t.toFixed(2);
+}
+
+function updateBtns() {
+  const rows = tbody.querySelectorAll('.item-row');
+  rows.forEach(r => r.querySelector('.remove-row').disabled = rows.length === 1);
+}
+
+addBtn.addEventListener('click', () => { tbody.insertAdjacentHTML('beforeend', newRow()); updateBtns(); });
+tbody.addEventListener('input', e => { if (e.target.closest('.item-row')) calcAll(); });
+tbody.addEventListener('click', e => {
+  if (e.target.closest('.remove-row')) {
+    e.target.closest('.item-row').remove();
+    updateBtns();
+    calcAll();
+  }
+});
+updateBtns();
+</script>
+{% endblock %}

@@ -1217,16 +1217,18 @@ def delete_beneficiary(id):
 # ══════════════════════════════════════════
 # المشتريات (فواتير الإدخال)
 # ══════════════════════════════════════════
-@app.route("/incoming_invoice", methods=["GET", "POST"])
-@invoices_view_required
-def incoming_invoice():
+
+@app.route("/add_incoming_invoice", methods=["GET", "POST"])
+@invoices_required
+def add_incoming_invoice():
+    """صفحة إضافة فاتورة مشتريات جديدة"""
+    if session.get("role") == "observer":
+        flash("مراقب عام: لا تملك صلاحية الإضافة", "danger")
+        return redirect(url_for("incoming_invoice"))
+
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
-
-    if request.method == "POST" and session.get("role") == "observer":
-        flash("مراقب عام: لا تملك صلاحية الإضافة أو التعديل", "danger")
-        return redirect(url_for("incoming_invoice"))
 
     if request.method == "POST":
         supplier        = request.form.get("supplier", "").strip()
@@ -1248,7 +1250,6 @@ def incoming_invoice():
         elif not valid_items:
             flash("يرجى إضافة صنف واحد على الأقل ببيانات كاملة", "danger")
         else:
-            # ترقيم تلقائي
             c.execute("SELECT COALESCE(MAX(seq_num),0) FROM incoming_invoices WHERE org_id=?", (org_id,))
             next_seq = c.fetchone()[0] + 1
 
@@ -1270,7 +1271,6 @@ def incoming_invoice():
             for pname, punit, qty, price, pdate in valid_items:
                 try:
                     qty_f, price_f = float(qty), float(price)
-                    # البحث عن الصنف أو إنشائه
                     c.execute("SELECT id FROM products WHERE org_id=? AND LOWER(name)=LOWER(?)", (org_id, pname))
                     row = c.fetchone()
                     if row:
@@ -1282,7 +1282,6 @@ def incoming_invoice():
                         c.execute("INSERT INTO products (org_id, name, unit, last_modified) VALUES (?,?,?,?)",
                                   (org_id, pname, unit, pdate))
                         pid = c.lastrowid
-
                     c.execute(
                         "INSERT INTO incoming_invoice_items (invoice_id, product_id, quantity, unit_price, total_price, purchase_date) VALUES (?,?,?,?,?,?)",
                         (invoice_id, pid, qty_f, price_f, qty_f * price_f, pdate)
@@ -1298,52 +1297,46 @@ def incoming_invoice():
             conn.commit()
             conn.close()
             flash("✅ تم حفظ فاتورة المشتريات", "success")
-            return redirect(url_for("incoming_invoice"))
+            return redirect(url_for("incoming_invoices_list"))
 
-    # --- جلب الأصناف لـ autocomplete ---
     c.execute("SELECT name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
     existing_products = [dict(r) for r in c.fetchall()]
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    conn.close()
+    return render_template("add_incoming_invoice.html",
+                           existing_products=existing_products, today_str=today_str)
 
-    # --- الكشف المختصر: كل الفواتير (مفتوحة ومغلقة) ---
+
+@app.route("/incoming_invoice", methods=["GET"])
+@invoices_view_required
+def incoming_invoice():
+    """كشف مختصر بكل الفواتير — hover ينقل لصفحة التفاصيل"""
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
     c.execute("""
         SELECT id, seq_num, invoice_number, invoice_date, supplier,
-               is_closed, is_paid, grand_total, invoice_image, receipt_image, attachment_image, created_at
+               is_closed, is_paid, grand_total, created_at
         FROM incoming_invoices WHERE org_id=? ORDER BY COALESCE(seq_num,id) ASC
     """, (org_id,))
     all_inv_rows = c.fetchall()
 
-    # --- الفواتير المفتوحة مع تفاصيلها لعرضها في الصفحة ---
     summary = []
-    open_invoices = []
     total_purchases = 0.0
-
     for inv in all_inv_rows:
         inv_d = dict(inv)
-        c.execute("""
-            SELECT ii.id, ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
-                   p.name AS product_name, p.unit AS product_unit, p.id AS product_id
-            FROM incoming_invoice_items ii
-            JOIN products p ON p.id = ii.product_id
-            WHERE ii.invoice_id=? ORDER BY ii.id
-        """, (inv["id"],))
-        items = [dict(r) for r in c.fetchall()]
-        inv_total = sum(it["total_price"] for it in items)
-        inv_d["lines"] = items
+        c.execute("SELECT COALESCE(SUM(total_price),0) FROM incoming_invoice_items WHERE invoice_id=?", (inv["id"],))
+        inv_total = c.fetchone()[0]
         inv_d["total"] = inv_total
         inv_d["display_num"] = inv_d.get("seq_num") or inv_d.get("invoice_number") or inv_d["id"]
         total_purchases += inv_total
         summary.append(inv_d)
-        if not inv_d["is_closed"]:
-            open_invoices.append(inv_d)
 
     conn.close()
-    today_str = datetime.now().strftime("%Y-%m-%d")
     return render_template("incoming_invoices.html",
-        existing_products=existing_products,
         summary=summary,
-        open_invoices=open_invoices,
-        total_purchases=total_purchases,
-        today_str=today_str)
+        total_purchases=total_purchases)
 
 
 @app.route("/incoming_invoice/<int:id>/add_items", methods=["POST"])
@@ -1610,16 +1603,16 @@ def update_invoice(id):
 @app.route("/incoming_invoices_list")
 @invoices_view_required
 def incoming_invoices_list():
-    """صفحة عرض الفواتير المضافة (المغلقة) مع كامل تفاصيلها"""
+    """صفحة الفواتير المضافة — كل الفواتير (مفتوحة ومغلقة) مع فلتر"""
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
 
     c.execute("""
         SELECT id, seq_num, invoice_number, invoice_date, supplier,
-               is_paid, grand_total, invoice_image, receipt_image, attachment_image, created_at, created_by
+               is_closed, is_paid, invoice_image, receipt_image, attachment_image, created_at
         FROM incoming_invoices
-        WHERE org_id=? AND is_closed=1
+        WHERE org_id=?
         ORDER BY COALESCE(seq_num,id) ASC
     """, (org_id,))
     inv_rows = c.fetchall()
@@ -1629,8 +1622,8 @@ def incoming_invoices_list():
     for inv in inv_rows:
         inv_d = dict(inv)
         c.execute("""
-            SELECT ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
-                   p.name AS product_name, p.unit AS product_unit
+            SELECT ii.id, ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
+                   p.name AS product_name, p.unit AS product_unit, p.id AS product_id
             FROM incoming_invoice_items ii
             JOIN products p ON p.id = ii.product_id
             WHERE ii.invoice_id=? ORDER BY ii.id
@@ -1643,8 +1636,10 @@ def incoming_invoices_list():
         total_all += inv_total
         invoices.append(inv_d)
 
+    today_str = datetime.now().strftime("%Y-%m-%d")
     conn.close()
-    return render_template("incoming_invoices_list.html", invoices=invoices, total_all=total_all)
+    return render_template("incoming_invoices_list.html",
+                           invoices=invoices, total_all=total_all, today_str=today_str)
 
 
 # ══════════════════════════════════════════
@@ -1982,7 +1977,8 @@ def outgoing_invoices_list():
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
-        SELECT id, invoice_number, invoice_date, beneficiary, notes, created_by, created_at
+        SELECT id, invoice_number, invoice_date, beneficiary, notes, created_at,
+               COALESCE(is_closed,0) AS is_closed
         FROM outgoing_invoices WHERE org_id=? ORDER BY id DESC
     """, (org_id,))
     invoices_rows = c.fetchall()
@@ -2009,6 +2005,83 @@ def outgoing_invoices_list():
     conn.close()
     return render_template("outgoing_invoices_list.html",
                            invoices=invoices, total_all=total_all)
+
+
+# ══════════════════════════════════════════
+# العاملين
+# ══════════════════════════════════════════
+@app.route("/workers")
+@login_required
+def workers_list():
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM workers WHERE org_id=? ORDER BY id DESC", (org_id,))
+    workers = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT name FROM programs WHERE org_id=? AND is_active=1 ORDER BY name", (org_id,))
+    programs = [r["name"] for r in c.fetchall()]
+    conn.close()
+    return render_template("workers.html", workers=workers, programs=programs)
+
+
+@app.route("/add_worker", methods=["POST"])
+@login_required
+def add_worker():
+    if session.get("role") == "observer":
+        flash("مراقب: لا تملك صلاحية الإضافة", "danger")
+        return redirect(url_for("workers_list"))
+    org_id = session["org_id"]
+    full_name      = request.form.get("full_name", "").strip()
+    id_number      = request.form.get("id_number", "").strip()
+    project_name   = request.form.get("project_name", "").strip()
+    job_type       = request.form.get("job_type", "").strip()
+    monthly_salary = request.form.get("monthly_salary", "0").strip()
+    notes          = request.form.get("notes", "").strip()
+    if not full_name:
+        flash("يرجى إدخال اسم العامل", "danger")
+        return redirect(url_for("workers_list"))
+    try:
+        salary = float(monthly_salary)
+    except ValueError:
+        salary = 0.0
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO workers (org_id, full_name, id_number, project_name, job_type, monthly_salary, notes) VALUES (?,?,?,?,?,?,?)",
+        (org_id, full_name, id_number, project_name, job_type, salary, notes)
+    )
+    conn.commit()
+    conn.close()
+    flash("✅ تم إضافة العامل", "success")
+    return redirect(url_for("workers_list"))
+
+
+@app.route("/delete_worker/<int:id>")
+@login_required
+def delete_worker(id):
+    if session.get("role") not in ["admin", "accountant"]:
+        flash("ليس لديك صلاحية الحذف", "danger")
+        return redirect(url_for("workers_list"))
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM workers WHERE id=? AND org_id=?", (id, session["org_id"]))
+    conn.commit()
+    conn.close()
+    flash("تم حذف العامل", "warning")
+    return redirect(url_for("workers_list"))
+
+
+@app.route("/outgoing_invoice/<int:id>/close")
+@invoices_required
+def close_outgoing_invoice(id):
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE outgoing_invoices SET is_closed=1 WHERE id=? AND org_id=?", (id, org_id))
+    conn.commit()
+    conn.close()
+    flash("✅ تم إغلاق فاتورة الصرف", "success")
+    return redirect(url_for("outgoing_invoices_list"))
 
 
 if __name__ == "__main__":

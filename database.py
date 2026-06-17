@@ -266,11 +266,57 @@ def migrate_db():
         ("incoming_invoices",     "receipt_image",    "TEXT"),
         ("incoming_invoices",     "attachment_image", "TEXT"),
         ("incoming_invoices",     "is_paid",          "INTEGER DEFAULT 0"),
+        ("outgoing_invoices",     "is_closed",        "INTEGER NOT NULL DEFAULT 0"),
+        ("workers",               "project_name",     "TEXT"),
     ]
+
+    # إنشاء جدول العاملين إن لم يكن موجوداً
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS workers (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id         INTEGER NOT NULL DEFAULT 1,
+        full_name      TEXT    NOT NULL,
+        id_number      TEXT,
+        project_name   TEXT,
+        job_type       TEXT,
+        monthly_salary REAL    DEFAULT 0,
+        notes          TEXT,
+        created_at     TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
     for table, col, defn in migrations:
         try:
             c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
         except Exception:
             pass
     conn.commit()
+
+    # ترقيم تسلسلي للفواتير القديمة التي لم يُعيَّن لها seq_num
+    fix_invoice_seq_nums(conn)
+
     conn.close()
+
+
+def fix_invoice_seq_nums(conn):
+    """يُرقّم الفواتير الموجودة التي seq_num فيها NULL بترتيب id تصاعدي لكل org"""
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT org_id FROM incoming_invoices")
+    orgs = [r[0] for r in c.fetchall()]
+    for org_id in orgs:
+        c.execute("""
+            SELECT id FROM incoming_invoices
+            WHERE org_id=? AND (seq_num IS NULL OR seq_num = 0)
+            ORDER BY id ASC
+        """, (org_id,))
+        rows = c.fetchall()
+        if not rows:
+            continue
+        c.execute("SELECT COALESCE(MAX(seq_num),0) FROM incoming_invoices WHERE org_id=? AND seq_num > 0", (org_id,))
+        base = c.fetchone()[0]
+        for i, row in enumerate(rows, start=base + 1):
+            c.execute(
+                "UPDATE incoming_invoices SET seq_num=?, invoice_number=? WHERE id=?",
+                (i, str(i), row[0])
+            )
+    conn.commit()
