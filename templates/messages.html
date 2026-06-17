@@ -19,15 +19,16 @@
   <div class="chat-messages" id="chat-messages">
     {% for msg in msgs %}
     {% set is_mine = (msg.sender_id == session.get('user_id')) %}
-    <div class="chat-msg msg-{{ msg.sender_role }} {% if is_mine %}msg-mine{% endif %}"
+    <div class="chat-msg msg-{{ msg.sender_role }}{% if is_mine %} msg-mine{% endif %}"
          data-id="{{ msg.id }}" data-sender="{{ msg.sender_id }}">
+
       <div class="msg-meta">
         <span class="msg-role">
-          {% if msg.sender_role=='admin' %}
-            {% if lang=='en' %}Admin{% elif lang=='tr' %}Yönetici{% else %}أدمن{% endif %}
-          {% else %}
-            {% if lang=='en' %}Observer{% elif lang=='tr' %}Gözlemci{% else %}مراقب{% endif %}
-          {% endif %}
+          {%- if msg.sender_role=='admin' -%}
+            {%- if lang=='en' %}Admin{% elif lang=='tr' %}Yönetici{% else %}أدمن{% endif -%}
+          {%- else -%}
+            {%- if lang=='en' %}Observer{% elif lang=='tr' %}Gözlemci{% else %}مراقب{% endif -%}
+          {%- endif -%}
         </span>
         <span class="msg-time">{{ msg.created_at[-5:] }}</span>
         {% if msg.edited %}<span class="msg-edited">· {% if lang=='en' %}edited{% elif lang=='tr' %}düzenlendi{% else %}معدّل{% endif %}</span>{% endif %}
@@ -52,35 +53,17 @@
           {% endif %}
         </div>
 
-        <!-- أزرار الرسالة -->
         <div class="msg-actions">
-          <!-- زر الترجمة -->
-          <button class="msg-action-btn translate-btn" onclick="translateMsg({{ msg.id }})"
-                  title="{% if lang=='en' %}Translate{% elif lang=='tr' %}Çevir{% else %}ترجمة{% endif %}">
-            🌐
-          </button>
-          {% if is_mine %}
-          <button class="msg-action-btn" onclick="startEdit({{ msg.id }})"
-                  title="{% if lang=='en' %}Edit{% elif lang=='tr' %}Düzenle{% else %}تعديل{% endif %}">
-            <i class="fas fa-pen"></i>
-          </button>
-          {% endif %}
-          {% if is_mine or session.get('role') == 'admin' %}
-          <button class="msg-action-btn msg-del-btn" onclick="deleteMsg({{ msg.id }})"
-                  title="{% if lang=='en' %}Delete{% elif lang=='tr' %}Sil{% else %}حذف{% endif %}">
-            <i class="fas fa-trash"></i>
-          </button>
-          {% endif %}
+          <button class="msg-action-btn translate-btn" onclick="manualTranslate({{ msg.id }})" title="{% if lang=='en' %}Translate{% elif lang=='tr' %}Çevir{% else %}ترجمة{% endif %}">🌐</button>
+          {% if is_mine %}<button class="msg-action-btn" onclick="startEdit({{ msg.id }})"><i class="fas fa-pen"></i></button>{% endif %}
+          {% if is_mine or session.get('role')=='admin' %}<button class="msg-action-btn msg-del-btn" onclick="deleteMsg({{ msg.id }})"><i class="fas fa-trash"></i></button>{% endif %}
         </div>
       </div>
 
-      <!-- نص الترجمة (مخفي مبدئياً) -->
-      <div class="msg-translation" id="tr-{{ msg.id }}" style="display:none;"></div>
     </div>
     {% endfor %}
   </div>
 
-  <!-- شريط الكتابة -->
   <div class="chat-input-bar">
     <div id="attach-preview" style="display:none;" class="attach-preview">
       <i class="fas fa-paperclip"></i>
@@ -88,7 +71,7 @@
       <button onclick="clearAttach()" class="attach-clear"><i class="fas fa-times"></i></button>
     </div>
     <div class="input-row">
-      <label class="attach-btn" title="{% if lang=='en' %}Attach{% elif lang=='tr' %}Ekle{% else %}إرفاق{% endif %}">
+      <label class="attach-btn">
         <i class="fas fa-paperclip"></i>
         <input type="file" id="attach-input" style="display:none;"
                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar"
@@ -104,7 +87,6 @@
   </div>
 </div>
 
-<!-- modal تكبير الصورة -->
 <div id="img-modal" onclick="this.style.display='none'"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;cursor:zoom-out;align-items:center;justify-content:center;">
   <img id="img-modal-src" style="max-width:90vw;max-height:90vh;border-radius:8px;">
@@ -113,34 +95,129 @@
 
 {% block scripts %}
 <script>
-const myId      = {{ session.get('user_id', 0) }};
-const myRole    = "{{ session.get('role','') }}";
-const myName    = "{{ (session.get('full_name') or session.get('user',''))|e }}";
-const csrfToken = "{{ csrf_token() }}";
-const lang      = "{{ lang }}";
-const targetLang= lang === 'ar' ? 'ar' : lang === 'tr' ? 'tr' : 'en';
-let lastMsgId   = {{ (msgs[-1].id if msgs else 0) }};
+const myId       = {{ session.get('user_id', 0) }};
+const myRole     = "{{ session.get('role','') }}";
+const myName     = "{{ (session.get('full_name') or session.get('user',''))|e }}";
+const csrfToken  = "{{ csrf_token() }}";
+const lang       = "{{ lang }}";
+const targetLang = lang === 'tr' ? 'tr' : lang === 'en' ? 'en' : 'ar';
+let lastMsgId    = {{ (msgs[-1].id if msgs else 0) }};
 let pendingAttach = null;
 
 const chatBox = document.getElementById('chat-messages');
 chatBox.scrollTop = chatBox.scrollHeight;
 
-function esc(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+/* ── utils ── */
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function roleLbl(r){ return r==='admin'?(lang==='en'?'Admin':lang==='tr'?'Yönetici':'أدمن'):(lang==='en'?'Observer':lang==='tr'?'Gözlemci':'مراقب'); }
+function detectLang(t){
+  if(/[؀-ۿ؀-ۿ]/.test(t)) return 'ar';
+  if(/[çğışöüÇĞİŞÖÜ]/.test(t))      return 'tr';
+  return 'en';
 }
 
-function roleLabel(role) {
-  if (role === 'admin')    return lang==='en'?'Admin':lang==='tr'?'Yönetici':'أدمن';
-  return lang==='en'?'Observer':lang==='tr'?'Gözlemci':'مراقب';
+/* ── ترجمة تلقائية ── */
+const trCache = {};
+const trQueue = [];
+let trRunning = false;
+
+function scheduleTranslate(id, text){
+  if(!text || trCache[id]) return;
+  const src = detectLang(text);
+  if(src === targetLang) return;   // نفس اللغة لا حاجة
+  trQueue.push({id, text, src});
+  if(!trRunning) runTrQueue();
 }
 
-// ── بناء محتوى الفقاعة ──
-function bubbleContent(content, attachment) {
+async function runTrQueue(){
+  trRunning = true;
+  while(trQueue.length){
+    const {id, text, src} = trQueue.shift();
+    await doTranslate(id, text, src, targetLang);
+    await new Promise(r => setTimeout(r, 400)); // rate-limit
+  }
+  trRunning = false;
+}
+
+async function doTranslate(id, text, src, dst){
+  try {
+    const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${dst}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const out  = (data?.responseData?.translatedText || '').trim();
+    if(!out || out === text) return;
+    trCache[id] = {original: text, translated: out};
+    applyTranslation(id, out, text);
+  } catch(e){}
+}
+
+function applyTranslation(id, translated, original){
+  const bubble = document.getElementById('bubble-' + id);
+  if(!bubble) return;
+  const textEl = bubble.querySelector('.msg-text');
+  if(!textEl) return;
+  textEl.dataset.original   = original;
+  textEl.dataset.translated = translated;
+  textEl.dataset.showing    = 'translated';
+  textEl.innerHTML = esc(translated) +
+    ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Original':'النص الأصلي'}">🌐</span>`;
+}
+
+function toggleTr(id){
+  const bubble = document.getElementById('bubble-' + id);
+  if(!bubble) return;
+  const textEl = bubble.querySelector('.msg-text');
+  if(!textEl) return;
+  if(textEl.dataset.showing === 'translated'){
+    textEl.innerHTML = esc(textEl.dataset.original) +
+      ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Show translation':'عرض الترجمة'}">↩🌐</span>`;
+    textEl.dataset.showing = 'original';
+  } else {
+    textEl.innerHTML = esc(textEl.dataset.translated) +
+      ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Original':'النص الأصلي'}">🌐</span>`;
+    textEl.dataset.showing = 'translated';
+  }
+}
+
+/* زر الترجمة اليدوية */
+async function manualTranslate(id){
+  const bubble = document.getElementById('bubble-' + id);
+  if(!bubble) return;
+  const textEl = bubble.querySelector('.msg-text');
+  if(!textEl) return;
+  // toggle إذا مترجمة مسبقاً
+  if(textEl.dataset.translated){ toggleTr(id); return; }
+  const text = textEl.innerText.trim();
+  if(!text) return;
+  const src = detectLang(text);
+  const dst = src === targetLang ? (targetLang==='ar'?'en':'ar') : targetLang;
+  textEl.innerHTML = `<span style="opacity:.5">⏳</span>`;
+  await doTranslate(id, text, src, dst);
+  if(!textEl.dataset.translated) textEl.innerHTML = esc(text); // فشل الترجمة
+}
+
+/* ترجمة الرسائل عند تحميل الصفحة (من غير المستخدم الحالي) */
+function autoTranslateExisting(){
+  document.querySelectorAll('.chat-msg:not(.msg-mine)').forEach(el => {
+    const id     = el.dataset.id;
+    const bubble = document.getElementById('bubble-' + id);
+    if(!bubble) return;
+    const textEl = bubble.querySelector('.msg-text');
+    if(textEl && textEl.innerText.trim()){
+      scheduleTranslate(id, textEl.innerText.trim());
+    }
+  });
+}
+// بعد ثانية من التحميل لا نبطئ الصفحة
+setTimeout(autoTranslateExisting, 1000);
+
+/* ── بناء فقاعة ── */
+function bubbleContent(content, attachment){
   let h = '';
-  if (content) h += `<span class="msg-text">${esc(content).replace(/\n/g,'<br>')}</span>`;
-  if (attachment) {
+  if(content) h += `<span class="msg-text">${esc(content)}</span>`;
+  if(attachment){
     const ext = attachment.split('.').pop().toLowerCase();
-    if (['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) {
+    if(['jpg','jpeg','png','gif','webp','bmp'].includes(ext)){
       h += `<div class="msg-img-wrap"><img src="/static/chat_uploads/${attachment}" class="msg-img" onclick="openImg(this.src)" alt=""></div>`;
     } else {
       h += `<a href="/static/chat_uploads/${attachment}" class="msg-file-link" download target="_blank"><i class="fas fa-paperclip me-1"></i>${esc(attachment)}</a>`;
@@ -149,377 +226,238 @@ function bubbleContent(content, attachment) {
   return h;
 }
 
-// ── بناء عنصر رسالة ──
-function buildMsg(id, senderId, name, role, content, attachment, time, edited) {
+/* ── بناء عنصر رسالة ── */
+function buildMsg(id, senderId, name, role, content, attachment, time, edited){
   const isMine  = senderId === myId;
   const canAct  = isMine || myRole === 'admin';
-  const editedBadge = edited ? `<span class="msg-edited">· ${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'}</span>` : '';
-  const translateBtn = `<button class="msg-action-btn translate-btn" onclick="translateMsg(${id})" title="${lang==='en'?'Translate':'ترجمة'}">🌐</button>`;
-  const editBtn  = isMine ? `<button class="msg-action-btn" onclick="startEdit(${id})"><i class="fas fa-pen"></i></button>` : '';
-  const delBtn   = canAct ? `<button class="msg-action-btn msg-del-btn" onclick="deleteMsg(${id})"><i class="fas fa-trash"></i></button>` : '';
-
+  const eB = edited ? `<span class="msg-edited">· ${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'}</span>` : '';
+  const editBtn = isMine ? `<button class="msg-action-btn" onclick="startEdit(${id})"><i class="fas fa-pen"></i></button>` : '';
+  const delBtn  = canAct ? `<button class="msg-action-btn msg-del-btn" onclick="deleteMsg(${id})"><i class="fas fa-trash"></i></button>` : '';
   const div = document.createElement('div');
-  div.className = `chat-msg msg-${role}${isMine ? ' msg-mine' : ''}`;
-  div.dataset.id = id;
-  div.dataset.sender = senderId;
+  div.className = `chat-msg msg-${role}${isMine?' msg-mine':''}`;
+  div.dataset.id = id; div.dataset.sender = senderId;
   div.innerHTML = `
     <div class="msg-meta">
-      <span class="msg-role">${roleLabel(role)}</span>
-      <span class="msg-time">${time}</span>${editedBadge}
+      <span class="msg-role">${roleLbl(role)}</span>
+      <span class="msg-time">${time}</span>${eB}
     </div>
     <div class="msg-bubble-wrap">
-      <div class="msg-bubble" id="bubble-${id}">${bubbleContent(content, attachment)}</div>
-      <div class="msg-actions">${translateBtn}${editBtn}${delBtn}</div>
-    </div>
-    <div class="msg-translation" id="tr-${id}" style="display:none;"></div>`;
+      <div class="msg-bubble" id="bubble-${id}">${bubbleContent(content,attachment)}</div>
+      <div class="msg-actions">
+        <button class="msg-action-btn translate-btn" onclick="manualTranslate(${id})">🌐</button>
+        ${editBtn}${delBtn}
+      </div>
+    </div>`;
   return div;
 }
 
-// ══ إرسال ══
-async function sendMsg() {
+/* ── إرسال ── */
+async function sendMsg(){
   const input   = document.getElementById('msg-input');
   const content = input.value.trim();
-  if (!content && !pendingAttach) return;
+  if(!content && !pendingAttach) return;
   document.getElementById('send-btn').disabled = true;
   try {
-    const res = await fetch('/messages/send', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-      body: JSON.stringify({content, attachment: pendingAttach?.filename || null})
+    const res = await fetch('/messages/send',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body: JSON.stringify({content, attachment: pendingAttach?.filename||null})
     });
     const d = await res.json();
-    if (d.ok) {
-      chatBox.appendChild(buildMsg(d.id, myId, myName, myRole, content, d.attachment, d.time, false));
+    if(d.ok){
+      const el = buildMsg(d.id, myId, myName, myRole, content, d.attachment, d.time, false);
+      chatBox.appendChild(el);
       chatBox.scrollTop = chatBox.scrollHeight;
       lastMsgId = d.id;
       input.value = ''; input.style.height = 'auto';
       clearAttach();
     }
-  } catch(e) { console.error(e); }
-  finally { document.getElementById('send-btn').disabled = false; input.focus(); }
+  } catch(e){ console.error(e); }
+  finally{ document.getElementById('send-btn').disabled = false; input.focus(); }
 }
 
-// ══ رفع مرفق ══
-async function handleAttach(inp) {
-  const file = inp.files[0];
-  if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
+/* ── رفع ملف ── */
+async function handleAttach(inp){
+  const file = inp.files[0]; if(!file) return;
+  const fd = new FormData(); fd.append('file',file);
   try {
-    const res = await fetch('/messages/upload', {
-      method: 'POST', headers: {'X-CSRF-Token':csrfToken}, body: fd
-    });
-    const d = await res.json();
-    if (d.ok) {
-      pendingAttach = {filename: d.filename, original: d.original};
+    const res = await fetch('/messages/upload',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:fd});
+    const d   = await res.json();
+    if(d.ok){
+      pendingAttach = {filename:d.filename, original:d.original};
       document.getElementById('attach-name').textContent = d.original;
       document.getElementById('attach-preview').style.display = 'flex';
     }
-  } catch(e) { console.error(e); }
+  } catch(e){ console.error(e); }
   inp.value = '';
 }
-
-function clearAttach() {
+function clearAttach(){
   pendingAttach = null;
   document.getElementById('attach-preview').style.display = 'none';
   document.getElementById('attach-name').textContent = '';
   document.getElementById('attach-input').value = '';
 }
 
-// ══ ترجمة ══
-const translateCache = {};
-async function translateMsg(id) {
-  const trDiv = document.getElementById('tr-' + id);
-  if (trDiv.style.display !== 'none') { trDiv.style.display = 'none'; return; }
-
-  const bubble = document.getElementById('bubble-' + id);
+/* ── تعديل ── */
+function startEdit(id){
+  const bubble = document.getElementById('bubble-'+id);
   const textEl = bubble.querySelector('.msg-text');
-  const text   = textEl ? textEl.innerText.trim() : '';
-  if (!text) return;
-
-  if (translateCache[id]) { trDiv.innerHTML = translateCache[id]; trDiv.style.display = 'block'; return; }
-
-  trDiv.innerHTML = `<span class="tr-loading">⏳</span>`;
-  trDiv.style.display = 'block';
-
-  // نحدد اللغة المصدر تلقائياً من نص الرسالة
-  const hasArabic  = /[؀-ۿ]/.test(text);
-  const hasTurkish = /[çğışöüÇĞİŞÖÜ]/.test(text);
-  const srcLang    = hasArabic ? 'ar' : hasTurkish ? 'tr' : 'en';
-
-  // الهدف = اللغة الحالية للواجهة، إذا كانت نفس المصدر نترجم للعربية
-  const dstLang = targetLang === srcLang ? (srcLang === 'ar' ? 'en' : 'ar') : targetLang;
-
-  try {
-    const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${srcLang}|${dstLang}`;
-    const res  = await fetch(url);
-    const data = await res.json();
-    const out  = (data?.responseData?.translatedText || '').trim();
-    if (out && out !== text) {
-      const html = `🌐 ${esc(out)}`;
-      translateCache[id] = html;
-      trDiv.innerHTML = html;
-    } else {
-      trDiv.style.display = 'none';
-    }
-  } catch(e) {
-    trDiv.innerHTML = `<span style="font-size:.7rem;color:#c62828;">❌</span>`;
-  }
-}
-
-// ══ تعديل ══
-function startEdit(id) {
-  const bubble  = document.getElementById('bubble-' + id);
-  const textEl  = bubble.querySelector('.msg-text');
-  const oldText = textEl ? textEl.innerText : '';
-  bubble._origHTML = bubble.innerHTML;
+  const old    = textEl ? textEl.dataset.original || textEl.innerText : '';
+  bubble._orig = bubble.innerHTML;
   bubble.innerHTML = `
-    <textarea class="edit-textarea" id="edit-ta-${id}" rows="2">${esc(oldText)}</textarea>
-    <div style="display:flex;gap:6px;margin-top:5px;">
+    <textarea class="edit-ta" id="edit-ta-${id}" rows="2">${esc(old)}</textarea>
+    <div style="display:flex;gap:5px;margin-top:4px;">
       <button class="btn btn-sm btn-success" onclick="submitEdit(${id})"><i class="fas fa-check"></i></button>
       <button class="btn btn-sm btn-secondary" onclick="cancelEdit(${id})"><i class="fas fa-times"></i></button>
     </div>`;
-  const ta = document.getElementById('edit-ta-' + id);
-  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
-  ta.addEventListener('keydown', e => {
-    if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(id); }
-    if (e.key==='Escape') cancelEdit(id);
-  });
+  const ta = document.getElementById('edit-ta-'+id);
+  ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submitEdit(id);} if(e.key==='Escape')cancelEdit(id); });
 }
-
-function cancelEdit(id) {
-  const bubble = document.getElementById('bubble-' + id);
-  bubble.innerHTML = bubble._origHTML;
-  delete bubble._origHTML;
-}
-
-async function submitEdit(id) {
-  const ta      = document.getElementById('edit-ta-' + id);
-  const content = ta.value.trim();
-  if (!content) return;
-  const res = await fetch(`/messages/${id}/edit`, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-    body: JSON.stringify({content})
-  });
-  const d = await res.json();
-  if (d.ok) {
-    const bubble = document.getElementById('bubble-' + id);
-    bubble.innerHTML = `<span class="msg-text">${esc(content).replace(/\n/g,'<br>')}</span>`;
-    delete bubble._origHTML;
-    delete translateCache[id];
-    const msgEl = bubble.closest('.chat-msg');
-    const meta  = msgEl.querySelector('.msg-meta');
-    if (!meta.querySelector('.msg-edited')) {
-      const badge = document.createElement('span');
-      badge.className = 'msg-edited';
-      badge.textContent = `· ${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'}`;
-      meta.appendChild(badge);
-    }
-    const trDiv = document.getElementById('tr-' + id);
-    if (trDiv) trDiv.style.display = 'none';
+function cancelEdit(id){ const b=document.getElementById('bubble-'+id); b.innerHTML=b._orig; delete b._orig; }
+async function submitEdit(id){
+  const ta=document.getElementById('edit-ta-'+id); const c=ta.value.trim(); if(!c) return;
+  const res=await fetch(`/messages/${id}/edit`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({content:c})});
+  const d=await res.json();
+  if(d.ok){
+    const b=document.getElementById('bubble-'+id);
+    b.innerHTML=`<span class="msg-text">${esc(c)}</span>`; delete b._orig; delete trCache[id];
+    const meta=b.closest('.chat-msg').querySelector('.msg-meta');
+    if(!meta.querySelector('.msg-edited')){ const s=document.createElement('span'); s.className='msg-edited'; s.textContent=`· ${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'}`; meta.appendChild(s); }
   }
 }
 
-// ══ حذف ══
-async function deleteMsg(id) {
-  const txt = {ar:'حذف هذه الرسالة؟',tr:'Bu mesaj silinsin mi?',en:'Delete this message?'}[lang]||'Delete?';
-  if (!confirm(txt)) return;
-  const res = await fetch(`/messages/${id}/delete`, {method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-  const d   = await res.json();
-  if (d.ok) { const el = document.querySelector(`.chat-msg[data-id="${id}"]`); if(el) el.remove(); }
+/* ── حذف ── */
+async function deleteMsg(id){
+  if(!confirm({ar:'حذف هذه الرسالة؟',tr:'Silinsin mi?',en:'Delete?'}[lang]||'Delete?')) return;
+  const d=(await (await fetch(`/messages/${id}/delete`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})).json());
+  if(d.ok){ const el=document.querySelector(`.chat-msg[data-id="${id}"]`); if(el) el.remove(); }
 }
 
-// ══ مسح السجل ══
-async function clearHistory() {
-  const txt = {ar:'سيتم حذف كامل سجل المحادثة نهائياً. متأكد؟',tr:'Tüm geçmiş silinecek. Emin misiniz?',en:'All history will be permanently deleted. Sure?'}[lang]||'Clear all?';
-  if (!confirm(txt)) return;
-  const res = await fetch('/messages/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-  const d   = await res.json();
-  if (d.ok) { chatBox.innerHTML = ''; lastMsgId = 0; }
+/* ── مسح السجل ── */
+async function clearHistory(){
+  if(!confirm({ar:'مسح كامل السجل نهائياً؟',tr:'Tüm geçmiş silinsin mi?',en:'Delete all history?'}[lang]||'Clear?')) return;
+  const d=(await (await fetch('/messages/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}})).json());
+  if(d.ok){ chatBox.innerHTML=''; lastMsgId=0; }
 }
 
-// ══ Polling ══
-async function pollNew() {
+/* ── Polling مع ترجمة تلقائية ── */
+async function pollNew(){
   try {
-    const res = await fetch('/messages/poll?since=' + lastMsgId);
+    const res = await fetch('/messages/poll?since='+lastMsgId);
     const d   = await res.json();
-    (d.msgs||[]).forEach(m => {
-      if (document.querySelector(`.chat-msg[data-id="${m.id}"]`)) return;
-      chatBox.appendChild(buildMsg(m.id, m.sender_id, m.name, m.role, m.content, m.attachment, m.time, false));
+    (d.msgs||[]).forEach(m=>{
+      if(document.querySelector(`.chat-msg[data-id="${m.id}"]`)) return;
+      const el = buildMsg(m.id, m.sender_id, m.name, m.role, m.content, m.attachment, m.time, false);
+      chatBox.appendChild(el);
       chatBox.scrollTop = chatBox.scrollHeight;
       lastMsgId = Math.max(lastMsgId, m.id);
+      // ترجمة تلقائية للرسائل الواردة من الطرف الآخر
+      if(m.sender_id !== myId && m.content){
+        scheduleTranslate(m.id, m.content);
+      }
     });
-  } catch(e) {}
+  } catch(e){}
 }
 setInterval(pollNew, 3000);
 
-// ══ تكبير صورة ══
-function openImg(src) {
-  document.getElementById('img-modal-src').src = src;
-  document.getElementById('img-modal').style.display = 'flex';
-}
+/* ── تكبير صورة ── */
+function openImg(src){ document.getElementById('img-modal-src').src=src; document.getElementById('img-modal').style.display='flex'; }
 
-// Enter للإرسال
-document.getElementById('msg-input').addEventListener('keydown', function(e) {
-  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+/* Enter للإرسال */
+document.getElementById('msg-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}
+  this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,110)+'px';
 });
 </script>
 
 <style>
-/* ── wrapper ── */
 .chat-wrapper {
-  display: flex; flex-direction: column;
-  height: calc(100vh - 165px); max-width: 820px; margin: 0 auto;
-  border-radius: 14px; overflow: hidden;
-  border: 1px solid #e0e0e0; background: #f9f9f9;
+  display:flex; flex-direction:column;
+  height:calc(100vh - 160px); max-width:820px; margin:0 auto;
+  border-radius:14px; overflow:hidden;
+  border:1px solid #e0e0e0; background:#f0f2f5;
 }
 .chat-messages {
-  flex: 1; overflow-y: auto; padding: 14px 14px;
-  display: flex; flex-direction: column; gap: 6px;
-  background: #f5f7fa;
+  flex:1; overflow-y:auto; padding:14px 12px;
+  display:flex; flex-direction:column; gap:5px;
+  background:#f0f2f5;
 }
 
 /* ── رسالة ── */
-.chat-msg {
-  display: flex;
-  flex-direction: column;
-  width: fit-content;   /* ← الفقاعة تلتصق بالنص */
-  max-width: 65%;
-}
-.msg-mine             { align-self: flex-end; }
-.chat-msg:not(.msg-mine) { align-self: flex-start; }
+.chat-msg { display:flex; flex-direction:column; width:fit-content; max-width:65%; }
+.msg-mine             { align-self:flex-end; }
+.chat-msg:not(.msg-mine) { align-self:flex-start; }
 
 /* meta */
-.msg-meta {
-  font-size: .63rem; color: #c5c5c5;
-  margin-bottom: 2px;
-  display: flex; gap: 4px; align-items: center;
-}
-.msg-mine .msg-meta              { justify-content: flex-end; }
-.chat-msg:not(.msg-mine) .msg-meta { justify-content: flex-start; }
-.msg-role   { font-weight: 600; color: #bbb; }
-.msg-time   { color: #ccc; }
-.msg-edited { color: #ccc; font-style: italic; }
+.msg-meta { font-size:.62rem; color:#b0b0b0; margin-bottom:2px; display:flex; gap:4px; align-items:center; }
+.msg-mine .msg-meta              { justify-content:flex-end; }
+.chat-msg:not(.msg-mine) .msg-meta { justify-content:flex-start; }
+.msg-role   { font-weight:600; }
+.msg-time   { color:#c0c0c0; }
+.msg-edited { color:#ccc; font-style:italic; }
 
 /* bubble wrap */
-.msg-bubble-wrap {
-  display: flex; align-items: flex-end; gap: 3px;
-}
-.msg-mine .msg-bubble-wrap            { flex-direction: row-reverse; }
-.chat-msg:not(.msg-mine) .msg-bubble-wrap { flex-direction: row; }
+.msg-bubble-wrap { display:flex; align-items:flex-end; gap:3px; }
+.msg-mine .msg-bubble-wrap            { flex-direction:row-reverse; }
+.chat-msg:not(.msg-mine) .msg-bubble-wrap { flex-direction:row; }
 
-/* فقاعة */
+/* فقاعة — نفس الشكل للكل */
 .msg-bubble {
-  padding: 6px 11px;
-  border-radius: 14px;
-  font-size: .79rem; line-height: 1.44;
-  word-break: break-word; white-space: pre-wrap;
+  padding:7px 12px;
+  border-radius:16px;
+  font-size:.79rem; line-height:1.44;
+  word-break:break-word; white-space:pre-wrap;
 }
 
 /* أدمن = أخضر */
-.msg-admin .msg-bubble { background: #1a6b3a; color: #fff; }
-.msg-admin.msg-mine .msg-bubble       { border-bottom-right-radius: 3px; }
-.msg-admin:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 3px; }
+.msg-admin .msg-bubble            { background:#1a6b3a; color:#fff; }
+.msg-admin.msg-mine .msg-bubble   { border-bottom-right-radius:4px; }
+.msg-admin:not(.msg-mine) .msg-bubble { border-bottom-left-radius:4px; }
 
-/* مراقب = أبيض */
-.msg-observer .msg-bubble { background: #fff; color: #2d2d2d; border: 1px solid #e4e4e4; }
-.msg-observer.msg-mine .msg-bubble       { border-bottom-right-radius: 3px; }
-.msg-observer:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 3px; }
+/* مراقب = نفس الشكل بلون مختلف */
+.msg-observer .msg-bubble            { background:#2c6b8a; color:#fff; }
+.msg-observer.msg-mine .msg-bubble   { border-bottom-right-radius:4px; }
+.msg-observer:not(.msg-mine) .msg-bubble { border-bottom-left-radius:4px; }
 
-/* أزرار — تظهر فقط عند hover، بدون border أو خلفية للـ wrapper */
-.msg-actions {
-  display: flex; flex-direction: column;
-  gap: 1px; opacity: 0; transition: opacity .15s;
-  flex-shrink: 0;
+/* شارة الترجمة */
+.tr-badge {
+  cursor:pointer; font-size:.7rem; opacity:.7;
+  margin-inline-start:4px; user-select:none;
+  transition:opacity .15s;
 }
-.chat-msg:hover .msg-actions { opacity: 1; }
+.tr-badge:hover { opacity:1; }
 
+/* أزرار الأكشن — تظهر عند hover */
+.msg-actions { display:flex; flex-direction:column; gap:1px; opacity:0; transition:opacity .15s; flex-shrink:0; }
+.chat-msg:hover .msg-actions { opacity:1; }
 .msg-action-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: .68rem; padding: 2px 4px;
-  border-radius: 4px; color: #ccc;
-  transition: all .13s; line-height: 1;
+  background:none; border:none; cursor:pointer;
+  font-size:.65rem; padding:2px 3px;
+  border-radius:4px; color:#bbb; line-height:1; transition:all .13s;
 }
-.msg-action-btn:hover { background: #f0f0f0; color: #555; }
-.translate-btn:hover  { color: #1565c0 !important; }
-.msg-del-btn:hover    { color: #c62828 !important; }
+.msg-action-btn:hover { background:rgba(0,0,0,.06); color:#555; }
+.translate-btn        { font-size:.72rem; }
+.msg-del-btn:hover    { color:#c62828 !important; }
 
-/* ترجمة — نص خفيف تحت الفقاعة بدون border */
-.msg-translation {
-  font-size: .73rem; color: #888;
-  margin-top: 2px; padding: 2px 4px;
-  word-break: break-word;
-  font-style: italic;
-}
-.msg-admin .msg-translation { color: rgba(255,255,255,.65); }
-.tr-icon    { color: #1a6b3a; font-size: .68rem; margin-inline-end: 3px; }
-.msg-admin .tr-icon { color: rgba(255,255,255,.8); }
-.tr-loading { color: #bbb; }
-
-/* صور ومرفقات */
-.msg-img-wrap { margin-top: 5px; }
-.msg-img {
-  max-width: 190px; max-height: 190px;
-  border-radius: 8px; cursor: zoom-in;
-  display: block; border: 1px solid rgba(0,0,0,.08);
-}
-.msg-file-link {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: rgba(0,0,0,.07); border-radius: 6px;
-  padding: 4px 9px; font-size: .78rem;
-  color: inherit; text-decoration: none; margin-top: 5px;
-}
-
-/* edit textarea */
-.edit-textarea {
-  width: 100%; border: 2px solid #1a6b3a; border-radius: 8px;
-  padding: 6px 10px; font-size: .8rem; font-family: inherit;
-  resize: none; outline: none; background: #fff; color: #222;
-}
+/* صور */
+.msg-img-wrap { margin-top:4px; }
+.msg-img { max-width:180px; max-height:180px; border-radius:8px; cursor:zoom-in; display:block; }
+.msg-file-link { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.18); border-radius:6px; padding:3px 8px; font-size:.76rem; color:inherit; text-decoration:none; margin-top:4px; }
 
 /* شريط الإدخال */
-.chat-input-bar {
-  padding: 9px 12px; background: #fff;
-  border-top: 1px solid #e8e8e8;
-  display: flex; flex-direction: column; gap: 5px;
-}
-.attach-preview {
-  display: flex; align-items: center; gap: 7px;
-  background: #e8f5ee; border: 1px solid #a8d5b5;
-  border-radius: 8px; padding: 4px 10px;
-  font-size: .75rem; color: #1a6b3a; font-weight: 700;
-}
-.attach-clear { background: none; border: none; cursor: pointer; color: #888; }
-.attach-clear:hover { color: #c62828; }
-
-.input-row { display: flex; align-items: flex-end; gap: 8px; }
-.attach-btn {
-  cursor: pointer; color: #aaa; font-size: 1.05rem;
-  padding: 7px 8px; border-radius: 8px;
-  transition: all .15s; flex-shrink: 0; align-self: flex-end;
-}
-.attach-btn:hover { color: #1a6b3a; background: #e8f5ee; }
-
-.chat-textarea {
-  flex: 1; resize: none; border: 1.5px solid #ddd;
-  border-radius: 20px; padding: 8px 14px;
-  font-size: .82rem; font-family: inherit;
-  outline: none; transition: border-color .2s;
-  max-height: 110px; overflow-y: auto; min-width: 0;
-  background: #f7f7f7;
-}
-.chat-textarea:focus { border-color: #1a6b3a; background: #fff; }
-
-.chat-send-btn {
-  height: 38px; width: 44px;
-  border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-
-#img-modal { align-items: center; justify-content: center; }
-@media print { .no-print { display: none !important; } }
+.chat-input-bar { padding:9px 12px; background:#fff; border-top:1px solid #e8e8e8; display:flex; flex-direction:column; gap:5px; }
+.attach-preview { display:flex; align-items:center; gap:7px; background:#e8f5ee; border:1px solid #a8d5b5; border-radius:8px; padding:4px 10px; font-size:.75rem; color:#1a6b3a; font-weight:700; }
+.attach-clear { background:none; border:none; cursor:pointer; color:#888; }
+.attach-clear:hover { color:#c62828; }
+.input-row { display:flex; align-items:flex-end; gap:8px; }
+.attach-btn { cursor:pointer; color:#aaa; font-size:1.05rem; padding:7px 8px; border-radius:8px; transition:all .15s; flex-shrink:0; align-self:flex-end; }
+.attach-btn:hover { color:#1a6b3a; background:#e8f5ee; }
+.chat-textarea { flex:1; resize:none; border:1.5px solid #ddd; border-radius:20px; padding:8px 14px; font-size:.82rem; font-family:inherit; outline:none; transition:border-color .2s; max-height:110px; overflow-y:auto; min-width:0; background:#f7f7f7; }
+.chat-textarea:focus { border-color:#1a6b3a; background:#fff; }
+.chat-send-btn { height:38px; width:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0; }
+.edit-ta { width:100%; border:2px solid #1a6b3a; border-radius:8px; padding:6px 10px; font-size:.79rem; font-family:inherit; resize:none; outline:none; background:#fff; color:#222; }
+#img-modal { align-items:center; justify-content:center; }
+@media print { .no-print{display:none!important;} }
 </style>
 {% endblock %}
