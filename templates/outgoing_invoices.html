@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+{% block title %}المخزن – ميزان مجد{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-warehouse"></i> المخزن</h2>
+  {% if session.get('role') != 'observer' %}
+  <button class="btn btn-danger" type="button" id="toggle-outgoing">
+    <i class="fas fa-file-export me-1"></i> فاتورة صرف جديدة
+  </button>
+  {% endif %}
+</div>
+
+<!-- كشف الأصناف الموجودة بالمخزن -->
+<div class="table-wrapper mb-4">
+  <div class="table-header">
+    <h5><i class="fas fa-boxes me-2" style="color:#1a6b3a;"></i>الأصناف الموجودة بالمخزن</h5>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ inventory|length }} صنف</span>
+  </div>
+  {% if inventory %}
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الصنف</th>
+          <th>الوحدة</th>
+          <th>الكمية المتاحة</th>
+          <th>متوسط السعر</th>
+          <th>القيمة الإجمالية</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in inventory %}
+        <tr>
+          <td style="color:#6c7a72;font-size:.85rem;">{{ loop.index }}</td>
+          <td style="font-weight:700;text-align:right;">{{ item.name }}</td>
+          <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ item.unit }}</span></td>
+          <td>
+            <span class="fw-bold {% if item.total_qty == 0 %}text-danger{% elif item.total_qty < 10 %}text-warning{% else %}text-success{% endif %}">
+              {{ "%.2f"|format(item.total_qty) }}
+            </span>
+          </td>
+          <td style="color:#6c7a72;">{{ "%.2f"|format(item.avg_price) }}</td>
+          <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.value) }}</td>
+          <td>
+            {% if item.total_qty == 0 %}
+              <span class="badge" style="background:#fde8e8;color:#c62828;">نفد</span>
+            {% elif item.total_qty < 10 %}
+              <span class="badge" style="background:#fff3cd;color:#856404;">منخفض</span>
+            {% else %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">متوفر</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- إجمالي قيمة المخزون -->
+  <div class="inventory-total-box">
+    <i class="fas fa-coins me-2" style="color:#f0a500;"></i>
+    إجمالي قيمة المخزون الحالي:
+    <span class="inventory-total-value">{{ "%.2f"|format(total_value) }}</span>
+  </div>
+  {% else %}
+  <div class="text-center py-5" style="color:#6c7a72;">
+    <i class="fas fa-box-open fa-3x mb-3" style="color:#d8e8de;"></i>
+    <p class="fw-bold">المخزن فارغ — لا توجد أصناف متاحة</p>
+    <a href="/incoming_invoice" class="btn btn-primary btn-sm">
+      <i class="fas fa-cart-shopping me-1"></i> إضافة مشتريات
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- فورم فاتورة الصرف -->
+{% if session.get('role') != 'observer' %}
+<div id="outgoing-card" style="display:none;">
+  <div class="card mb-4">
+    <div class="card-header" style="background:#fde8e8;border-bottom:2px solid #f5c6cb;">
+      <i class="fas fa-file-export" style="color:#c62828;"></i>
+      <strong style="color:#c62828;">فاتورة صرف جديدة</strong>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/outgoing_invoice">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+        <!-- رأس الفاتورة -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <label class="form-label">رقم الفاتورة <span class="text-danger">*</span></label>
+            <input class="form-control" name="invoice_number" placeholder="OUT-001" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">التاريخ <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" name="invoice_date" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">البرنامج / المشروع <span class="text-danger">*</span></label>
+            <select class="form-select" name="program_id" required>
+              <option value="">-- اختر البرنامج --</option>
+              {% for p in programs %}
+              <option value="{{ p.id }}">
+                {% if p.name == 'كفالات أيتام' %}💛
+                {% elif p.name == 'طرود غذائية' %}📦
+                {% elif p.name == 'تكية' %}🍽️
+                {% elif p.name == 'مياه حلوة' %}💧
+                {% elif p.name == 'وجبات ساخنة' %}🔥
+                {% else %}📋{% endif %}
+                {{ p.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">المستفيد <span style="color:#aaa;font-size:.78rem;">(اختياري)</span></label>
+            <select class="form-select" name="beneficiary">
+              <option value="">-- اختياري --</option>
+              {% for b in beneficiaries %}
+              <option value="{{ b[1] }}">{{ b[1] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- الأصناف -->
+        <div class="table-responsive mb-3">
+          <table class="table table-bordered">
+            <thead style="background:#fde8e8;">
+              <tr>
+                <th style="width:55%;">الصنف</th>
+                <th>الكمية المطلوبة</th>
+                <th>المتاح</th>
+                <th style="width:55px;"></th>
+              </tr>
+            </thead>
+            <tbody id="out-items-body">
+              <tr class="out-row">
+                <td>
+                  <select class="form-select" name="product_id[]" onchange="updateAvailable(this)" required>
+                    <option value="">-- اختر الصنف --</option>
+                    {% for item in inventory %}
+                    <option value="{{ item.id }}" data-avail="{{ item.total_qty }}">
+                      {{ item.name }} ({{ "%.1f"|format(item.total_qty) }} {{ item.unit }})
+                    </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="quantity[]"
+                         step="0.01" min="0.01" placeholder="0" required>
+                </td>
+                <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-danger btn-sm remove-out-row" disabled>
+                    <i class="fas fa-times"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="add-out-row">
+            <i class="fas fa-plus me-1"></i> إضافة صنف
+          </button>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">ملاحظات</label>
+          <textarea class="form-control" name="notes" rows="2" placeholder="أي ملاحظات..."></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-save me-1"></i> حفظ وخصم من المخزن
+          </button>
+          <button type="button" class="btn btn-secondary" id="cancel-outgoing">إلغاء</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if session.get('role') != 'observer' %}
+<script>
+// إظهار/إخفاء فورم الصرف
+const outCard = document.getElementById('outgoing-card');
+document.getElementById('toggle-outgoing').addEventListener('click', () => {
+  const show = outCard.style.display === 'none';
+  outCard.style.display = show ? 'block' : 'none';
+  if (show) outCard.scrollIntoView({ behavior:'smooth', block:'start' });
+});
+document.getElementById('cancel-outgoing').addEventListener('click', () => {
+  outCard.style.display = 'none';
+});
+
+// قائمة الأصناف مع الكميات المتاحة
+const inventoryOptions = `{% for item in inventory %}<option value="{{ item.id }}" data-avail="{{ item.total_qty }}">{{ item.name }} ({{ "%.1f"|format(item.total_qty) }} {{ item.unit }})</option>{% endfor %}`;
+
+function updateAvailable(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const avail = parseFloat(opt.dataset.avail || 0);
+  const cell = sel.closest('tr').querySelector('.available-cell');
+  if (sel.value) {
+    cell.textContent = avail.toFixed(2);
+    cell.style.color = avail === 0 ? '#c62828' : avail < 10 ? '#856404' : '#1a6b3a';
+  } else {
+    cell.textContent = '—';
+  }
+}
+
+function updateRemoveBtns() {
+  const rows = document.querySelectorAll('.out-row');
+  rows.forEach(r => r.querySelector('.remove-out-row').disabled = rows.length === 1);
+}
+
+document.getElementById('add-out-row').addEventListener('click', () => {
+  const tbody = document.getElementById('out-items-body');
+  const tr = document.createElement('tr');
+  tr.className = 'out-row';
+  tr.innerHTML = `
+    <td>
+      <select class="form-select" name="product_id[]" onchange="updateAvailable(this)" required>
+        <option value="">-- اختر الصنف --</option>
+        ${inventoryOptions}
+      </select>
+    </td>
+    <td><input type="number" class="form-control" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
+    <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
+    <td class="text-center">
+      <button type="button" class="btn btn-danger btn-sm remove-out-row">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>`;
+  tbody.appendChild(tr);
+  updateRemoveBtns();
+});
+
+document.getElementById('out-items-body').addEventListener('click', e => {
+  if (e.target.closest('.remove-out-row')) {
+    e.target.closest('.out-row').remove();
+    updateRemoveBtns();
+  }
+});
+
+updateRemoveBtns();
+</script>
+{% endif %}
+{% endblock %}

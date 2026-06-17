@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}نظرة عامة – ميزان مجد{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-eye"></i> النظرة العامة</h2>
+  <span style="color:#6c7a72;font-size:.85rem;">
+    <i class="fas fa-building me-1"></i>{{ session.get('org_name') }}
+  </span>
+</div>
+
+<!-- إحصاءات سريعة -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+      <div class="stat-value">{{ inventory|length }}</div>
+      <div class="stat-label">أصناف في المخزون</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-card stat-purple">
+      <div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div class="stat-value">{{ benef_count }}</div>
+      <div class="stat-label">المستفيدون</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-card stat-red">
+      <div class="stat-icon"><i class="fas fa-file-export"></i></div>
+      <div class="stat-value">{{ out_count }}</div>
+      <div class="stat-label">فواتير الصرف</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-card stat-blue">
+      <div class="stat-icon"><i class="fas fa-project-diagram"></i></div>
+      <div class="stat-value">{{ programs|length }}</div>
+      <div class="stat-label">البرامج النشطة</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- المخزون -->
+  <div class="col-md-5">
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h5><i class="fas fa-box me-2" style="color:#1a6b3a;"></i>حالة المخزون</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>الحالة</th></tr>
+          </thead>
+          <tbody>
+            {% for item in inventory %}
+            <tr>
+              <td style="font-weight:700;text-align:right;">{{ item.name }}</td>
+              <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ item.unit }}</span></td>
+              <td class="fw-bold {% if item.qty == 0 %}text-danger{% elif item.qty < 10 %}text-warning{% else %}text-success{% endif %}">
+                {{ "%.1f"|format(item.qty) }}
+              </td>
+              <td>
+                {% if item.qty == 0 %}
+                  <span class="badge" style="background:#fde8e8;color:#c62828;">نفد</span>
+                {% elif item.qty < 10 %}
+                  <span class="badge" style="background:#fff3cd;color:#856404;">منخفض</span>
+                {% else %}
+                  <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">متوفر</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">لا توجد أصناف</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- آخر عمليات الصرف -->
+  <div class="col-md-7">
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h5><i class="fas fa-history me-2" style="color:#c62828;"></i>آخر عمليات الصرف</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الجهة المستفيدة</th><th>الإجمالي</th></tr>
+          </thead>
+          <tbody>
+            {% for inv in recent_outgoing %}
+            <tr>
+              <td><code style="background:#f4f7f5;padding:2px 7px;border-radius:5px;">{{ inv.invoice_number or '—' }}</code></td>
+              <td style="white-space:nowrap;">{{ inv.invoice_date or '—' }}</td>
+              <td style="font-weight:600;text-align:right;">{{ inv.beneficiary or '—' }}</td>
+              <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(inv.total) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">لا توجد فواتير صرف</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- البرامج النشطة -->
+{% if programs %}
+<div class="mt-4">
+  <h6 class="section-mini-title">البرامج والمشاريع النشطة</h6>
+  <div class="row g-3">
+    {% for p in programs %}
+    <div class="col-md-3 col-sm-6">
+      <div class="card p-3 text-center">
+        <div style="font-size:1.8rem;margin-bottom:6px;">
+          {% if p.name == 'كفالات أيتام' %}💛
+          {% elif p.name == 'طرود غذائية' %}📦
+          {% elif p.name == 'تكية' %}🍽️
+          {% elif p.name == 'مياه حلوة' %}💧
+          {% elif p.name == 'وجبات ساخنة' %}🔥
+          {% else %}📋{% endif %}
+        </div>
+        <div style="font-weight:700;font-size:.9rem;">{{ p.name }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

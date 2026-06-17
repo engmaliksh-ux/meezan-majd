@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>تسجيل مؤسسة جديدة – مخزن الخير</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="auth-card" style="max-width:520px;">
+    <div class="auth-header">
+      <div class="auth-logo"><i class="fas fa-building"></i></div>
+      <h3>تسجيل مؤسسة جديدة</h3>
+      <p>ستحصل على رمز خاص بمؤسستك</p>
+    </div>
+    <div class="auth-body">
+
+      {% if error %}
+      <div class="auth-error"><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
+      {% endif %}
+
+      <form method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <!-- بيانات المؤسسة -->
+        <div class="section-label"><i class="fas fa-building me-2"></i>بيانات المؤسسة</div>
+
+        <div class="mb-3">
+          <label class="form-label">اسم المؤسسة <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-building field-icon"></i>
+            <input type="text" name="org_name" class="form-control" placeholder="مثال: جمعية الخير الخيرية" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-envelope field-icon"></i>
+            <input type="email" name="email" class="form-control" placeholder="info@example.org" required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">اسم الجهة المانحة <span style="color:#aaa;font-size:.8rem;">(اختياري)</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-hands-helping field-icon"></i>
+            <input type="text" name="donor_name" class="form-control" placeholder="الجهة الممولة أو الداعمة">
+          </div>
+        </div>
+
+        <!-- بيانات المدير -->
+        <div class="section-label"><i class="fas fa-user-shield me-2"></i>بيانات المدير</div>
+
+        <div class="mb-3">
+          <label class="form-label">الاسم الرباعي <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-id-card field-icon"></i>
+            <input type="text" name="full_name" class="form-control" placeholder="الاسم الكامل رباعياً" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">رقم الهوية <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-fingerprint field-icon"></i>
+            <input type="text" name="id_number" class="form-control" placeholder="رقم الهوية الوطنية" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-at field-icon"></i>
+            <input type="text" name="username" class="form-control"
+                   placeholder="ستستخدمه لتسجيل الدخول – 3 أحرف على الأقل"
+                   minlength="3" required>
+          </div>
+          <div style="font-size:.76rem;color:#6c7a72;margin-top:4px;">
+            <i class="fas fa-info-circle me-1"></i>يُستخدم عند تسجيل الدخول، لا يمكن تغييره لاحقاً
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-lock field-icon"></i>
+            <input type="password" name="password" class="form-control" placeholder="8 أحرف على الأقل" minlength="8" required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">تأكيد كلمة المرور <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-lock field-icon"></i>
+            <input type="password" name="password2" class="form-control" placeholder="أعد كتابة كلمة المرور" required>
+          </div>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <i class="fas fa-building me-2"></i>تسجيل المؤسسة والحصول على الرمز
+        </button>
+      </form>
+
+      <div class="auth-switch mt-3">
+        <a href="/register"><i class="fas fa-arrow-right me-1"></i>رجوع للخيارات</a>
+        &nbsp;·&nbsp;
+        لديك حساب؟ <a href="/login">تسجيل الدخول</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

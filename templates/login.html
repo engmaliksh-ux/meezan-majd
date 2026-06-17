@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ميزان مجد – تسجيل الدخول</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+
+    <div class="auth-header">
+      <!-- شعار ميزان مجد -->
+      <div class="login-logo-wrap">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="56" height="56">
+          <rect width="64" height="64" rx="14" fill="rgba(255,255,255,0.15)"/>
+          <rect x="30" y="10" width="4" height="36" rx="2" fill="#ffffff"/>
+          <rect x="10" y="18" width="44" height="3" rx="1.5" fill="#f0a500"/>
+          <ellipse cx="12" cy="36" rx="10" ry="4" fill="none" stroke="#fff" stroke-width="1.5"/>
+          <line x1="12" y1="21" x2="12" y2="32" stroke="#fff" stroke-width="1.5"/>
+          <ellipse cx="52" cy="36" rx="10" ry="4" fill="none" stroke="#fff" stroke-width="1.5"/>
+          <line x1="52" y1="21" x2="52" y2="32" stroke="#fff" stroke-width="1.5"/>
+          <rect x="22" y="46" width="20" height="3" rx="1.5" fill="#f0a500"/>
+        </svg>
+      </div>
+      <h3>ميزان مجد</h3>
+      <p>نظام إدارة المخزون الخيري</p>
+    </div>
+
+    <div class="auth-body">
+      <h5 class="auth-title">تسجيل الدخول</h5>
+
+      {% if error %}
+      <div class="auth-error">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">رمز المؤسسة <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-key field-icon"></i>
+            <input type="text" name="org_code" class="form-control"
+                   placeholder="MK-XXXX"
+                   style="letter-spacing:2px;font-weight:800;text-transform:uppercase;"
+                   maxlength="7" autofocus required>
+          </div>
+          <div style="font-size:.74rem;color:#6c7a72;margin-top:3px;">
+            <i class="fas fa-info-circle me-1"></i>رمز المؤسسة المكوّن من 7 أحرف
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-user field-icon"></i>
+            <input type="text" name="username" class="form-control"
+                   placeholder="أدخل اسم المستخدم" required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-lock field-icon"></i>
+            <input type="password" name="password" class="form-control"
+                   placeholder="أدخل كلمة المرور" required>
+          </div>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول
+        </button>
+      </form>
+
+      <div class="auth-switch mt-3">
+        مؤسسة جديدة أو موظف جديد؟ <a href="/register">إنشاء حساب</a>
+      </div>
+    </div>
+  </div>
+
+<style>
+.login-logo-wrap {
+  width: 72px; height: 72px;
+  background: rgba(255,255,255,.15);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+}
+</style>
+
+<script>
+document.querySelector('[name=org_code]').addEventListener('input', function(){
+  this.value = this.value.toUpperCase();
+});
+</script>
+</body>
+</html>

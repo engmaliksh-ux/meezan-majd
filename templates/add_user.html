@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}إضافة مستخدم{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-user-plus"></i> إضافة مستخدم يدوياً</h2>
+  <a href="/users" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+</div>
+
+<div class="card" style="max-width:520px;">
+  <div class="card-header"><i class="fas fa-user-cog" style="color:#1a6b3a;"></i> بيانات المستخدم الجديد</div>
+  <div class="card-body">
+    {% if error %}
+    <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label">الاسم الكامل <span class="text-danger">*</span></label>
+        <input class="form-control" name="full_name" placeholder="الاسم الرباعي" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">رقم الهوية <span class="text-danger">*</span></label>
+        <input class="form-control" name="id_number"
+               placeholder="9 أرقام فقط" maxlength="9"
+               inputmode="numeric" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+        <input class="form-control" name="username"
+               placeholder="يُستخدم عند تسجيل الدخول" minlength="3" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+        <input type="password" class="form-control" name="password"
+               placeholder="4 أحرف على الأقل" minlength="4" required>
+      </div>
+
+      <!-- نوع الحساب كـ select واضح -->
+      <div class="mb-4">
+        <label class="form-label">نوع الحساب <span class="text-danger">*</span></label>
+        <select class="form-select" name="role" required>
+          <option value="">-- اختر نوع الحساب --</option>
+          <option value="accountant">محاسب — فواتير الإدخال والصرف والأصناف</option>
+          <option value="data_entry">مدخل بيانات — إدارة بيانات المستفيدين فقط</option>
+          <option value="observer">مراقب عام — عرض المخزون والبرامج فقط</option>
+        </select>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i> إضافة المستخدم
+        </button>
+        <a href="/users" class="btn btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

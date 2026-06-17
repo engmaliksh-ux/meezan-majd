@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ميزان مجد{% endblock %} – ميزان مجد</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <!-- Favicon ميزان مجد -->
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon-48.png') }}">
+  <meta name="theme-color" content="#1a6b3a">
+</head>
+<body>
+
+<!-- زر فتح/إغلاق السايدبار - على يمين الصفحة -->
+<button class="sidebar-toggle" id="sidebar-toggle" title="القائمة الجانبية">
+  <i class="fas fa-bars" id="toggle-icon"></i>
+</button>
+
+<div class="layout-wrapper" id="layout-wrapper">
+
+  <!-- القائمة الجانبية -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><i class="fas fa-balance-scale"></i></div>
+      <div>
+        <div class="sidebar-title">ميزان مجد</div>
+        <div class="sidebar-org">{{ session.get('org_name','') }}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar">
+        {% if session.get('photo') %}
+          <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
+        {% else %}
+          {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
+          {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
+          {% else %}<i class="fas fa-user"></i>{% endif %}
+        {% endif %}
+      </div>
+      <div class="user-info">
+        <span class="user-name">{{ session.get('full_name', session.get('user','')) }}</span>
+        <span class="user-role">
+          {% if session.get('role')=='admin' %}مدير النظام
+          {% elif session.get('role')=='accountant' %}محاسب
+          {% elif session.get('role')=='data_entry' %}مدخل بيانات
+          {% elif session.get('role')=='observer' %}مراقب عام
+          {% else %}مستخدم{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-item {% if request.path=='/dashboard' %}active{% endif %}">
+        <i class="fas fa-chart-pie nav-icon"></i><span>لوحة التحكم</span>
+      </a>
+
+      {% if session.get('role') in ['admin','accountant','observer'] %}
+      <a href="/products" class="nav-item {% if '/product' in request.path %}active{% endif %}">
+        <i class="fas fa-box nav-icon"></i><span>الأصناف</span>
+      </a>
+      <a href="/incoming_invoice" class="nav-item {% if 'incoming' in request.path %}active{% endif %}">
+        <i class="fas fa-cart-shopping nav-icon"></i><span>المشتريات</span>
+      </a>
+      <a href="/outgoing_invoice" class="nav-item {% if 'outgoing' in request.path %}active{% endif %}">
+        <i class="fas fa-warehouse nav-icon"></i><span>المخزن</span>
+      </a>
+      {% endif %}
+
+      {% if session.get('role') in ['admin','accountant','observer'] %}
+      <a href="/programs" class="nav-item {% if '/program' in request.path %}active{% endif %}">
+        <i class="fas fa-project-diagram nav-icon"></i><span>البرامج والمشاريع</span>
+      </a>
+      {% endif %}
+
+      {% if session.get('role') in ['admin','data_entry','observer'] %}
+      <a href="/beneficiaries" class="nav-item {% if '/beneficiar' in request.path %}active{% endif %}">
+        <i class="fas fa-users nav-icon"></i><span>المستفيدون</span>
+      </a>
+      {% endif %}
+
+      {% if session.get('role')=='admin' %}
+      <div class="nav-divider"></div>
+      <span class="nav-section-label">إدارة النظام</span>
+      <a href="/users" class="nav-item {% if '/user' in request.path and '/change' not in request.path %}active{% endif %}">
+        <i class="fas fa-users-cog nav-icon"></i><span>المستخدمون</span>
+      </a>
+      <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
+        <i class="fas fa-key nav-icon"></i><span>تغيير كلمة المرور</span>
+      </a>
+      {% else %}
+      <div class="nav-divider"></div>
+      <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
+        <i class="fas fa-key nav-icon"></i><span>تغيير كلمة المرور</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-clock">
+        <div class="clock-left">
+          <div class="clock-time" id="sb-time">--:--:--</div>
+          <div class="clock-date" id="sb-date">--</div>
+        </div>
+        <div class="clock-ampm" id="sb-ampm">--</div>
+      </div>
+      <div class="org-code-footer">
+        <i class="fas fa-key me-1"></i>
+        <span>{{ session.get('org_code','') }}</span>
+      </div>
+      <a href="/logout" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i><span>تسجيل الخروج</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- المحتوى -->
+  <main class="main-content" id="main-content">
+    <div class="content-inner">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alerts-container">
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show">
+            <i class="fas {% if cat=='success' %}fa-check-circle{% elif cat=='danger' %}fa-exclamation-circle{% elif cat=='warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ══ ساعة السايدبار ══
+(function() {
+  const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  function tick() {
+    const now = new Date();
+    let h = now.getHours();
+    const ampm = h >= 12 ? 'م' : 'ص';
+    h = h % 12 || 12;
+    const m  = String(now.getMinutes()).padStart(2,'0');
+    const s  = String(now.getSeconds()).padStart(2,'0');
+    const y  = now.getFullYear();
+    const mo = String(now.getMonth()+1).padStart(2,'0');
+    const d  = String(now.getDate()).padStart(2,'0');
+    const t  = document.getElementById('sb-time');
+    const dt = document.getElementById('sb-date');
+    const ap = document.getElementById('sb-ampm');
+    if (t)  t.textContent  = h + ':' + m + ':' + s;
+    if (dt) dt.textContent = days[now.getDay()] + ' ' + y + '/' + mo + '/' + d;
+    if (ap) ap.textContent = ampm;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+
+// ══ تحكم القائمة الجانبية ══
+const sidebar    = document.getElementById('sidebar');
+const wrapper    = document.getElementById('layout-wrapper');
+const mainContent= document.getElementById('main-content');
+const toggleBtn  = document.getElementById('sidebar-toggle');
+const toggleIcon = document.getElementById('toggle-icon');
+
+// قراءة الحالة المحفوظة
+let sidebarOpen = localStorage.getItem('sidebarOpen') !== 'false';
+
+function setSidebar(open) {
+  sidebarOpen = open;
+  localStorage.setItem('sidebarOpen', open);
+  if (open) {
+    sidebar.classList.remove('sidebar-hidden');
+    mainContent.classList.remove('main-full');
+    toggleBtn.classList.remove('toggle-hidden-mode');
+    toggleBtn.style.right = 'var(--sidebar-w)';
+    toggleIcon.className = 'fas fa-chevron-right';
+  } else {
+    sidebar.classList.add('sidebar-hidden');
+    mainContent.classList.add('main-full');
+    toggleBtn.classList.add('toggle-hidden-mode');
+    toggleBtn.style.right = '0';
+    toggleIcon.className = 'fas fa-chevron-left';
+  }
+}
+
+toggleBtn.addEventListener('click', () => setSidebar(!sidebarOpen));
+setSidebar(sidebarOpen);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

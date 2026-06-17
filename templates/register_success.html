@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>تم التسجيل بنجاح – مخزن الخير</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="auth-card" style="max-width:480px;">
+
+    <div class="auth-header" style="background:linear-gradient(135deg,#1a6b3a,#2d9e5a);">
+      <div class="auth-logo"><i class="fas fa-check-circle"></i></div>
+      <h3>تم التسجيل بنجاح!</h3>
+      <p>{{ org_name }}</p>
+    </div>
+
+    <div class="auth-body text-center">
+
+      <p style="color:#6c7a72;font-size:.9rem;margin-bottom:20px;">
+        مرحباً <strong>{{ full_name }}</strong>، تم إنشاء حساب مؤسستك.
+        <br>احتفظ برمز المؤسسة — ستحتاجه لإضافة الموظفين.
+      </p>
+
+      <!-- الرمز -->
+      <div class="org-code-display">
+        <div class="org-code-label">
+          <i class="fas fa-key me-2"></i>رمز مؤسستك الخاص
+        </div>
+        <div class="org-code-value" id="org-code">{{ org_code }}</div>
+        <button class="copy-btn" onclick="copyCode()" id="copy-btn">
+          <i class="fas fa-copy me-2"></i>نسخ الرمز
+        </button>
+        <div class="org-code-hint">
+          <i class="fas fa-exclamation-triangle me-1" style="color:#f0a500;"></i>
+          احفظ هذا الرمز الآن — يُستخدم من الموظفين عند التسجيل
+        </div>
+      </div>
+
+      <!-- بيانات الدخول -->
+      <div class="login-info-box">
+        <div class="login-info-title"><i class="fas fa-sign-in-alt me-2"></i>بيانات الدخول</div>
+        <div class="login-info-row">
+          <span class="login-info-label">اسم المستخدم:</span>
+          <span class="login-info-value">{{ username }}</span>
+        </div>
+        <div class="login-info-row">
+          <span class="login-info-label">كلمة المرور:</span>
+          <span class="login-info-value">كلمة المرور التي اخترتها</span>
+        </div>
+      </div>
+
+      <a href="/login" class="auth-btn mt-3" style="display:block;">
+        <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول الآن
+      </a>
+
+    </div>
+  </div>
+
+<style>
+.org-code-display {
+  background: #f4f7f5;
+  border: 2px solid #d8e8de;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.org-code-label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: #6c7a72;
+  margin-bottom: 10px;
+}
+.org-code-value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #1a6b3a;
+  letter-spacing: 4px;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 12px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 20px;
+  border: 2px dashed #1a6b3a;
+  display: inline-block;
+  min-width: 180px;
+}
+.copy-btn {
+  background: #1a6b3a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 700;
+  font-size: .88rem;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 10px;
+}
+.copy-btn:hover { background: #134f2b; }
+.org-code-hint {
+  font-size: .78rem;
+  color: #856404;
+  background: #fff3cd;
+  border-radius: 8px;
+  padding: 7px 12px;
+  margin-top: 10px;
+}
+.login-info-box {
+  background: #fff;
+  border: 2px solid #d8e8de;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: right;
+  margin-bottom: 4px;
+}
+.login-info-title {
+  font-weight: 800;
+  font-size: .88rem;
+  color: #1a6b3a;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d8e8de;
+}
+.login-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: .88rem;
+}
+.login-info-label { color: #6c7a72; font-weight: 600; }
+.login-info-value { font-weight: 800; color: #1e2d24; }
+</style>
+
+<script>
+function copyCode() {
+  const code = document.getElementById('org-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.innerHTML = '<i class="fas fa-check me-2"></i>تم النسخ!';
+    btn.style.background = '#198754';
+    setTimeout(() => {
+      btn.innerHTML = '<i class="fas fa-copy me-2"></i>نسخ الرمز';
+      btn.style.background = '#1a6b3a';
+    }, 2500);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}{{ program.name }} – ميزان مجد{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/programs" class="btn btn-secondary btn-sm">
+      <i class="fas fa-arrow-right"></i>
+    </a>
+    <h2 class="page-title mb-0">
+      {% if program.name == 'كفالات أيتام' %}💛
+      {% elif program.name == 'طرود غذائية' %}📦
+      {% elif program.name == 'تكية' %}🍽️
+      {% elif program.name == 'مياه حلوة' %}💧
+      {% elif program.name == 'وجبات ساخنة' %}🔥
+      {% else %}📋{% endif %}
+      {{ program.name }}
+    </h2>
+  </div>
+  <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.85rem;padding:6px 14px;">
+    {{ records|length }} سجل استفادة
+  </span>
+</div>
+
+<!-- نموذج إضافة سجل -->
+{% if session.get('role') != 'observer' %}
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="fas fa-plus-circle" style="color:#1a6b3a;"></i>
+    إضافة سجل استفادة جديد
+  </div>
+  <div class="card-body">
+    <form method="POST" action="/program/{{ program.id }}/add_record">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">المستفيد <span class="text-danger">*</span></label>
+          <select class="form-select" name="beneficiary_id" required>
+            <option value="">-- اختر المستفيد --</option>
+            {% for b in beneficiaries %}
+            <option value="{{ b.id }}">{{ b.seq_num }}. {{ b.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">تاريخ الاستفادة <span class="text-danger">*</span></label>
+          <input type="date" class="form-control" name="benefit_date" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">نوع الاستفادة</label>
+          <input class="form-control" name="benefit_type"
+                 placeholder="مثال: حصة شهرية، طرد عينية...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">الكمية / القيمة</label>
+          <input class="form-control" name="quantity" placeholder="مثال: 1 طرد">
+        </div>
+        <div class="col-12">
+          <label class="form-label">ملاحظات</label>
+          <input class="form-control" name="notes" placeholder="أي ملاحظات إضافية...">
+        </div>
+      </div>
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i> حفظ السجل
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- سجلات الاستفادة -->
+<div class="table-wrapper">
+  <div class="table-header">
+    <h5><i class="fas fa-history me-2" style="color:#1a6b3a;"></i>سجل المستفيدين من البرنامج</h5>
+  </div>
+  {% if records %}
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المستفيد</th>
+          <th>رقم الهوية</th>
+          <th>تاريخ الاستفادة</th>
+          <th>نوع الاستفادة</th>
+          <th>الكمية</th>
+          <th>ملاحظات</th>
+          <th>بواسطة</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td style="color:#6c7a72;font-size:.82rem;">{{ loop.index }}</td>
+          <td style="font-weight:700;text-align:right;">
+            <span class="seq-badge me-1">{{ r.seq_num }}</span>
+            {{ r.full_name }}
+          </td>
+          <td style="font-family:monospace;font-size:.82rem;">{{ r.id_number or '—' }}</td>
+          <td style="white-space:nowrap;">
+            <i class="fas fa-calendar-alt me-1" style="color:#6c7a72;"></i>
+            {{ r.benefit_date }}
+          </td>
+          <td>
+            {% if r.benefit_type %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ r.benefit_type }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-weight:600;">{{ r.quantity or '—' }}</td>
+          <td style="font-size:.82rem;color:#6c7a72;">{{ r.notes or '—' }}</td>
+          <td style="font-size:.78rem;color:#6c7a72;">{{ r.created_by or '—' }}</td>
+          <td>
+            {% if session.get('role') != 'observer' %}
+            <a href="/program/{{ program.id }}/delete_record/{{ r.id }}"
+               class="btn btn-danger btn-sm"
+               onclick="return confirm('حذف هذا السجل؟')">
+              <i class="fas fa-trash"></i>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5" style="color:#6c7a72;">
+    <i class="fas fa-history fa-3x mb-3" style="color:#d8e8de;"></i>
+    <p class="fw-bold">لا توجد سجلات استفادة حتى الآن</p>
+    <p style="font-size:.88rem;">أضف أول سجل استفادة من النموذج أعلاه</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.seq-badge {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;background:var(--primary);color:#fff;
+  border-radius:50%;font-weight:800;font-size:.75rem;
+}
+</style>
+{% endblock %}

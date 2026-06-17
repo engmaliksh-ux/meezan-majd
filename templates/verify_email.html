@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تأكيد البريد الإلكتروني – مخزن الخير</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="auth-card" style="max-width:460px;">
+    <div class="auth-header">
+      <div class="auth-logo"><i class="fas fa-envelope-open-text"></i></div>
+      <h3>تأكيد البريد الإلكتروني</h3>
+      <p>أرسلنا كود التحقق إلى بريدك</p>
+    </div>
+    <div class="auth-body">
+
+      <!-- معلومة الإرسال -->
+      <div class="email-sent-info">
+        <i class="fas fa-paper-plane me-2" style="color:#1a6b3a;"></i>
+        تم إرسال كود مكون من 6 أرقام إلى:<br>
+        <strong>{{ email }}</strong>
+      </div>
+
+      {% if error %}
+      <div class="auth-error"><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
+      {% endif %}
+
+      <form method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-4 text-center">
+          <label class="form-label d-block mb-3">أدخل الكود المكون من 6 أرقام</label>
+          <div class="code-inputs" id="code-inputs">
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autofocus>
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+          </div>
+          <input type="hidden" name="code" id="hidden-code">
+        </div>
+
+        <!-- عداد الوقت -->
+        <div class="timer-box mb-3" id="timer-box">
+          <i class="fas fa-clock me-1"></i>
+          ينتهي الكود خلال: <span id="timer">03:00</span>
+        </div>
+
+        <button type="submit" class="auth-btn" id="submit-btn">
+          <i class="fas fa-check-circle me-2"></i>تأكيد الكود
+        </button>
+      </form>
+
+      <!-- تنبيه Spam -->
+      <div class="spam-notice">
+        <div class="spam-notice-title">
+          <i class="fas fa-exclamation-triangle me-2" style="color:#f0a500;"></i>
+          لم يصلك الكود في البريد الوارد؟
+        </div>
+        <p class="spam-notice-text">
+          أحياناً يصل الكود لمجلد البريد غير المرغوب (Spam).
+          تحقق منه بالضغط على الزر أدناه:
+        </p>
+        <a href="https://mail.google.com/mail/u/0/#spam"
+           target="_blank"
+           class="spam-btn">
+          <i class="fas fa-folder-open me-2"></i>
+          فتح مجلد Spam في Gmail
+        </a>
+        <div class="spam-tip">
+          <i class="fas fa-lightbulb me-1"></i>
+          لو وجدته هناك، افتحه واضغط "ليس بريداً مزعجاً" حتى تصلك الرسائل القادمة مباشرة
+        </div>
+      </div>
+
+      <!-- إعادة الإرسال وتعديل البيانات -->
+      <div class="text-center mt-3" style="display:flex;justify-content:center;gap:20px;">
+        <a href="/register/resend" style="color:#1a6b3a;font-weight:700;font-size:.86rem;">
+          <i class="fas fa-redo me-1"></i>إعادة الإرسال
+        </a>
+        <a href="/register/org" style="color:#6c7a72;font-size:.86rem;">
+          <i class="fas fa-arrow-right me-1"></i>تعديل البيانات
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+<style>
+.email-sent-info {
+  background:#e8f5ee;border:1px solid #b2dfcb;border-radius:10px;
+  padding:12px 16px;margin-bottom:16px;font-size:.86rem;color:#1a5c32;line-height:1.8;
+}
+.code-inputs {
+  display:flex;gap:10px;justify-content:center;direction:ltr;
+}
+.code-digit {
+  width:46px;height:56px;text-align:center;font-size:1.6rem;font-weight:900;
+  border:2px solid #d8e8de;border-radius:10px;font-family:'Courier New',monospace;
+  transition:border-color .2s;outline:none;background:#f9fcfa;
+}
+.code-digit:focus { border-color:#1a6b3a;background:#fff;box-shadow:0 0 0 3px rgba(26,107,58,.12); }
+.code-digit.filled { border-color:#1a6b3a;color:#1a6b3a; }
+.timer-box {
+  text-align:center;font-size:.84rem;color:#856404;
+  background:#fff3cd;border-radius:8px;padding:8px 14px;
+}
+/* تنبيه Spam */
+.spam-notice {
+  background:#fff8f0;border:2px solid #ffe0b2;border-radius:12px;
+  padding:16px 18px;margin-top:18px;
+}
+.spam-notice-title {
+  font-weight:800;font-size:.9rem;color:#e65100;margin-bottom:8px;
+}
+.spam-notice-text {
+  font-size:.82rem;color:#6c7a72;margin-bottom:12px;line-height:1.6;
+}
+.spam-btn {
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#e65100,#ff6d00);
+  color:#fff;border-radius:8px;padding:10px 16px;
+  font-weight:700;font-size:.88rem;text-decoration:none;
+  transition:all .2s;margin-bottom:10px;
+}
+.spam-btn:hover {
+  transform:translateY(-1px);
+  box-shadow:0 4px 14px rgba(230,81,0,.35);
+  color:#fff;
+}
+.spam-tip {
+  font-size:.76rem;color:#856404;
+  background:#fff3cd;border-radius:6px;
+  padding:7px 10px;line-height:1.5;
+}
+</style>
+
+<script>
+// التنقل بين الخانات
+const digits = document.querySelectorAll('.code-digit');
+const hidden = document.getElementById('hidden-code');
+
+digits.forEach((inp, i) => {
+  inp.addEventListener('input', e => {
+    const val = e.target.value.replace(/\D/g,'');
+    e.target.value = val;
+    if (val) {
+      e.target.classList.add('filled');
+      if (i < digits.length - 1) digits[i+1].focus();
+    } else {
+      e.target.classList.remove('filled');
+    }
+    updateHidden();
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !e.target.value && i > 0) {
+      digits[i-1].focus();
+      digits[i-1].value = '';
+      digits[i-1].classList.remove('filled');
+      updateHidden();
+    }
+  });
+  inp.addEventListener('paste', e => {
+    const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+    if (paste.length === 6) {
+      digits.forEach((d, j) => {
+        d.value = paste[j] || '';
+        if (d.value) d.classList.add('filled');
+      });
+      updateHidden();
+      digits[5].focus();
+    }
+    e.preventDefault();
+  });
+});
+
+function updateHidden() {
+  hidden.value = Array.from(digits).map(d => d.value).join('');
+}
+
+// عداد 3 دقائق
+let seconds = 3 * 60;
+const timerEl = document.getElementById('timer');
+const interval = setInterval(() => {
+  seconds--;
+  if (seconds <= 0) {
+    clearInterval(interval);
+    timerEl.textContent = 'انتهى الوقت';
+    timerEl.style.color = '#dc3545';
+    document.getElementById('submit-btn').disabled = true;
+    return;
+  }
+  const m = Math.floor(seconds/60).toString().padStart(2,'0');
+  const s = (seconds%60).toString().padStart(2,'0');
+  timerEl.textContent = `${m}:${s}`;
+}, 1000);
+</script>
+</body>
+</html>

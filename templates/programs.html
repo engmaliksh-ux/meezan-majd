@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block title %}البرامج والمشاريع{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-project-diagram"></i> البرامج والمشاريع</h2>
+</div>
+
+<!-- شريط البرامج مع الإضافة مدمجة -->
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="fas fa-list" style="color:#1a6b3a;"></i>
+    البرامج المتاحة
+    <span class="badge ms-2" style="background:#1a6b3a;color:#fff;">{{ programs|length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="programs-strip">
+      {% for p in programs %}
+      <div class="program-chip {% if not p.is_active %}program-chip-off{% endif %}">
+        <span class="program-emoji">
+          {% if p.name == 'كفالات أيتام' %}💛
+          {% elif p.name == 'طرود غذائية' %}📦
+          {% elif p.name == 'تكية' %}🍽️
+          {% elif p.name == 'مياه حلوة' %}💧
+          {% elif p.name == 'وجبات ساخنة' %}🔥
+          {% else %}📋{% endif %}
+        </span>
+        <a href="/program/{{ p.id }}" class="program-name" style="text-decoration:none;color:inherit;">
+          {{ p.name }}
+        </a>
+        {% if session.get('role') != 'observer' %}
+        <div class="program-actions">
+          <a href="/toggle_program/{{ p.id }}"
+             title="{% if p.is_active %}إيقاف{% else %}تفعيل{% endif %}"
+             class="prog-btn {% if p.is_active %}prog-btn-pause{% else %}prog-btn-play{% endif %}">
+            <i class="fas {% if p.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
+          </a>
+          <a href="/delete_program/{{ p.id }}"
+             onclick="return confirm('حذف هذا البرنامج؟')"
+             class="prog-btn prog-btn-del" title="حذف">
+            <i class="fas fa-times"></i>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <!-- مربع الإضافة مدمج -->
+      {% if session.get('role') != 'observer' %}
+      <form method="POST" action="/add_program" class="program-add-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" placeholder="+ برنامج جديد..."
+               class="program-add-input" required>
+        <button type="submit" class="program-add-btn" title="إضافة">
+          <i class="fas fa-plus"></i>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- إحصاءات الفئات المستحقة -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-mini" style="border-color:#ffd54f;background:#fffde7;">
+      <div class="stat-mini-icon" style="color:#f57f17;">👶</div>
+      <div class="stat-mini-value" style="color:#f57f17;">{{ orphan_stats.total_orphans }}</div>
+      <div class="stat-mini-label">إجمالي الأيتام</div>
+      <div class="stat-mini-sub">في {{ orphan_stats.families_with_orphans }} أسرة</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-mini" style="border-color:#b2dfdb;background:#e0f2f1;">
+      <div class="stat-mini-icon">🕊️</div>
+      <div class="stat-mini-value" style="color:#00695c;">{{ widows_count }}</div>
+      <div class="stat-mini-label">أرامل / أرامل</div>
+      <div class="stat-mini-sub">عدد أفراد = 1 أو حالة أرمل</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-mini" style="border-color:#f8bbd9;background:#fce4ec;">
+      <div class="stat-mini-icon">🤰</div>
+      <div class="stat-mini-value" style="color:#880e4f;">{{ pregnant_count }}</div>
+      <div class="stat-mini-label">حوامل</div>
+      <div class="stat-mini-sub">زوجات في فترة الحمل</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stat-mini" style="border-color:#f8bbd9;background:#fce4ec;">
+      <div class="stat-mini-icon">🍼</div>
+      <div class="stat-mini-value" style="color:#880e4f;">{{ nursing_count }}</div>
+      <div class="stat-mini-label">مرضعات</div>
+      <div class="stat-mini-sub">زوجات في فترة الرضاعة</div>
+    </div>
+  </div>
+</div>
+
+<!-- قائمة الأسر التي فيها أيتام -->
+{% if orphan_stats.families_with_orphans > 0 %}
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-child" style="color:#f57f17;"></i>
+    الأسر التي فيها أيتام
+    <span class="badge ms-2" style="background:#f57f17;color:#fff;">{{ orphan_stats.families_with_orphans }}</span>
+    <a href="/beneficiaries" class="btn btn-sm btn-outline-primary ms-auto"
+       style="float:left;font-size:.78rem;">
+      عرض الكل
+    </a>
+  </div>
+  <div class="card-body p-0">
+    <div style="padding:14px;color:#6c7a72;font-size:.88rem;text-align:center;">
+      <i class="fas fa-info-circle me-2" style="color:#f57f17;"></i>
+      يوجد <strong style="color:#f57f17;">{{ orphan_stats.total_orphans }}</strong> يتيم في
+      <strong>{{ orphan_stats.families_with_orphans }}</strong> أسرة مسجّلة.
+      <br>
+      <a href="/beneficiaries" class="btn btn-warning btn-sm mt-2">
+        <i class="fas fa-users me-1"></i> عرض قائمة المستفيدين
+      </a>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center" style="color:#6c7a72;padding:28px;">
+    <i class="fas fa-child fa-2x mb-2" style="color:#d8e8de;"></i>
+    <p class="mb-0">لا توجد أسر مسجّلة لديها أيتام حتى الآن</p>
+    <a href="/beneficiaries" class="btn btn-primary btn-sm mt-3">
+      <i class="fas fa-users me-1"></i> إدارة المستفيدين
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<style>
+/* شريط البرامج */
+.programs-strip {
+  display:flex;flex-wrap:wrap;gap:10px;padding:16px;align-items:center;
+}
+.program-chip {
+  display:flex;align-items:center;gap:8px;
+  background:#e8f5ee;border:2px solid #b2dfcb;border-radius:30px;
+  padding:8px 14px;transition:all .2s;
+}
+.program-chip:hover { border-color:#1a6b3a;box-shadow:0 2px 8px rgba(26,107,58,.15); }
+.program-chip-off { background:#f5f5f5;border-color:#ddd;opacity:.65; }
+.program-emoji { font-size:1.1rem; }
+.program-name { font-weight:700;font-size:.88rem;color:#1a6b3a;white-space:nowrap; }
+.program-chip-off .program-name { color:#6c7a72; }
+.program-actions { display:flex;gap:4px;margin-right:4px; }
+.prog-btn {
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;text-decoration:none;transition:all .15s;
+}
+.prog-btn-pause { background:#fff3cd;color:#856404; }
+.prog-btn-pause:hover { background:#f0a500;color:#fff; }
+.prog-btn-play { background:#e8f5ee;color:#1a6b3a; }
+.prog-btn-play:hover { background:#1a6b3a;color:#fff; }
+.prog-btn-del { background:#fde8e8;color:#c62828; }
+.prog-btn-del:hover { background:#dc3545;color:#fff; }
+.program-add-inline {
+  display:flex;align-items:center;
+  border:2px dashed #b2dfcb;border-radius:30px;overflow:hidden;
+  background:#fff;transition:border-color .2s;
+}
+.program-add-inline:focus-within { border-color:#1a6b3a;border-style:solid; }
+.program-add-input {
+  border:none;outline:none;padding:8px 16px;
+  font-family:'Cairo',sans-serif;font-size:.86rem;
+  background:transparent;min-width:140px;direction:rtl;
+}
+.program-add-btn {
+  background:#1a6b3a;border:none;color:#fff;
+  padding:8px 14px;cursor:pointer;transition:background .2s;font-size:.85rem;
+}
+.program-add-btn:hover { background:#134f2b; }
+
+/* بطاقات الإحصاء الصغيرة */
+.stat-mini {
+  border:2px solid;border-radius:12px;padding:16px;text-align:center;
+}
+.stat-mini-icon { font-size:1.8rem;margin-bottom:6px; }
+.stat-mini-value { font-size:1.8rem;font-weight:900;line-height:1; }
+.stat-mini-label { font-size:.88rem;font-weight:700;color:#1e2d24;margin-top:4px; }
+.stat-mini-sub { font-size:.72rem;color:#6c7a72;margin-top:2px; }
+</style>
+{% endblock %}

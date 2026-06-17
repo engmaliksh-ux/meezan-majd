@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}تعديل مستفيد{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-user-edit"></i> تعديل المستفيد</h2>
+  <a href="/beneficiaries" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+</div>
+
+<div class="card" style="max-width:680px;">
+  <div class="card-header"><i class="fas fa-user" style="color:#f0a500;"></i> {{ b.full_name }}</div>
+  <div class="card-body">
+    <form method="POST">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-8">
+          <label class="form-label">الاسم الرباعي <span class="text-danger">*</span></label>
+          <input class="form-control" name="full_name" value="{{ b.full_name }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">الجنس</label>
+          <select class="form-select" name="gender">
+            <option value="male"   {% if b.get('gender','male')=='male'   %}selected{% endif %}>ذكر</option>
+            <option value="female" {% if b.get('gender')=='female' %}selected{% endif %}>أنثى</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">رقم الهوية</label>
+          <input class="form-control" name="id_number" value="{{ b.id_number or '' }}"
+                 placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">رقم الجوال</label>
+          <div style="display:flex;">
+            <span style="background:#e8f5ee;border:2px solid #d8e8de;border-left:none;border-radius:8px 0 0 8px;padding:9px 12px;font-weight:800;color:#1a6b3a;white-space:nowrap;">05</span>
+            <input class="form-control" name="phone_suffix" id="phone_suffix"
+                   value="{{ b.phone[2:] if b.phone and b.phone.startswith('05') else (b.phone or '') }}"
+                   placeholder="xxxxxxxx" maxlength="8" inputmode="numeric"
+                   style="border-radius:0 8px 8px 0;border-left:none;">
+            <input type="hidden" name="phone" id="phone_hidden" value="{{ b.phone or '' }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">العنوان الأول</label>
+          <input class="form-control" name="address" value="{{ b.address or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">العنوان الثاني</label>
+          <input class="form-control" name="address2" value="{{ b.address2 or '' }}">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">اسم المخيم / مركز الإيواء</label>
+        <input class="form-control" name="camp_name" value="{{ b.camp_name or '' }}">
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label">الحالة الاجتماعية</label>
+          <select class="form-select" name="marital_status" id="marital_edit">
+            <option value="married"  {% if b.marital_status=='married'  %}selected{% endif %}>متزوج/ة</option>
+            <option value="single"   {% if b.marital_status=='single'   %}selected{% endif %}>أعزب/عزباء</option>
+            <option value="widowed"  {% if b.marital_status=='widowed'  %}selected{% endif %}>أرمل/أرملة</option>
+            <option value="divorced" {% if b.marital_status=='divorced' %}selected{% endif %}>مطلق/مطلقة</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">عدد أفراد الأسرة</label>
+          <input type="number" class="form-control" name="family_size"
+                 value="{{ b.family_size or 1 }}" min="1" max="30"
+                 id="family_size_edit" onchange="checkSingleMember(this, 'marital_edit')">
+          <div id="single-warning-edit"
+               style="display:{% if b.family_size == 1 %}block{% else %}none{% endif %};font-size:.74rem;color:#856404;margin-top:3px;background:#fff3cd;padding:4px 8px;border-radius:6px;">
+            <i class="fas fa-info-circle me-1"></i>عدد الأفراد 1 = أرمل/أرملة
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">عدد الأبناء</label>
+          <input type="number" class="form-control" name="children_count"
+                 value="{{ b.get('children_count',0) or 0 }}" min="0" max="20">
+        </div>
+      </div>
+
+      <!-- الزوجة -->
+      <div class="check-section mb-3">
+        <div class="check-section-title"><i class="fas fa-female me-2" style="color:#e91e8c;"></i>حالة الزوجة</div>
+        <div class="check-options">
+          <label class="check-opt">
+            <input type="checkbox" name="wife_pregnant" value="1"
+                   {% if b.get('wife_pregnant') %}checked{% endif %}>
+            <i class="fas fa-baby me-2" style="color:#f0a500;"></i>
+            <div><div class="check-opt-title">حامل</div><div class="check-opt-desc">في فترة الحمل</div></div>
+          </label>
+          <label class="check-opt">
+            <input type="checkbox" name="wife_nursing" value="1"
+                   {% if b.get('wife_nursing') %}checked{% endif %}>
+            <i class="fas fa-heart me-2" style="color:#e91e8c;"></i>
+            <div><div class="check-opt-title">مرضع</div><div class="check-opt-desc">في فترة الرضاعة</div></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- الأيتام -->
+      <div class="check-section mb-3">
+        <div class="check-section-title"><i class="fas fa-child me-2" style="color:#1565c0;"></i>الأيتام</div>
+        <div class="check-options">
+          <label class="check-opt" style="flex:1;">
+            <input type="checkbox" name="has_orphans" value="1" id="has_orphans_cb"
+                   {% if b.get('has_orphans') %}checked{% endif %}
+                   onchange="toggleOrphans()">
+            <i class="fas fa-child me-2" style="color:#1565c0;"></i>
+            <div>
+              <div class="check-opt-title">يوجد أيتام في الأسرة</div>
+              <div class="check-opt-desc">أبناء فقدوا أحد الوالدين أو كليهما</div>
+            </div>
+          </label>
+        </div>
+        <div id="orphans-count-box"
+             style="display:{% if b.get('has_orphans') %}block{% else %}none{% endif %};padding:12px 14px 14px;">
+          <label class="form-label">عدد الأيتام</label>
+          <input type="number" class="form-control" name="orphans_count"
+                 value="{{ b.get('orphans_count',0) or 0 }}"
+                 min="1" max="20" style="max-width:160px;">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label">ملاحظات</label>
+        <textarea class="form-control" name="notes">{{ b.notes or '' }}</textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-warning"><i class="fas fa-save me-1"></i> حفظ التعديلات</button>
+        <a href="/beneficiaries" class="btn btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.check-section { border:2px solid #d8e8de;border-radius:10px;overflow:hidden; }
+.check-section-title { background:#e8f5ee;padding:10px 14px;font-weight:800;font-size:.88rem;color:#1a6b3a; }
+.check-options { padding:10px 14px;display:flex;gap:12px;flex-wrap:wrap; }
+.check-opt { display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px solid #d8e8de;border-radius:8px;cursor:pointer;transition:all .2s;flex:1;min-width:180px; }
+.check-opt:hover { border-color:#1a6b3a;background:#f9fcfa; }
+.check-opt input[type=checkbox] { width:18px;height:18px;accent-color:#1a6b3a;flex-shrink:0; }
+.check-opt-title { font-weight:700;font-size:.88rem; }
+.check-opt-desc { font-size:.74rem;color:#6c7a72; }
+</style>
+<script>
+function checkSingleMember(input, maritalId) {
+  const val     = parseInt(input.value);
+  const warning = document.getElementById('single-warning-edit');
+  const marital = document.getElementById(maritalId);
+  if (val === 1) {
+    warning.style.display = 'block';
+    if (marital && marital.value === 'married') {
+      marital.value = 'widowed';
+    }
+  } else {
+    warning.style.display = 'none';
+  }
+}
+
+const suffix = document.getElementById('phone_suffix');
+const hidden = document.getElementById('phone_hidden');
+if (suffix) {
+  suffix.addEventListener('input', () => {
+    const val = suffix.value.replace(/\D/g,'').slice(0,8);
+    suffix.value = val;
+    hidden.value = val ? '05'+val : '';
+  });
+}
+function toggleOrphans() {
+  const cb = document.getElementById('has_orphans_cb');
+  document.getElementById('orphans-count-box').style.display = cb.checked ? 'block' : 'none';
+}
+document.querySelector('[name=id_number]').addEventListener('input', function(){
+  this.value = this.value.replace(/\D/g,'').slice(0,9);
+});
+</script>
+{% endblock %}
