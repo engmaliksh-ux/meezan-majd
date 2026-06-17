@@ -2072,6 +2072,48 @@ def delete_worker(id):
     return redirect(url_for("workers_list"))
 
 
+@app.route("/outgoing_invoice/<int:id>/delete")
+@invoices_required
+def delete_outgoing_invoice(id):
+    """حذف فاتورة صرف مع إعادة كل الكميات للمخزن (أدمن فقط)"""
+    if session.get("role") != "admin":
+        flash("هذا الإجراء مخصص للأدمن فقط", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM outgoing_invoices WHERE id=? AND org_id=?", (id, org_id))
+    if not c.fetchone():
+        conn.close()
+        flash("الفاتورة غير موجودة", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+
+    # إعادة كل الكميات للمخزن
+    c.execute("SELECT product_id, quantity, unit_price FROM outgoing_invoice_items WHERE invoice_id=?", (id,))
+    items = c.fetchall()
+    for item in items:
+        c.execute("""
+            SELECT id FROM stock_batches
+            WHERE product_id=? AND org_id=? ORDER BY id DESC LIMIT 1
+        """, (item["product_id"], org_id))
+        batch = c.fetchone()
+        if batch:
+            c.execute("UPDATE stock_batches SET quantity_remaining = quantity_remaining + ? WHERE id=?",
+                      (item["quantity"], batch["id"]))
+        else:
+            c.execute("""
+                INSERT INTO stock_batches (org_id, product_id, quantity_remaining, unit_price, entry_date)
+                VALUES (?,?,?,?,date('now','localtime'))
+            """, (org_id, item["product_id"], item["quantity"], item["unit_price"]))
+
+    c.execute("DELETE FROM outgoing_invoice_items WHERE invoice_id=?", (id,))
+    c.execute("DELETE FROM outgoing_invoices WHERE id=? AND org_id=?", (id, org_id))
+    conn.commit()
+    conn.close()
+    flash("✅ تم حذف الفاتورة وإعادة جميع الكميات للمخزن", "success")
+    return redirect(url_for("outgoing_invoices_list"))
+
+
 @app.route("/outgoing_invoice/<int:id>/close")
 @invoices_required
 def close_outgoing_invoice(id):
@@ -2088,7 +2130,7 @@ def close_outgoing_invoice(id):
 @app.route("/outgoing_invoice/<int:id>/update", methods=["POST"])
 @invoices_required
 def update_outgoing_invoice(id):
-    """تعديل رأس فاتورة الصرف المفتوحة (أدمن فقط)"""
+    """تعديل رأس فاتورة الصرف المفتوحة + أصنافها (أدمن فقط)"""
     if session.get("role") != "admin":
         flash("هذا الإجراء مخصص للأدمن فقط", "danger")
         return redirect(url_for("outgoing_invoices_list"))
@@ -2102,20 +2144,101 @@ def update_outgoing_invoice(id):
         flash("الفاتورة مغلقة أو غير موجودة", "danger")
         return redirect(url_for("outgoing_invoices_list"))
 
+    # تعديل الرأس
     invoice_number = request.form.get("invoice_number", "").strip()
     invoice_date   = request.form.get("invoice_date", "").strip()
     beneficiary    = request.form.get("beneficiary", "").strip()
     notes          = request.form.get("notes", "").strip()
-
     c.execute("""
         UPDATE outgoing_invoices
         SET invoice_number=?, invoice_date=?, beneficiary=?, notes=?
         WHERE id=? AND org_id=?
     """, (invoice_number, invoice_date, beneficiary, notes, id, org_id))
+
+    # تعديل الأصناف
+    item_ids    = request.form.getlist("item_id[]")
+    prod_names  = request.form.getlist("prod_name[]")
+    unit_prices = request.form.getlist("unit_price[]")
+
+    for iid, pname, uprice in zip(item_ids, prod_names, unit_prices):
+        try:
+            price_f = float(uprice)
+            c.execute("SELECT quantity FROM outgoing_invoice_items WHERE id=? AND invoice_id=?", (iid, id))
+            row = c.fetchone()
+            if not row:
+                continue
+            qty = row["quantity"]
+            # تحديث اسم الصنف في جدول المنتجات إن وجد
+            c.execute("SELECT product_id FROM outgoing_invoice_items WHERE id=?", (iid,))
+            pid_row = c.fetchone()
+            if pid_row and pname.strip():
+                c.execute("UPDATE products SET name=? WHERE id=? AND org_id=?",
+                          (pname.strip(), pid_row["product_id"], org_id))
+            c.execute("""
+                UPDATE outgoing_invoice_items
+                SET unit_price=?, total_price=?
+                WHERE id=? AND invoice_id=?
+            """, (price_f, qty * price_f, iid, id))
+        except (ValueError, TypeError):
+            pass
+
     conn.commit()
     conn.close()
     flash("✅ تم حفظ التعديلات", "success")
     return redirect(url_for("outgoing_invoices_list") + f"#inv-{id}")
+
+
+@app.route("/outgoing_invoice/item/<int:item_id>/delete")
+@invoices_required
+def delete_outgoing_item(item_id):
+    """حذف صنف من فاتورة الصرف المفتوحة مع إعادة كميته للمخزن"""
+    if session.get("role") != "admin":
+        flash("هذا الإجراء مخصص للأدمن فقط", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    # جلب بيانات الصنف + التحقق من أن الفاتورة مفتوحة
+    c.execute("""
+        SELECT oi.id, oi.invoice_id, oi.product_id, oi.quantity, oi.unit_price
+        FROM outgoing_invoice_items oi
+        JOIN outgoing_invoices inv ON inv.id = oi.invoice_id
+        WHERE oi.id=? AND inv.org_id=? AND COALESCE(inv.is_closed,0)=0
+    """, (item_id, org_id))
+    item = c.fetchone()
+    if not item:
+        conn.close()
+        flash("الصنف غير موجود أو الفاتورة مغلقة", "danger")
+        return redirect(url_for("outgoing_invoices_list"))
+
+    invoice_id = item["invoice_id"]
+    product_id = item["product_id"]
+    qty        = item["quantity"]
+    price      = item["unit_price"]
+
+    # إعادة الكمية للمخزن: أضف للدفعة الأخيرة الموجودة أو أنشئ دفعة جديدة
+    c.execute("""
+        SELECT id FROM stock_batches
+        WHERE product_id=? AND org_id=?
+        ORDER BY id DESC LIMIT 1
+    """, (product_id, org_id))
+    batch = c.fetchone()
+    if batch:
+        c.execute("UPDATE stock_batches SET quantity_remaining = quantity_remaining + ? WHERE id=?",
+                  (qty, batch["id"]))
+    else:
+        c.execute("""
+            INSERT INTO stock_batches (org_id, product_id, quantity_remaining, unit_price, entry_date)
+            VALUES (?,?,?,?,date('now','localtime'))
+        """, (org_id, product_id, qty, price))
+
+    # حذف الصنف
+    c.execute("DELETE FROM outgoing_invoice_items WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+    flash("✅ تم حذف الصنف وإعادة الكمية للمخزن", "success")
+    return redirect(url_for("outgoing_invoices_list") + f"#inv-{invoice_id}")
 
 
 if __name__ == "__main__":

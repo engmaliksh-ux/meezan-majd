@@ -78,46 +78,102 @@
         </a>
         {% endif %}
       {% endif %}
+      {% if session.get('role') == 'admin' %}
+      <a href="/outgoing_invoice/{{ inv.id }}/delete" class="btn btn-outline-danger btn-sm no-print"
+         title="حذف الفاتورة كاملة"
+         onclick="return confirm('سيتم حذف الفاتورة كاملة وإعادة جميع الكميات للمخزن. هذا الإجراء لا يمكن التراجع عنه. متأكد؟')">
+        <i class="fas fa-trash"></i>
+      </a>
+      {% endif %}
     </div>
   </div>
 
   <!-- جسم الفاتورة -->
   <div class="oic-body" id="oic-body-{{ inv.id }}">
 
-    <!-- قسم التعديل (أدمن + مفتوحة) -->
+    <!-- قسم التعديل الكامل (أدمن + مفتوحة) -->
     {% if not inv.is_closed and session.get('role') == 'admin' %}
     <div class="oic-edit-section no-print" id="edit-{{ inv.id }}" style="display:none;">
-      <div class="oic-section-title"><i class="fas fa-pen me-1"></i> تعديل بيانات الفاتورة</div>
+      <div class="oic-section-title"><i class="fas fa-pen me-1"></i> تعديل الفاتورة</div>
       <form method="POST" action="/outgoing_invoice/{{ inv.id }}/update">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+        <!-- بيانات الرأس -->
         <div class="row g-2 mb-3">
           <div class="col-md-3">
-            <label class="form-label">رقم الفاتورة</label>
+            <label class="form-label form-label-sm">رقم الفاتورة</label>
             <input class="form-control form-control-sm" name="invoice_number" value="{{ inv.invoice_number }}">
           </div>
           <div class="col-md-3">
-            <label class="form-label">التاريخ</label>
+            <label class="form-label form-label-sm">التاريخ</label>
             <input type="date" class="form-control form-control-sm" name="invoice_date"
                    value="{{ inv.invoice_date or today_str }}">
           </div>
           <div class="col-md-4">
-            <label class="form-label">الجهة / المستفيد</label>
+            <label class="form-label form-label-sm">الجهة / المستفيد</label>
             <input class="form-control form-control-sm" name="beneficiary" value="{{ inv.beneficiary or '' }}">
           </div>
-          <div class="col-md-2 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary btn-sm w-100">
-              <i class="fas fa-save me-1"></i> حفظ
-            </button>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm">ملاحظات</label>
+            <input class="form-control form-control-sm" name="notes" value="{{ inv.notes or '' }}">
           </div>
         </div>
-        {% if inv.notes %}
-        <div class="mb-2">
-          <label class="form-label">ملاحظات</label>
-          <input class="form-control form-control-sm" name="notes" value="{{ inv.notes }}">
+
+        <!-- أصناف قابلة للتعديل -->
+        <div class="table-responsive mb-2">
+          <table class="table table-sm table-bordered mb-0">
+            <thead style="background:#fde8e8;font-size:.8rem;">
+              <tr>
+                <th>#</th>
+                <th>اسم الصنف</th>
+                <th>الوحدة</th>
+                <th>الكمية</th>
+                <th style="width:120px;">سعر الوحدة</th>
+                <th>الإجمالي</th>
+                <th class="no-print" style="width:50px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in inv.lines %}
+              <tr>
+                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                <td style="color:#aaa;font-size:.75rem;">{{ loop.index }}</td>
+                <td>
+                  <input type="text" class="form-control form-control-sm"
+                         name="prod_name[]" value="{{ item.product_name }}">
+                </td>
+                <td style="color:#6c7a72;font-size:.82rem;">{{ item.unit }}</td>
+                <td>
+                  <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">
+                    {{ "%.2f"|format(item.quantity) }}
+                  </span>
+                  <small style="color:#aaa;font-size:.68rem;display:block;">ثابتة</small>
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm"
+                         name="unit_price[]" step="0.01" min="0"
+                         value="{{ "%.2f"|format(item.unit_price) }}">
+                </td>
+                <td class="fw-bold" style="color:#c62828;">{{ "%.2f"|format(item.total_price) }}</td>
+                <td class="text-center no-print">
+                  <a href="/outgoing_invoice/item/{{ item.id }}/delete"
+                     class="btn btn-outline-danger btn-sm"
+                     title="حذف الصنف وإعادة الكمية للمخزن"
+                     onclick="return confirm('سيتم حذف هذا الصنف وإعادة كميته للمخزن. متأكد؟')">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        {% else %}
-        <input type="hidden" name="notes" value="">
-        {% endif %}
+
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-save me-1"></i> حفظ كل التعديلات
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm ms-1"
+                onclick="toggleEdit({{ inv.id }})">إلغاء</button>
       </form>
     </div>
     {% endif %}
