@@ -120,7 +120,7 @@ init_db()
 # ══════════════════════════════════════════
 @app.route("/set_lang/<lang>")
 def set_lang(lang):
-    if lang in ('ar', 'tr'):
+    if lang in ('ar', 'tr', 'en'):
         session['lang'] = lang
     return redirect(request.referrer or url_for('dashboard'))
 
@@ -2297,6 +2297,385 @@ def delete_outgoing_item(item_id):
     conn.close()
     flash("✅ تم حذف الصنف وإعادة الكمية للمخزن", "success")
     return redirect(url_for("outgoing_invoices_list") + f"#inv-{invoice_id}")
+
+
+# ══════════════════════════════════════════
+# الشات الداخلي (أدمن ↔ مراقب)
+# ══════════════════════════════════════════
+def _chat_allowed():
+    return session.get("role") in ("admin", "observer")
+
+@app.route("/messages")
+@login_required
+def messages_page():
+    if not _chat_allowed():
+        flash("غير مصرّح", "danger")
+        return redirect(url_for("dashboard"))
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    # جلب آخر 200 رسالة
+    c.execute("""
+        SELECT id, sender_name, sender_role, content, created_at
+        FROM messages WHERE org_id=?
+        ORDER BY id DESC LIMIT 200
+    """, (org_id,))
+    msgs = list(reversed(c.fetchall()))
+    # تحديث آخر رسالة مقروءة لهذا المستخدم
+    if msgs:
+        last_id = msgs[-1]["id"]
+        c.execute("""
+            INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
+            ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
+        """, (user_id, last_id))
+        conn.commit()
+    conn.close()
+    return render_template("messages.html", msgs=msgs)
+
+
+@app.route("/messages/send", methods=["POST"])
+@login_required
+def messages_send():
+    if not _chat_allowed():
+        return {"ok": False}, 403
+    content = (request.json or {}).get("content", "").strip()
+    if not content or len(content) > 2000:
+        return {"ok": False, "err": "empty"}, 400
+    org_id   = session["org_id"]
+    user_id  = session["user_id"]
+    name     = session.get("full_name") or session.get("user", "")
+    role     = session.get("role", "")
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""
+        INSERT INTO messages(org_id, sender_id, sender_name, sender_role, content)
+        VALUES(?,?,?,?,?)
+    """, (org_id, user_id, name, role, content))
+    new_id = c.lastrowid
+    # تحديث آخر مقروء للمرسل نفسه
+    c.execute("""
+        INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
+        ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
+    """, (user_id, new_id))
+    conn.commit()
+    conn.close()
+    from datetime import datetime
+    return {"ok": True, "id": new_id, "time": datetime.now().strftime("%H:%M")}
+
+
+@app.route("/messages/poll")
+@login_required
+def messages_poll():
+    if not _chat_allowed():
+        return {"msgs": []}, 403
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    since   = request.args.get("since", 0, type=int)
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""
+        SELECT id, sender_name, sender_role, content, created_at
+        FROM messages WHERE org_id=? AND id>?
+        ORDER BY id ASC LIMIT 50
+    """, (org_id, since))
+    rows = c.fetchall()
+    # تحديث آخر مقروء
+    if rows:
+        last_id = rows[-1]["id"]
+        c.execute("""
+            INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
+            ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
+        """, (user_id, last_id))
+        conn.commit()
+    conn.close()
+    return {"msgs": [{"id":r["id"],"name":r["sender_name"],"role":r["sender_role"],
+                      "content":r["content"],"time":r["created_at"][-5:]} for r in rows]}
+
+
+@app.route("/messages/unread_count")
+@login_required
+def messages_unread_count():
+    if not _chat_allowed():
+        return {"count": 0}
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT last_msg_id FROM message_reads WHERE user_id=?", (user_id,))
+    row    = c.fetchone()
+    last   = row["last_msg_id"] if row else 0
+    c.execute("SELECT COUNT(*) as n FROM messages WHERE org_id=? AND id>?", (org_id, last))
+    count  = c.fetchone()["n"]
+    conn.close()
+    return {"count": count}
+
+
+# ══════════════════════════════════════════
+# التقارير الذكية
+# ══════════════════════════════════════════
+import io, json as _json
+
+@app.route("/ai_reports")
+@login_required
+def ai_reports():
+    if session.get("role") not in ("admin", "observer"):
+        flash("غير مصرّح", "danger")
+        return redirect(url_for("dashboard"))
+    return render_template("ai_reports.html")
+
+
+@app.route("/ai_reports/generate", methods=["POST"])
+@login_required
+def ai_reports_generate():
+    """يحلّل طلب المستخدم ويولّد تقرير Word أو PDF من البيانات"""
+    if session.get("role") not in ("admin", "observer"):
+        return {"ok": False}, 403
+
+    data     = request.json or {}
+    query    = data.get("query", "").strip().lower()
+    fmt      = data.get("fmt", "docx")   # 'docx' أو 'pdf'
+    org_id   = session["org_id"]
+    lang     = session.get("lang", "ar")
+
+    conn = get_connection()
+    c    = conn.cursor()
+
+    # ── تحديد نوع التقرير ──
+    def _kw(*words): return any(w in query for w in words)
+
+    if _kw("مشتريات","فاتورة شراء","فواتير شراء","purchase","satın","incoming"):
+        rtype = "purchases"
+    elif _kw("صرف","مخزن","outgoing","warehouse","çıkış","depo"):
+        rtype = "outgoing"
+    elif _kw("مستفيد","مستفيدين","beneficiar","yararlanıcı"):
+        rtype = "beneficiaries"
+    elif _kw("عامل","عاملين","worker","çalışan","راتب","salary","maaş"):
+        rtype = "workers"
+    elif _kw("برنامج","برامج","program","proje","مشروع"):
+        rtype = "programs"
+    elif _kw("صنف","أصناف","مخزون","stock","ürün","product","stok"):
+        rtype = "stock"
+    elif _kw("ملخص","شامل","كامل","summary","overview","genel","tüm","all"):
+        rtype = "summary"
+    else:
+        conn.close()
+        return {"ok": False, "msg": {
+            "ar": "لم أفهم نوع التقرير. جرّب: تقرير المشتريات، المخزن، المستفيدين، العاملين، البرامج، الأصناف، أو ملخص شامل.",
+            "tr": "Rapor türü anlaşılamadı. Deneyin: satın almalar, depo, yararlanıcılar, çalışanlar, programlar, ürünler veya genel özet.",
+            "en": "Report type not recognized. Try: purchases, warehouse, beneficiaries, workers, programs, stock, or full summary."
+        }.get(lang, "Report type not recognized.")}
+
+    # ── جمع البيانات ──
+    rows_data = {}
+    org_name  = ""
+    c.execute("SELECT name FROM organizations WHERE id=?", (org_id,))
+    org_row = c.fetchone()
+    if org_row: org_name = org_row["name"]
+
+    if rtype in ("purchases","summary"):
+        c.execute("""
+            SELECT ii.seq_num, ii.invoice_number, ii.supplier, ii.invoice_date,
+                   ii.is_closed, ii.is_paid,
+                   COALESCE(SUM(iii.total_price),0) as total
+            FROM incoming_invoices ii
+            LEFT JOIN incoming_invoice_items iii ON iii.invoice_id=ii.id
+            WHERE ii.org_id=?
+            GROUP BY ii.id ORDER BY ii.seq_num
+        """, (org_id,))
+        rows_data["purchases"] = c.fetchall()
+
+    if rtype in ("outgoing","summary"):
+        c.execute("""
+            SELECT oi.invoice_number, oi.invoice_date, oi.beneficiary, oi.is_closed,
+                   COALESCE(SUM(oii.total_price),0) as total
+            FROM outgoing_invoices oi
+            LEFT JOIN outgoing_invoice_items oii ON oii.invoice_id=oi.id
+            WHERE oi.org_id=?
+            GROUP BY oi.id ORDER BY oi.id
+        """, (org_id,))
+        rows_data["outgoing"] = c.fetchall()
+
+    if rtype in ("beneficiaries","summary"):
+        c.execute("""
+            SELECT full_name, gender, id_number, phone,
+                   marital_status, family_members, children_count,
+                   benef_type, notes
+            FROM beneficiaries WHERE org_id=? ORDER BY id
+        """, (org_id,))
+        rows_data["beneficiaries"] = c.fetchall()
+
+    if rtype in ("workers","summary"):
+        c.execute("SELECT full_name, id_number, project_name, job_type, monthly_salary, notes FROM workers WHERE org_id=? ORDER BY id", (org_id,))
+        rows_data["workers"] = c.fetchall()
+
+    if rtype in ("programs","summary"):
+        c.execute("SELECT name FROM programs WHERE org_id=? ORDER BY id", (org_id,))
+        rows_data["programs"] = c.fetchall()
+
+    if rtype in ("stock","summary"):
+        c.execute("""
+            SELECT p.name, p.unit,
+                   COALESCE(SUM(sb.quantity_remaining),0) as qty,
+                   p.last_price
+            FROM products p
+            LEFT JOIN stock_batches sb ON sb.product_id=p.id AND sb.org_id=p.org_id
+            WHERE p.org_id=?
+            GROUP BY p.id ORDER BY p.name
+        """, (org_id,))
+        rows_data["stock"] = c.fetchall()
+
+    conn.close()
+
+    # ── توليد ملف Word ──
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    from datetime import datetime as _dt
+
+    doc = Document()
+    # اتجاه RTL للعربية
+    if lang in ("ar",):
+        for s in doc.styles:
+            try:
+                pPr = s.element.get_or_add_pPr()
+                bidi = OxmlElement('w:bidi')
+                pPr.append(bidi)
+            except: pass
+
+    # العنوان
+    titles = {
+        "purchases":     {"ar":"تقرير فواتير المشتريات","tr":"Satın Alma Faturaları Raporu","en":"Purchase Invoices Report"},
+        "outgoing":      {"ar":"تقرير فواتير الصرف","tr":"Çıkış Faturaları Raporu","en":"Outgoing Invoices Report"},
+        "beneficiaries": {"ar":"تقرير المستفيدين","tr":"Yararlanıcılar Raporu","en":"Beneficiaries Report"},
+        "workers":       {"ar":"تقرير العاملين","tr":"Çalışanlar Raporu","en":"Workers Report"},
+        "programs":      {"ar":"تقرير البرامج والمشاريع","tr":"Programlar ve Projeler Raporu","en":"Programs & Projects Report"},
+        "stock":         {"ar":"تقرير المخزون","tr":"Stok Raporu","en":"Stock Report"},
+        "summary":       {"ar":"التقرير الشامل","tr":"Genel Özet Rapor","en":"Full Summary Report"},
+    }
+    title_txt = titles.get(rtype, {}).get(lang, titles.get(rtype,{}).get("ar","تقرير"))
+    h = doc.add_heading(f"{org_name} — {title_txt}", 0)
+    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub = doc.add_paragraph({"ar":f"التاريخ: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
+                              "tr":f"Tarih: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
+                              "en":f"Date: {_dt.now().strftime('%Y-%m-%d %H:%M')}"}.get(lang,""))
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    def _add_table(headers, rows_list, key_fn):
+        if not rows_list:
+            doc.add_paragraph({"ar":"لا توجد بيانات","tr":"Veri yok","en":"No data"}.get(lang,"No data"))
+            return
+        table = doc.add_table(rows=1, cols=len(headers))
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        for i, h in enumerate(headers): hdr[i].text = h
+        for row in rows_list:
+            vals = key_fn(row)
+            cells = table.add_row().cells
+            for i, v in enumerate(vals): cells[i].text = str(v) if v is not None else ""
+        doc.add_paragraph()
+
+    # ── مشتريات ──
+    if "purchases" in rows_data:
+        doc.add_heading({"ar":"فواتير المشتريات","tr":"Satın Alma Faturaları","en":"Purchase Invoices"}.get(lang,""), 1)
+        hdrs = {"ar":["#","رقم الفاتورة","المورد","التاريخ","الإجمالي","الحالة","الدفع"],
+                "tr":["#","Fatura No","Tedarikçi","Tarih","Toplam","Durum","Ödeme"],
+                "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang)
+        st_map = {"ar":("مفتوحة","مغلقة","مدفوعة","غير مدفوعة"),
+                  "tr":("Açık","Kapalı","Ödendi","Ödenmedi"),
+                  "en":("Open","Closed","Paid","Unpaid")}.get(lang,("Open","Closed","Paid","Unpaid"))
+        rows_list = rows_data["purchases"]
+        total_all = sum(r["total"] for r in rows_list)
+        _add_table(hdrs, rows_list, lambda r: [
+            r["seq_num"] or "",
+            r["invoice_number"] or "",
+            r["supplier"] or "",
+            r["invoice_date"] or "",
+            f"{r['total']:.2f}",
+            st_map[1] if r["is_closed"] else st_map[0],
+            st_map[2] if r["is_paid"] else st_map[3],
+        ])
+        doc.add_paragraph({"ar":f"الإجمالي الكلي: {total_all:.2f}",
+                           "tr":f"Genel Toplam: {total_all:.2f}",
+                           "en":f"Grand Total: {total_all:.2f}"}.get(lang,""))
+
+    # ── صرف ──
+    if "outgoing" in rows_data:
+        doc.add_heading({"ar":"فواتير الصرف","tr":"Çıkış Faturaları","en":"Outgoing Invoices"}.get(lang,""), 1)
+        hdrs = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
+                "tr":["Fatura No","Tarih","Kurum","Toplam","Durum"],
+                "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang)
+        st_map = {"ar":("مفتوحة","مغلقة"),"tr":("Açık","Kapalı"),"en":("Open","Closed")}.get(lang)
+        rows_list = rows_data["outgoing"]
+        total_all = sum(r["total"] for r in rows_list)
+        _add_table(hdrs, rows_list, lambda r: [
+            r["invoice_number"] or "", r["invoice_date"] or "",
+            r["beneficiary"] or "", f"{r['total']:.2f}",
+            st_map[1] if r["is_closed"] else st_map[0],
+        ])
+        doc.add_paragraph({"ar":f"الإجمالي: {total_all:.2f}","tr":f"Toplam: {total_all:.2f}","en":f"Total: {total_all:.2f}"}.get(lang,""))
+
+    # ── مستفيدون ──
+    if "beneficiaries" in rows_data:
+        doc.add_heading({"ar":"المستفيدون","tr":"Yararlanıcılar","en":"Beneficiaries"}.get(lang,""), 1)
+        hdrs = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","الأفراد","النوع"],
+                "tr":["Ad Soyad","Cinsiyet","Kimlik","Telefon","Durum","Üyeler","Tür"],
+                "en":["Name","Gender","ID","Phone","Status","Members","Type"]}.get(lang)
+        rows_list = rows_data["beneficiaries"]
+        _add_table(hdrs, rows_list, lambda r: [
+            r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
+            r["phone"] or "", r["marital_status"] or "",
+            r["family_members"] or "", r["benef_type"] or "",
+        ])
+        doc.add_paragraph({"ar":f"العدد الكلي: {len(rows_list)}",
+                           "tr":f"Toplam: {len(rows_list)}","en":f"Total: {len(rows_list)}"}.get(lang,""))
+
+    # ── عاملون ──
+    if "workers" in rows_data:
+        doc.add_heading({"ar":"العاملون","tr":"Çalışanlar","en":"Workers"}.get(lang,""), 1)
+        hdrs = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة","ملاحظات"],
+                "tr":["Ad","Kimlik","Proje","Görev","Maaş","Notlar"],
+                "en":["Name","ID","Project","Role","Salary","Notes"]}.get(lang)
+        rows_list = rows_data["workers"]
+        total_sal = sum((r["monthly_salary"] or 0) for r in rows_list)
+        _add_table(hdrs, rows_list, lambda r: [
+            r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
+            r["job_type"] or "", f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00",
+            r["notes"] or "",
+        ])
+        doc.add_paragraph({"ar":f"إجمالي المكافآت الشهرية: {total_sal:.2f}",
+                           "tr":f"Toplam Maaş: {total_sal:.2f}","en":f"Total Salaries: {total_sal:.2f}"}.get(lang,""))
+
+    # ── برامج ──
+    if "programs" in rows_data:
+        doc.add_heading({"ar":"البرامج والمشاريع","tr":"Programlar","en":"Programs"}.get(lang,""), 1)
+        for i, row in enumerate(rows_data["programs"], 1):
+            doc.add_paragraph(f"{i}. {row['name']}", style="List Number")
+
+    # ── مخزون ──
+    if "stock" in rows_data:
+        doc.add_heading({"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""), 1)
+        hdrs = {"ar":["الصنف","الوحدة","الكمية المتاحة","آخر سعر"],
+                "tr":["Ürün","Birim","Mevcut Miktar","Son Fiyat"],
+                "en":["Item","Unit","Available Qty","Last Price"]}.get(lang)
+        rows_list = rows_data["stock"]
+        _add_table(hdrs, rows_list, lambda r: [
+            r["name"] or "", r["unit"] or "",
+            f"{r['qty']:.2f}", f"{r['last_price']:.2f}" if r["last_price"] else "0.00",
+        ])
+
+    # ── حفظ وإرسال ──
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    from flask import send_file
+    fname = f"report_{rtype}_{_dt.now().strftime('%Y%m%d_%H%M')}.docx"
+    return send_file(buf, as_attachment=True, download_name=fname,
+                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 if __name__ == "__main__":

@@ -284,6 +284,26 @@ def migrate_db():
         created_at     TEXT    DEFAULT (datetime('now','localtime'))
     )
     """)
+    # جدول رسائل الشات الداخلي (أدمن ↔ مراقب)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id      INTEGER NOT NULL,
+        sender_id   INTEGER NOT NULL,
+        sender_name TEXT    NOT NULL,
+        sender_role TEXT    NOT NULL,
+        content     TEXT    NOT NULL,
+        created_at  TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    # جدول آخر قراءة لكل مستخدم (لحساب الرسائل غير المقروءة)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS message_reads (
+        user_id     INTEGER PRIMARY KEY,
+        last_msg_id INTEGER NOT NULL DEFAULT 0
+    )
+    """)
+
     conn.commit()
     for table, col, defn in migrations:
         try:

@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% block title %}{% if lang=='en' %}Smart Reports{% elif lang=='tr' %}Akıllı Raporlar{% else %}التقارير الذكية{% endif %} – ميزان مجد{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">
+    <i class="fas fa-chart-bar"></i>
+    {% if lang=='en' %}Smart Reports
+    {% elif lang=='tr' %}Akıllı Raporlar
+    {% else %}التقارير الذكية{% endif %}
+  </h2>
+</div>
+
+<!-- اقتراحات سريعة -->
+<div class="report-suggestions no-print">
+  <p class="suggestion-label">
+    {% if lang=='en' %}Quick suggestions:{% elif lang=='tr' %}Hızlı öneriler:{% else %}اقتراحات سريعة:{% endif %}
+  </p>
+  <div class="suggestion-chips">
+    {% set chips = {
+      'ar': [
+        ("📦 تقرير المشتريات","تقرير فواتير المشتريات"),
+        ("🏭 تقرير المخزن","تقرير فواتير الصرف والمخزن"),
+        ("👥 تقرير المستفيدين","تقرير المستفيدين"),
+        ("👷 تقرير العاملين","تقرير العاملين والرواتب"),
+        ("📋 تقرير البرامج","تقرير البرامج والمشاريع"),
+        ("📊 ملخص شامل","تقرير شامل لكل البيانات"),
+      ],
+      'tr': [
+        ("📦 Satın Almalar","satın alma faturaları raporu"),
+        ("🏭 Depo","çıkış faturaları raporu"),
+        ("👥 Yararlanıcılar","yararlanıcılar raporu"),
+        ("👷 Çalışanlar","çalışanlar raporu"),
+        ("📋 Programlar","programlar raporu"),
+        ("📊 Genel Özet","tüm veriler özet raporu"),
+      ],
+      'en': [
+        ("📦 Purchases","purchase invoices report"),
+        ("🏭 Warehouse","outgoing warehouse report"),
+        ("👥 Beneficiaries","beneficiaries report"),
+        ("👷 Workers","workers salary report"),
+        ("📋 Programs","programs and projects report"),
+        ("📊 Full Summary","full summary report of all data"),
+      ],
+    } %}
+    {% for label, query in chips.get(lang, chips['ar']) %}
+    <button class="chip-btn" onclick="useChip('{{ query }}')">{{ label }}</button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- منطقة المحادثة -->
+<div class="report-chat-wrapper">
+  <div class="report-chat-log" id="report-log">
+    <div class="report-bot-msg">
+      <i class="fas fa-robot me-2" style="color:#1a6b3a;"></i>
+      {% if lang=='en' %}
+        Hello! Tell me what report you need and I'll generate it as a Word file instantly. For example: "Purchase invoices report" or "Full stock summary."
+      {% elif lang=='tr' %}
+        Merhaba! Hangi raporu istediğinizi söyleyin, Word dosyası olarak oluşturayım. Örnek: "satın alma raporu" veya "genel stok özeti".
+      {% else %}
+        مرحباً! أخبرني ما التقرير الذي تريده وسأولّده لك فوراً كملف Word. مثلاً: "تقرير فواتير المشتريات" أو "ملخص شامل لكل البيانات".
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="report-input-bar">
+    <div class="fmt-toggle">
+      <button class="fmt-btn active" id="fmt-docx" onclick="setFmt('docx')">
+        <i class="fas fa-file-word me-1"></i>Word
+      </button>
+      <button class="fmt-btn" id="fmt-pdf" onclick="setFmt('pdf')" title="قريباً / Coming soon" disabled>
+        <i class="fas fa-file-pdf me-1"></i>PDF
+      </button>
+    </div>
+    <textarea id="report-input" class="report-textarea" rows="1"
+      placeholder="{% if lang=='en' %}What report do you need?{% elif lang=='tr' %}Hangi raporu istiyorsunuz?{% else %}ما التقرير الذي تريده؟{% endif %}">
+    </textarea>
+    <button class="btn btn-primary report-send-btn" onclick="generateReport()" id="gen-btn">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFmt = 'docx';
+function setFmt(f) {
+  currentFmt = f;
+  document.getElementById('fmt-docx').classList.toggle('active', f==='docx');
+  document.getElementById('fmt-pdf').classList.toggle('active', f==='pdf');
+}
+
+function useChip(q) {
+  const inp = document.getElementById('report-input');
+  inp.value = q;
+  inp.focus();
+  generateReport();
+}
+
+function appendUser(text) {
+  const log = document.getElementById('report-log');
+  const d = document.createElement('div');
+  d.className = 'report-user-msg';
+  d.innerHTML = `<i class="fas fa-user me-2" style="color:#1565c0;"></i>${text.replace(/</g,'&lt;')}`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+function appendBot(html) {
+  const log = document.getElementById('report-log');
+  const d = document.createElement('div');
+  d.className = 'report-bot-msg';
+  d.innerHTML = `<i class="fas fa-robot me-2" style="color:#1a6b3a;"></i>${html}`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function generateReport() {
+  const inp   = document.getElementById('report-input');
+  const query = inp.value.trim();
+  if (!query) return;
+
+  appendUser(query);
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  const thinking = {
+    ar: '⏳ جاري تحليل الطلب وتوليد التقرير...',
+    tr: '⏳ İstek analiz ediliyor, rapor oluşturuluyor...',
+    en: '⏳ Analyzing request and generating report...'
+  }["{{ lang }}"] || '⏳ Generating...';
+  appendBot(thinking);
+
+  try {
+    const res = await fetch('/ai_reports/generate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ query, fmt: currentFmt })
+    });
+
+    // آخر رسالة (thinking)
+    const log = document.getElementById('report-log');
+    const last = log.lastElementChild;
+    if (last && last.classList.contains('report-bot-msg')) last.remove();
+
+    if (!res.ok || res.headers.get('content-type')?.includes('application/json')) {
+      const d = await res.json();
+      appendBot(`<span style="color:#c62828;">❌ ${d.msg || 'خطأ'}</span>`);
+    } else {
+      // تحميل الملف
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const cd   = res.headers.get('content-disposition') || '';
+      const m    = cd.match(/filename="?([^"]+)"?/);
+      a.href     = url;
+      a.download = m ? m[1] : 'report.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      const ok = {
+        ar: `✅ تم توليد التقرير! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>تحميل مجدداً</a>`,
+        tr: `✅ Rapor oluşturuldu! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Tekrar İndir</a>`,
+        en: `✅ Report generated! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Download again</a>`,
+      }["{{ lang }}"] || "✅ Done!";
+      appendBot(ok);
+    }
+  } catch(e) {
+    appendBot(`<span style="color:#c62828;">❌ ${e.message}</span>`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('report-input').addEventListener('keydown', function(e) {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); generateReport(); }
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+
+<style>
+.report-suggestions { margin-bottom: 16px; }
+.suggestion-label { font-size:.82rem; font-weight:700; color:#6c7a72; margin-bottom:6px; }
+.suggestion-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.chip-btn {
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 2px solid #1a6b3a;
+  background: #e8f5ee;
+  color: #1a6b3a;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  font-family: inherit;
+}
+.chip-btn:hover { background:#1a6b3a; color:#fff; }
+
+.report-chat-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 340px;
+  max-width: 860px;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid #d0d0d0;
+  background: #f9f9f9;
+}
+.report-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f5f7fa;
+}
+.report-bot-msg, .report-user-msg {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: .87rem;
+  line-height: 1.55;
+  max-width: 85%;
+}
+.report-bot-msg  { background:#fff; border:1px solid #d8e8de; align-self:flex-start; }
+.report-user-msg { background:#e3f2fd; border:1px solid #90caf9; align-self:flex-end; text-align:right; }
+
+.report-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border-top: 2px solid #e0e0e0;
+}
+.fmt-toggle { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.fmt-btn {
+  padding: 4px 9px;
+  font-size: .75rem;
+  font-weight: 700;
+  border: 2px solid #d0d0d0;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+  color: #666;
+  transition: all .15s;
+  font-family: inherit;
+}
+.fmt-btn.active { border-color:#1a6b3a; background:#e8f5ee; color:#1a6b3a; }
+.fmt-btn:disabled { opacity:.45; cursor:not-allowed; }
+.report-textarea {
+  flex: 1;
+  resize: none;
+  border: 2px solid #d0d0d0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: .9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.report-textarea:focus { border-color:#1a6b3a; }
+.report-send-btn { height:40px; width:48px; border-radius:10px; flex-shrink:0; }
+</style>
+{% endblock %}
