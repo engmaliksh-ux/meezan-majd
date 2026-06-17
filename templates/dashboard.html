@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}لوحة التحكم{% endblock %}
+{% block title %}{{ t.page_dashboard }}{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-chart-pie"></i> لوحة التحكم</h2>
+  <h2 class="page-title"><i class="fas fa-chart-pie"></i> {{ t.page_dashboard }}</h2>
   <span style="color:#6c7a72;font-size:.88rem;">
     <i class="fas fa-building me-1"></i>{{ session.get('org_name') }}
     <span class="org-code-badge">{{ session.get('org_code') }}</span>
@@ -15,7 +15,7 @@
 <div class="pending-alert mb-4">
   <div class="pending-alert-header">
     <i class="fas fa-bell me-2"></i>
-    طلبات تسجيل بانتظار موافقتك
+    {{ t.pending_requests }}
     <span class="badge ms-2" style="background:#dc3545;color:#fff;">{{ pending_users|length }}</span>
   </div>
   <div class="pending-list">
@@ -32,19 +32,19 @@
         <div class="pending-name">{{ u.full_name }}</div>
         <div class="pending-meta">
           <span class="pending-role">
-            {% if u.role=='accountant' %}<i class="fas fa-file-invoice me-1"></i>محاسب
-            {% else %}<i class="fas fa-users me-1"></i>مدخل بيانات{% endif %}
+            {% if u.role=='accountant' %}<i class="fas fa-file-invoice me-1"></i>{{ t.role_accountant }}
+            {% else %}<i class="fas fa-users me-1"></i>{{ t.role_data_entry }}{% endif %}
           </span>
-          <span style="color:#aaa;">· هوية: {{ u.id_number or '—' }}</span>
+          <span style="color:#aaa;">· {{ t.col_id_number }}: {{ u.id_number or '—' }}</span>
         </div>
       </div>
       <div class="pending-actions">
         <a href="/approve_user/{{ u.id }}" class="btn btn-success btn-sm">
-          <i class="fas fa-check me-1"></i>موافقة
+          <i class="fas fa-check me-1"></i>{{ t.btn_approve }}
         </a>
         <a href="/reject_user/{{ u.id }}" class="btn btn-danger btn-sm"
-           onclick="return confirm('رفض هذا الطلب؟')">
-          <i class="fas fa-times me-1"></i>رفض
+           onclick="return confirm('{{ t.btn_reject }}?')">
+          <i class="fas fa-times me-1"></i>{{ t.btn_reject }}
         </a>
       </div>
     </div>
@@ -60,28 +60,28 @@
     <div class="stat-card stat-green">
       <div class="stat-icon"><i class="fas fa-box"></i></div>
       <div class="stat-value">{{ products_count }}</div>
-      <div class="stat-label">الأصناف</div>
+      <div class="stat-label">{{ t.stat_products }}</div>
     </div>
   </div>
   <div class="col-md-3 col-sm-6">
     <div class="stat-card stat-amber">
       <div class="stat-icon"><i class="fas fa-cubes"></i></div>
       <div class="stat-value">{{ "%.1f"|format(total_stock) }}</div>
-      <div class="stat-label">إجمالي المخزون</div>
+      <div class="stat-label">{{ t.stat_total_stock }}</div>
     </div>
   </div>
   <div class="col-md-3 col-sm-6">
     <div class="stat-card stat-blue">
       <div class="stat-icon"><i class="fas fa-cart-shopping"></i></div>
       <div class="stat-value">{{ incoming_count }}</div>
-      <div class="stat-label">فواتير المشتريات</div>
+      <div class="stat-label">{{ t.stat_incoming_inv }}</div>
     </div>
   </div>
   <div class="col-md-3 col-sm-6">
     <div class="stat-card stat-red">
       <div class="stat-icon"><i class="fas fa-warehouse"></i></div>
       <div class="stat-value">{{ outgoing_count }}</div>
-      <div class="stat-label">فواتير الصرف</div>
+      <div class="stat-label">{{ t.stat_outgoing_inv }}</div>
     </div>
   </div>
   {% endif %}
@@ -90,32 +90,32 @@
     <div class="stat-card stat-purple">
       <div class="stat-icon"><i class="fas fa-users"></i></div>
       <div class="stat-value">{{ beneficiaries_count }}</div>
-      <div class="stat-label">المستفيدون</div>
+      <div class="stat-label">{{ t.stat_beneficiaries }}</div>
     </div>
   </div>
   {% endif %}
 </div>
 
 <!-- وصول سريع -->
-<h6 class="section-mini-title">وصول سريع</h6>
+<h6 class="section-mini-title">{{ t.quick_access }}</h6>
 <div class="row g-3">
   {% if session.get('role') in ['admin','accountant','observer'] %}
   <div class="col-md-4 col-sm-6">
     <a href="/products" class="quick-card">
       <div class="quick-icon" style="background:#e8f5ee;color:#1a6b3a;"><i class="fas fa-box"></i></div>
-      <div><div class="quick-name">الأصناف</div><div class="quick-desc">عرض وإدارة الأصناف</div></div>
+      <div><div class="quick-name">{{ t.nav_products }}</div><div class="quick-desc">{{ t.quick_products_desc }}</div></div>
     </a>
   </div>
   <div class="col-md-4 col-sm-6">
     <a href="/incoming_invoice" class="quick-card">
       <div class="quick-icon" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-cart-shopping"></i></div>
-      <div><div class="quick-name">المشتريات</div><div class="quick-desc">فواتير شراء البضاعة للمخزن</div></div>
+      <div><div class="quick-name">{{ t.nav_purchases }}</div><div class="quick-desc">{{ t.quick_purchases_desc }}</div></div>
     </a>
   </div>
   <div class="col-md-4 col-sm-6">
     <a href="/outgoing_invoice" class="quick-card">
       <div class="quick-icon" style="background:#fde8e8;color:#c62828;"><i class="fas fa-warehouse"></i></div>
-      <div><div class="quick-name">المخزن</div><div class="quick-desc">كشف المخزون وفواتير الصرف</div></div>
+      <div><div class="quick-name">{{ t.nav_warehouse }}</div><div class="quick-desc">{{ t.quick_warehouse_desc }}</div></div>
     </a>
   </div>
   {% endif %}
@@ -123,7 +123,7 @@
   <div class="col-md-4 col-sm-6">
     <a href="/beneficiaries" class="quick-card">
       <div class="quick-icon" style="background:#f3e5f5;color:#6a1b9a;"><i class="fas fa-users"></i></div>
-      <div><div class="quick-name">المستفيدون</div><div class="quick-desc">إدارة بيانات المستفيدين</div></div>
+      <div><div class="quick-name">{{ t.nav_beneficiaries }}</div><div class="quick-desc">{{ t.quick_beneficiaries_desc }}</div></div>
     </a>
   </div>
   {% endif %}
@@ -131,7 +131,7 @@
   <div class="col-md-4 col-sm-6">
     <a href="/users" class="quick-card">
       <div class="quick-icon" style="background:#fff8e1;color:#f57f17;"><i class="fas fa-users-cog"></i></div>
-      <div><div class="quick-name">المستخدمون</div><div class="quick-desc">إدارة الصلاحيات</div></div>
+      <div><div class="quick-name">{{ t.nav_users }}</div><div class="quick-desc">{{ t.quick_users_desc }}</div></div>
     </a>
   </div>
   {% endif %}

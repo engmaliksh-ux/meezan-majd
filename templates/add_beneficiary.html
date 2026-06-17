@@ -1,52 +1,49 @@
 {% extends 'base.html' %}
-{% block title %}إضافة مستفيد{% endblock %}
+{% block title %}{{ t.add_beneficiary_title }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-user-plus"></i> إضافة مستفيد</h2>
-  <a href="/beneficiaries" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+  <h2 class="page-title"><i class="fas fa-user-plus"></i> {{ t.add_beneficiary_title }}</h2>
+  <a href="/beneficiaries" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> {{ t.btn_back }}</a>
 </div>
 
 <div class="card" style="max-width:680px;">
-  <div class="card-header"><i class="fas fa-user" style="color:#1a6b3a;"></i> بيانات المستفيد</div>
+  <div class="card-header"><i class="fas fa-user" style="color:#1a6b3a;"></i> {{ t.beneficiary_data }}</div>
   <div class="card-body">
     <form method="POST">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
-      <!-- الاسم الرباعي والجنس -->
       <div class="row g-3 mb-3">
         <div class="col-md-8">
-          <label class="form-label">الاسم الرباعي <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.form_full_name }} <span class="text-danger">*</span></label>
           <input class="form-control" name="full_name"
                  value="{{ form_data.get('full_name','') }}"
-                 placeholder="أحمد محمد خالد عبدالوهاب" required>
+                 placeholder="{{ t.form_full_name_placeholder }}" required>
           <div style="font-size:.74rem;color:#6c7a72;margin-top:3px;">
-            <i class="fas fa-info-circle me-1"></i>4 كلمات إلزامية
+            <i class="fas fa-info-circle me-1"></i>{{ t.form_full_name_hint }}
           </div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">الجنس <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.form_gender }} <span class="text-danger">*</span></label>
           <select class="form-select" name="gender">
             <option value="male" {% if form_data.get('gender','male')=='male' %}selected{% endif %}>
-              ذكر
+              {{ t.gender_male }}
             </option>
             <option value="female" {% if form_data.get('gender')=='female' %}selected{% endif %}>
-              أنثى
+              {{ t.gender_female }}
             </option>
           </select>
         </div>
       </div>
 
-      <!-- الهوية والجوال -->
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label">رقم الهوية <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.form_id_number }} <span class="text-danger">*</span></label>
           <input class="form-control" name="id_number"
                  value="{{ form_data.get('id_number','') }}"
-                 placeholder="9 أرقام فقط" maxlength="9" inputmode="numeric" required>
+                 placeholder="{{ t.form_id_placeholder }}" maxlength="9" inputmode="numeric" required>
         </div>
         <div class="col-md-6">
-          <label class="form-label">رقم الجوال</label>
+          <label class="form-label">{{ t.form_phone }}</label>
           <div style="display:flex;">
             <span style="background:#e8f5ee;border:2px solid #d8e8de;border-left:none;border-radius:8px 0 0 8px;padding:9px 12px;font-weight:800;color:#1a6b3a;white-space:nowrap;">05</span>
             <input class="form-control" name="phone_suffix" id="phone_suffix"
@@ -58,64 +55,61 @@
         </div>
       </div>
 
-      <!-- العنوان -->
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label">العنوان الأول <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.form_address1 }} <span class="text-danger">*</span></label>
           <input class="form-control" name="address"
-                 value="{{ form_data.get('address','') }}" placeholder="غزة" required>
+                 value="{{ form_data.get('address','') }}" placeholder="{{ t.form_address1 }}" required>
         </div>
         <div class="col-md-6">
-          <label class="form-label">العنوان الثاني</label>
+          <label class="form-label">{{ t.form_address2 }}</label>
           <input class="form-control" name="address2"
-                 value="{{ form_data.get('address2','') }}" placeholder="الحي / المنطقة">
+                 value="{{ form_data.get('address2','') }}" placeholder="{{ t.form_address2_placeholder }}">
         </div>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">اسم المخيم / مركز الإيواء</label>
+        <label class="form-label">{{ t.form_camp }}</label>
         <input class="form-control" name="camp_name"
-               value="{{ form_data.get('camp_name','') }}" placeholder="مخيم جباليا...">
+               value="{{ form_data.get('camp_name','') }}" placeholder="{{ t.form_camp }}">
       </div>
 
-      <!-- الوضع الاجتماعي -->
       <div class="row g-3 mb-3">
         <div class="col-md-4">
-          <label class="form-label">الحالة الاجتماعية</label>
+          <label class="form-label">{{ t.form_marital_status }}</label>
           <select class="form-select" name="marital_status" id="marital_add">
-            <option value="married"  {% if form_data.get('marital_status','married')=='married'  %}selected{% endif %}>متزوج/ة</option>
-            <option value="single"   {% if form_data.get('marital_status')=='single'   %}selected{% endif %}>أعزب/عزباء</option>
-            <option value="widowed"  {% if form_data.get('marital_status')=='widowed'  %}selected{% endif %}>أرمل/أرملة</option>
-            <option value="divorced" {% if form_data.get('marital_status')=='divorced' %}selected{% endif %}>مطلق/مطلقة</option>
+            <option value="married"  {% if form_data.get('marital_status','married')=='married'  %}selected{% endif %}>{{ t.marital_married }}</option>
+            <option value="single"   {% if form_data.get('marital_status')=='single'   %}selected{% endif %}>{{ t.marital_single }}</option>
+            <option value="widowed"  {% if form_data.get('marital_status')=='widowed'  %}selected{% endif %}>{{ t.marital_widowed }}</option>
+            <option value="divorced" {% if form_data.get('marital_status')=='divorced' %}selected{% endif %}>{{ t.marital_divorced }}</option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label">عدد أفراد الأسرة</label>
+          <label class="form-label">{{ t.form_family_size }}</label>
           <input type="number" class="form-control" name="family_size"
                  value="{{ form_data.get('family_size','1') }}" min="1" max="30"
                  id="family_size_add" onchange="checkSingleMember(this, 'marital_add')">
           <div id="single-warning-add" style="display:none;font-size:.74rem;color:#856404;margin-top:3px;background:#fff3cd;padding:4px 8px;border-radius:6px;">
-            <i class="fas fa-info-circle me-1"></i>عدد الأفراد 1 = أرمل/أرملة
+            <i class="fas fa-info-circle me-1"></i>{{ t.single_member_warning }}
           </div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">عدد الأبناء</label>
+          <label class="form-label">{{ t.form_children_count }}</label>
           <input type="number" class="form-control" name="children_count"
                  value="{{ form_data.get('children_count','0') }}" min="0" max="20">
         </div>
       </div>
 
-      <!-- الزوجة -->
       <div class="check-section mb-3">
-        <div class="check-section-title"><i class="fas fa-female me-2" style="color:#e91e8c;"></i>حالة الزوجة</div>
+        <div class="check-section-title"><i class="fas fa-female me-2" style="color:#e91e8c;"></i>{{ t.wife_status_title }}</div>
         <div class="check-options">
           <label class="check-opt">
             <input type="checkbox" name="wife_pregnant" value="1"
                    {% if form_data.get('wife_pregnant') %}checked{% endif %}>
             <i class="fas fa-baby me-2" style="color:#f0a500;"></i>
             <div>
-              <div class="check-opt-title">حامل</div>
-              <div class="check-opt-desc">الزوجة في فترة الحمل</div>
+              <div class="check-opt-title">{{ t.wife_pregnant }}</div>
+              <div class="check-opt-desc">{{ t.wife_pregnant_desc }}</div>
             </div>
           </label>
           <label class="check-opt">
@@ -123,16 +117,15 @@
                    {% if form_data.get('wife_nursing') %}checked{% endif %}>
             <i class="fas fa-heart me-2" style="color:#e91e8c;"></i>
             <div>
-              <div class="check-opt-title">مرضع</div>
-              <div class="check-opt-desc">الزوجة في فترة الرضاعة</div>
+              <div class="check-opt-title">{{ t.wife_nursing }}</div>
+              <div class="check-opt-desc">{{ t.wife_nursing_desc }}</div>
             </div>
           </label>
         </div>
       </div>
 
-      <!-- الأيتام -->
       <div class="check-section mb-3" id="orphans-section">
-        <div class="check-section-title"><i class="fas fa-child me-2" style="color:#1565c0;"></i>الأيتام</div>
+        <div class="check-section-title"><i class="fas fa-child me-2" style="color:#1565c0;"></i>{{ t.col_orphans }}</div>
         <div class="check-options">
           <label class="check-opt" style="flex:1;">
             <input type="checkbox" name="has_orphans" value="1" id="has_orphans_cb"
@@ -140,65 +133,38 @@
                    onchange="toggleOrphans()">
             <i class="fas fa-child me-2" style="color:#1565c0;"></i>
             <div>
-              <div class="check-opt-title">يوجد أيتام في الأسرة</div>
-              <div class="check-opt-desc">أبناء فقدوا أحد الوالدين أو كليهما</div>
+              <div class="check-opt-title">{{ t.has_orphans_label }}</div>
+              <div class="check-opt-desc">{{ t.has_orphans_desc }}</div>
             </div>
           </label>
         </div>
         <div id="orphans-count-box" style="display:{% if form_data.get('has_orphans') %}block{% else %}none{% endif %};padding:12px 0 0 0;">
-          <label class="form-label">عدد الأيتام</label>
+          <label class="form-label">{{ t.orphans_count_label }}</label>
           <input type="number" class="form-control" name="orphans_count"
                  value="{{ form_data.get('orphans_count','0') }}"
                  min="1" max="20" style="max-width:160px;">
         </div>
       </div>
 
-      <!-- ملاحظات -->
       <div class="mb-4">
-        <label class="form-label">ملاحظات</label>
+        <label class="form-label">{{ t.form_notes }}</label>
         <textarea class="form-control" name="notes"
-                  placeholder="أي معلومات إضافية...">{{ form_data.get('notes','') }}</textarea>
+                  placeholder="{{ t.form_notes_placeholder }}">{{ form_data.get('notes','') }}</textarea>
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> حفظ</button>
-        <a href="/beneficiaries" class="btn btn-secondary">إلغاء</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> {{ t.btn_save_beneficiary }}</button>
+        <a href="/beneficiaries" class="btn btn-secondary">{{ t.btn_cancel }}</a>
       </div>
     </form>
   </div>
 </div>
 
 <style>
-.check-section {
-  border: 2px solid #d8e8de;
-  border-radius: 10px;
-  overflow: hidden;
-}
-.check-section-title {
-  background: #e8f5ee;
-  padding: 10px 14px;
-  font-weight: 800;
-  font-size: .88rem;
-  color: #1a6b3a;
-}
-.check-options {
-  padding: 10px 14px;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.check-opt {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 2px solid #d8e8de;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all .2s;
-  flex: 1;
-  min-width: 180px;
-}
+.check-section { border: 2px solid #d8e8de; border-radius: 10px; overflow: hidden; }
+.check-section-title { background: #e8f5ee; padding: 10px 14px; font-weight: 800; font-size: .88rem; color: #1a6b3a; }
+.check-options { padding: 10px 14px; display: flex; gap: 12px; flex-wrap: wrap; }
+.check-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 2px solid #d8e8de; border-radius: 8px; cursor: pointer; transition: all .2s; flex: 1; min-width: 180px; }
 .check-opt:hover { border-color: #1a6b3a; background: #f9fcfa; }
 .check-opt input[type=checkbox] { width: 18px; height: 18px; accent-color: #1a6b3a; flex-shrink: 0; }
 .check-opt-title { font-weight: 700; font-size: .88rem; }
@@ -206,7 +172,6 @@
 </style>
 
 <script>
-// تنبيه عدد أفراد = 1
 function checkSingleMember(input, maritalId) {
   const val     = parseInt(input.value);
   const warning = document.getElementById('single-warning-' + (maritalId === 'marital_add' ? 'add' : 'edit'));
@@ -221,7 +186,6 @@ function checkSingleMember(input, maritalId) {
   }
 }
 
-// دمج رقم الجوال
 const suffix = document.getElementById('phone_suffix');
 const hidden = document.getElementById('phone_hidden');
 if (suffix) {
@@ -232,14 +196,12 @@ if (suffix) {
   });
 }
 
-// إظهار/إخفاء عدد الأيتام
 function toggleOrphans() {
   const cb  = document.getElementById('has_orphans_cb');
   const box = document.getElementById('orphans-count-box');
   box.style.display = cb.checked ? 'block' : 'none';
 }
 
-// التحقق من رقم الهوية
 document.querySelector('[name=id_number]').addEventListener('input', function(){
   this.value = this.value.replace(/\D/g,'').slice(0,9);
 });

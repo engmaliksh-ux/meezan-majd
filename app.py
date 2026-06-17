@@ -3,6 +3,7 @@ import secrets
 import struct
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g
 from database import get_connection, init_db, generate_org_code
+from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -113,6 +114,20 @@ def check_session_timeout():
     session["_last_active"] = datetime.now().isoformat()
 
 init_db()
+
+# ══════════════════════════════════════════
+# Language support — AR / TR
+# ══════════════════════════════════════════
+@app.route("/set_lang/<lang>")
+def set_lang(lang):
+    if lang in ('ar', 'tr'):
+        session['lang'] = lang
+    return redirect(request.referrer or url_for('dashboard'))
+
+@app.context_processor
+def inject_lang():
+    lang = session.get('lang', 'ar')
+    return dict(t=TRANSLATIONS[lang], lang=lang)
 
 # ══════════════════════════════════════════
 # Helpers

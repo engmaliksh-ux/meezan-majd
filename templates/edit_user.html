@@ -1,71 +1,70 @@
 {% extends 'base.html' %}
-{% block title %}تعديل مستخدم{% endblock %}
+{% block title %}{{ t.edit_user_title }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-user-edit"></i> تعديل المستخدم</h2>
-  <a href="/users" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+  <h2 class="page-title"><i class="fas fa-user-edit"></i> {{ t.edit_user_title }}</h2>
+  <a href="/users" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> {{ t.btn_back }}</a>
 </div>
 <div class="card" style="max-width:520px;">
   <div class="card-header"><i class="fas fa-user-cog" style="color:#f0a500;"></i> {{ user['full_name'] or user['username'] }}</div>
   <div class="card-body">
     <form method="POST">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
-        <label class="form-label">الاسم الكامل</label>
+        <label class="form-label">{{ t.full_name_label }}</label>
         <input class="form-control" name="full_name" value="{{ user['full_name'] or '' }}" required>
       </div>
       <div class="mb-4">
-        <label class="form-label">كلمة مرور جديدة <span style="color:#aaa;font-size:.8rem;">(فارغة = بدون تغيير)</span></label>
-        <input type="password" class="form-control" name="new_password" placeholder="اتركها فارغة — 8 أحرف على الأقل إن غيّرت" minlength="8">
+        <label class="form-label">{{ t.new_password_label }} <span style="color:#aaa;font-size:.8rem;">{{ t.new_password_hint }}</span></label>
+        <input type="password" class="form-control" name="new_password" placeholder="8+" minlength="8">
       </div>
 
       <div class="perm-box mb-4">
-        <div class="perm-title"><i class="fas fa-shield-alt me-2"></i>نوع الحساب</div>
+        <div class="perm-title"><i class="fas fa-shield-alt me-2"></i>{{ t.account_type }}</div>
         <label class="perm-option">
           <input type="radio" name="role" value="accountant" {% if user['role']=='accountant' %}checked{% endif %}>
           <div class="perm-content">
             <i class="fas fa-file-invoice perm-icon" style="color:#1565c0;"></i>
-            <div><div class="perm-name">محاسب</div><div class="perm-desc">فواتير الإدخال والصرف والأصناف</div></div>
+            <div><div class="perm-name">{{ t.role_accountant }}</div><div class="perm-desc">{{ t.quick_purchases_desc }}</div></div>
           </div>
         </label>
         <label class="perm-option">
           <input type="radio" name="role" value="data_entry" {% if user['role']=='data_entry' %}checked{% endif %}>
           <div class="perm-content">
             <i class="fas fa-users perm-icon" style="color:#6a1b9a;"></i>
-            <div><div class="perm-name">مدخل بيانات</div><div class="perm-desc">إدارة بيانات المستفيدين فقط</div></div>
+            <div><div class="perm-name">{{ t.role_data_entry }}</div><div class="perm-desc">{{ t.quick_beneficiaries_desc }}</div></div>
           </div>
         </label>
         <label class="perm-option">
           <input type="radio" name="role" value="observer" {% if user['role']=='observer' %}checked{% endif %}>
           <div class="perm-content">
             <i class="fas fa-eye perm-icon" style="color:#00838f;"></i>
-            <div><div class="perm-name">مراقب عام</div><div class="perm-desc">مشاهدة كل الصفحات بدون أي تعديل أو إضافة</div></div>
+            <div><div class="perm-name">{{ t.role_observer }}</div><div class="perm-desc">{{ t.quick_products_desc }}</div></div>
           </div>
         </label>
       </div>
 
       <div class="perm-box mb-4">
-        <div class="perm-title"><i class="fas fa-toggle-on me-2"></i>حالة الحساب</div>
+        <div class="perm-title"><i class="fas fa-toggle-on me-2"></i>{{ t.account_status }}</div>
         <label class="perm-option">
           <input type="radio" name="status" value="approved" {% if user['status']=='approved' %}checked{% endif %}>
           <div class="perm-content">
             <i class="fas fa-check-circle perm-icon" style="color:#1a6b3a;"></i>
-            <div><div class="perm-name">فعّال</div><div class="perm-desc">يستطيع تسجيل الدخول</div></div>
+            <div><div class="perm-name">{{ t.status_active }}</div><div class="perm-desc">{{ t.can_login }}</div></div>
           </div>
         </label>
         <label class="perm-option">
           <input type="radio" name="status" value="rejected" {% if user['status']=='rejected' %}checked{% endif %}>
           <div class="perm-content">
             <i class="fas fa-ban perm-icon" style="color:#dc3545;"></i>
-            <div><div class="perm-name">موقوف</div><div class="perm-desc">لا يستطيع تسجيل الدخول</div></div>
+            <div><div class="perm-name">{{ t.status_suspended }}</div><div class="perm-desc">{{ t.cannot_login }}</div></div>
           </div>
         </label>
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-warning"><i class="fas fa-save me-1"></i> حفظ التعديلات</button>
-        <a href="/users" class="btn btn-secondary">إلغاء</a>
+        <button type="submit" class="btn btn-warning"><i class="fas fa-save me-1"></i> {{ t.save_changes }}</button>
+        <a href="/users" class="btn btn-secondary">{{ t.btn_cancel }}</a>
       </div>
     </form>
   </div>

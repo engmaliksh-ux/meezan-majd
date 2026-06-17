@@ -1,55 +1,53 @@
 {% extends 'base.html' %}
-
-{% block title %}إضافة صنف – مخزن الخير{% endblock %}
+{% block title %}{{ t.add_new_product }}{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
     <h2 class="page-title">
         <i class="fas fa-plus-circle"></i>
-        إضافة صنف جديد
+        {{ t.add_new_product }}
     </h2>
     <a href="/products" class="btn btn-secondary">
         <i class="fas fa-arrow-right me-1"></i>
-        رجوع
+        {{ t.btn_back }}
     </a>
 </div>
 
 <div class="card" style="max-width:500px;">
     <div class="card-header">
         <i class="fas fa-box" style="color:#1a6b3a;"></i>
-        بيانات الصنف
+        {{ t.product_data }}
     </div>
     <div class="card-body">
         <form method="POST">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="mb-4">
-                <label class="form-label">اسم الصنف <span class="text-danger">*</span></label>
+                <label class="form-label">{{ t.col_product_name }} <span class="text-danger">*</span></label>
                 <input
                     class="form-control"
                     name="name"
                     type="text"
-                    placeholder="مثال: طحين، سكر، زيت..."
+                    placeholder="{{ t.col_product_name }}"
                     required>
             </div>
 
             <div class="mb-4">
-                <label class="form-label">الوحدة <span class="text-danger">*</span></label>
+                <label class="form-label">{{ t.col_unit }} <span class="text-danger">*</span></label>
                 <input
                     class="form-control"
                     name="unit"
                     type="text"
-                    placeholder="مثال: كيلو، علبة، كرتون..."
+                    placeholder="{{ t.col_unit }}"
                     required>
             </div>
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i>
-                    حفظ الصنف
+                    {{ t.save_product }}
                 </button>
-                <a href="/products" class="btn btn-secondary">إلغاء</a>
+                <a href="/products" class="btn btn-secondary">{{ t.btn_cancel }}</a>
             </div>
         </form>
     </div>

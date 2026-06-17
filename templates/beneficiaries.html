@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}المستفيدون{% endblock %}
+{% block title %}{{ t.page_beneficiaries }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-users"></i> المستفيدون</h2>
+  <h2 class="page-title"><i class="fas fa-users"></i> {{ t.page_beneficiaries }}</h2>
   {% if session.get('role') != 'observer' %}
-  <a href="/add_beneficiary" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i> إضافة مستفيد</a>
+  <a href="/add_beneficiary" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i> {{ t.add_beneficiary_btn }}</a>
   {% endif %}
 </div>
 
@@ -13,16 +13,21 @@
 {% if total_orphans > 0 %}
 <div class="orphans-alert mb-3">
   <i class="fas fa-child me-2"></i>
+  {% if lang == 'ar' %}
   يوجد <strong>{{ total_orphans }}</strong> أسرة فيها أيتام من أصل {{ beneficiaries|length }} أسرة
   — إجمالي الأيتام:
   <strong>{{ beneficiaries | sum(attribute='orphans_count') }}</strong> يتيم
+  {% else %}
+  <strong>{{ total_orphans }}</strong> families with orphans out of {{ beneficiaries|length }} total
+  — Total orphans: <strong>{{ beneficiaries | sum(attribute='orphans_count') }}</strong>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="table-wrapper">
   <div class="table-header">
-    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>قائمة المستفيدين</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ beneficiaries|length }} مستفيد</span>
+    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.beneficiaries_list }}</h5>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ beneficiaries|length }}</span>
   </div>
 
   {% if beneficiaries %}
@@ -31,16 +36,16 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>الاسم الرباعي</th>
-          <th>الجنس</th>
-          <th>رقم الهوية</th>
-          <th>الجوال</th>
-          <th>الحالة</th>
-          <th>أفراد</th>
-          <th>أبناء</th>
-          <th>أيتام</th>
-          <th>ملاحظات</th>
-          {% if session.get('role') != 'observer' %}<th>الإجراءات</th>{% endif %}
+          <th>{{ t.col_full_name }}</th>
+          <th>{{ t.col_gender }}</th>
+          <th>{{ t.col_id_number }}</th>
+          <th>{{ t.col_phone }}</th>
+          <th>{{ t.col_marital_status }}</th>
+          <th>{{ t.col_family_members }}</th>
+          <th>{{ t.col_children }}</th>
+          <th>{{ t.col_orphans }}</th>
+          <th>{{ t.col_notes }}</th>
+          {% if session.get('role') != 'observer' %}<th>{{ t.col_actions }}</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -50,26 +55,26 @@
           <td style="font-weight:700;text-align:right;">
             {{ b.full_name }}
             {% if b.get('wife_pregnant') %}
-              <span title="زوجة حامل" style="margin-right:4px;">🤰</span>
+              <span title="{{ t.wife_pregnant }}" style="margin-right:4px;">🤰</span>
             {% endif %}
             {% if b.get('wife_nursing') %}
-              <span title="زوجة مرضع" style="margin-right:4px;">🍼</span>
+              <span title="{{ t.wife_nursing }}" style="margin-right:4px;">🍼</span>
             {% endif %}
           </td>
           <td>
             {% if b.get('gender','male') == 'female' %}
-              <span class="badge" style="background:#fce4ec;color:#880e4f;">أنثى</span>
+              <span class="badge" style="background:#fce4ec;color:#880e4f;">{{ t.gender_female }}</span>
             {% else %}
-              <span class="badge" style="background:#e3f2fd;color:#1565c0;">ذكر</span>
+              <span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ t.gender_male }}</span>
             {% endif %}
           </td>
           <td style="font-family:monospace;font-size:.82rem;">{{ b.id_number or '—' }}</td>
           <td style="font-family:monospace;font-size:.82rem;">{{ b.phone or '—' }}</td>
           <td>
-            {% if b.marital_status == 'married' %}<span class="badge" style="background:#e3f2fd;color:#1565c0;">متزوج</span>
-            {% elif b.marital_status == 'single' %}<span class="badge" style="background:#e8f5ee;color:#1a6b3a;">أعزب</span>
-            {% elif b.marital_status == 'widowed' %}<span class="badge" style="background:#fde8e8;color:#c62828;">أرمل</span>
-            {% elif b.marital_status == 'divorced' %}<span class="badge" style="background:#fff3cd;color:#856404;">مطلق</span>
+            {% if b.marital_status == 'married' %}<span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ t.marital_married }}</span>
+            {% elif b.marital_status == 'single' %}<span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ t.marital_single }}</span>
+            {% elif b.marital_status == 'widowed' %}<span class="badge" style="background:#fde8e8;color:#c62828;">{{ t.marital_widowed }}</span>
+            {% elif b.marital_status == 'divorced' %}<span class="badge" style="background:#fff3cd;color:#856404;">{{ t.marital_divorced }}</span>
             {% endif %}
           </td>
           <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ b.family_size or 1 }}</span></td>
@@ -92,7 +97,7 @@
               <i class="fas fa-edit"></i>
             </a>
             <a href="/delete_beneficiary/{{ b.id }}" class="btn btn-danger btn-sm"
-               onclick="return confirm('حذف هذا المستفيد؟')">
+               onclick="return confirm('{{ t.delete_beneficiary_confirm }}')">
               <i class="fas fa-trash"></i>
             </a>
           </td>
@@ -105,9 +110,9 @@
   {% else %}
   <div class="text-center py-5" style="color:#6c7a72;">
     <i class="fas fa-users fa-3x mb-3" style="color:#d8e8de;"></i>
-    <p class="fw-bold">لا يوجد مستفيدون حتى الآن</p>
+    <p class="fw-bold">{{ t.no_beneficiaries }}</p>
     {% if session.get('role') != 'observer' %}
-    <a href="/add_beneficiary" class="btn btn-primary btn-sm">إضافة أول مستفيد</a>
+    <a href="/add_beneficiary" class="btn btn-primary btn-sm">{{ t.add_first_beneficiary }}</a>
     {% endif %}
   </div>
   {% endif %}

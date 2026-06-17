@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ lang }}" dir="{{ 'rtl' if lang=='ar' else 'ltr' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ميزان مجد – تسجيل الدخول</title>
+  <title>ميزان مجد – {{ t.login_title }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,7 +14,6 @@
   <div class="auth-card">
 
     <div class="auth-header">
-      <!-- شعار ميزان مجد -->
       <div class="login-logo-wrap">
         <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="56" height="56">
           <rect width="64" height="64" rx="14" fill="rgba(255,255,255,0.15)"/>
@@ -28,11 +27,11 @@
         </svg>
       </div>
       <h3>ميزان مجد</h3>
-      <p>نظام إدارة المخزون الخيري</p>
+      <p>{{ t.login_title }}</p>
     </div>
 
     <div class="auth-body">
-      <h5 class="auth-title">تسجيل الدخول</h5>
+      <h5 class="auth-title">{{ t.login_title }}</h5>
 
       {% if error %}
       <div class="auth-error">
@@ -42,47 +41,53 @@
 
       <form method="POST">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
-          <label class="form-label">رمز المؤسسة <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.org_code_label }} <span class="text-danger">*</span></label>
           <div class="input-icon-wrap">
             <i class="fas fa-key field-icon"></i>
             <input type="text" name="org_code" class="form-control"
-                   placeholder="MK-XXXX"
+                   placeholder="{{ t.org_code_placeholder }}"
                    style="letter-spacing:2px;font-weight:800;text-transform:uppercase;"
                    maxlength="7" autofocus required>
           </div>
           <div style="font-size:.74rem;color:#6c7a72;margin-top:3px;">
-            <i class="fas fa-info-circle me-1"></i>رمز المؤسسة المكوّن من 7 أحرف
+            <i class="fas fa-info-circle me-1"></i>{{ t.org_code_hint }}
           </div>
         </div>
 
         <div class="mb-3">
-          <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.username_label }} <span class="text-danger">*</span></label>
           <div class="input-icon-wrap">
             <i class="fas fa-user field-icon"></i>
             <input type="text" name="username" class="form-control"
-                   placeholder="أدخل اسم المستخدم" required>
+                   placeholder="{{ t.username_placeholder }}" required>
           </div>
         </div>
 
         <div class="mb-4">
-          <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+          <label class="form-label">{{ t.password_label }} <span class="text-danger">*</span></label>
           <div class="input-icon-wrap">
             <i class="fas fa-lock field-icon"></i>
             <input type="password" name="password" class="form-control"
-                   placeholder="أدخل كلمة المرور" required>
+                   placeholder="{{ t.password_placeholder }}" required>
           </div>
         </div>
 
         <button type="submit" class="auth-btn">
-          <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول
+          <i class="fas fa-sign-in-alt me-2"></i>{{ t.login_btn }}
         </button>
       </form>
 
       <div class="auth-switch mt-3">
-        مؤسسة جديدة أو موظف جديد؟ <a href="/register">إنشاء حساب</a>
+        {{ t.new_account_text }} <a href="/register">{{ t.create_account }}</a>
+      </div>
+
+      <!-- زر تبديل اللغة -->
+      <div class="text-center mt-3">
+        <a href="{{ url_for('set_lang', lang='tr' if lang=='ar' else 'ar') }}"
+           style="font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none;">
+          <i class="fas fa-language me-1"></i>{{ t.lang_toggle }}
+        </a>
       </div>
     </div>
   </div>

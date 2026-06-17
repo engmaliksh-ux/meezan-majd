@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ lang }}" dir="{{ 'rtl' if lang=='ar' else 'ltr' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,10 +15,17 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon-48.png') }}">
   <meta name="theme-color" content="#1a6b3a">
+  {% if lang == 'tr' %}
+  <style>
+    body, .sidebar, .nav-item, .card, .form-label, .btn, th, td, .page-title {
+      font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    }
+  </style>
+  {% endif %}
 </head>
 <body>
 
-<!-- زر فتح/إغلاق السايدبار - على يمين الصفحة -->
+<!-- زر فتح/إغلاق السايدبار -->
 <button class="sidebar-toggle" id="sidebar-toggle" title="القائمة الجانبية">
   <i class="fas fa-bars" id="toggle-icon"></i>
 </button>
@@ -30,7 +37,7 @@
     <div class="sidebar-header">
       <div class="sidebar-logo"><i class="fas fa-balance-scale"></i></div>
       <div>
-        <div class="sidebar-title">ميزان مجد</div>
+        <div class="sidebar-title">{{ t.app_name }}</div>
         <div class="sidebar-org">{{ session.get('org_name','') }}</div>
       </div>
     </div>
@@ -48,57 +55,57 @@
       <div class="user-info">
         <span class="user-name">{{ session.get('full_name', session.get('user','')) }}</span>
         <span class="user-role">
-          {% if session.get('role')=='admin' %}مدير النظام
-          {% elif session.get('role')=='accountant' %}محاسب
-          {% elif session.get('role')=='data_entry' %}مدخل بيانات
-          {% elif session.get('role')=='observer' %}مراقب عام
-          {% else %}مستخدم{% endif %}
+          {% if session.get('role')=='admin' %}{{ t.role_admin }}
+          {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
+          {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
+          {% elif session.get('role')=='observer' %}{{ t.role_observer }}
+          {% else %}{{ t.role_user }}{% endif %}
         </span>
       </div>
     </div>
 
     <nav class="sidebar-nav">
       <a href="/dashboard" class="nav-item {% if request.path=='/dashboard' %}active{% endif %}">
-        <i class="fas fa-chart-pie nav-icon"></i><span>لوحة التحكم</span>
+        <i class="fas fa-chart-pie nav-icon"></i><span>{{ t.nav_dashboard }}</span>
       </a>
 
       {% if session.get('role') in ['admin','accountant','observer'] %}
       <a href="/products" class="nav-item {% if '/product' in request.path %}active{% endif %}">
-        <i class="fas fa-box nav-icon"></i><span>الأصناف</span>
+        <i class="fas fa-box nav-icon"></i><span>{{ t.nav_products }}</span>
       </a>
       <a href="/incoming_invoice" class="nav-item {% if 'incoming' in request.path %}active{% endif %}">
-        <i class="fas fa-cart-shopping nav-icon"></i><span>المشتريات</span>
+        <i class="fas fa-cart-shopping nav-icon"></i><span>{{ t.nav_purchases }}</span>
       </a>
       <a href="/outgoing_invoice" class="nav-item {% if 'outgoing' in request.path %}active{% endif %}">
-        <i class="fas fa-warehouse nav-icon"></i><span>المخزن</span>
+        <i class="fas fa-warehouse nav-icon"></i><span>{{ t.nav_warehouse }}</span>
       </a>
       {% endif %}
 
       {% if session.get('role') in ['admin','accountant','observer'] %}
       <a href="/programs" class="nav-item {% if '/program' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram nav-icon"></i><span>البرامج والمشاريع</span>
+        <i class="fas fa-project-diagram nav-icon"></i><span>{{ t.nav_programs }}</span>
       </a>
       {% endif %}
 
       {% if session.get('role') in ['admin','data_entry','observer'] %}
       <a href="/beneficiaries" class="nav-item {% if '/beneficiar' in request.path %}active{% endif %}">
-        <i class="fas fa-users nav-icon"></i><span>المستفيدون</span>
+        <i class="fas fa-users nav-icon"></i><span>{{ t.nav_beneficiaries }}</span>
       </a>
       {% endif %}
 
       {% if session.get('role')=='admin' %}
       <div class="nav-divider"></div>
-      <span class="nav-section-label">إدارة النظام</span>
+      <span class="nav-section-label">{{ t.nav_section_admin }}</span>
       <a href="/users" class="nav-item {% if '/user' in request.path and '/change' not in request.path %}active{% endif %}">
-        <i class="fas fa-users-cog nav-icon"></i><span>المستخدمون</span>
+        <i class="fas fa-users-cog nav-icon"></i><span>{{ t.nav_users }}</span>
       </a>
       <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
-        <i class="fas fa-key nav-icon"></i><span>تغيير كلمة المرور</span>
+        <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
       </a>
       {% else %}
       <div class="nav-divider"></div>
       <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
-        <i class="fas fa-key nav-icon"></i><span>تغيير كلمة المرور</span>
+        <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
       </a>
       {% endif %}
     </nav>
@@ -111,12 +118,18 @@
         </div>
         <div class="clock-ampm" id="sb-ampm">--</div>
       </div>
+      <!-- زر تبديل اللغة -->
+      <a href="{{ url_for('set_lang', lang='tr' if lang=='ar' else 'ar') }}"
+         class="lang-toggle-btn"
+         title="{{ t.lang_toggle_title }}">
+        <i class="fas fa-language me-1"></i>{{ t.lang_toggle }}
+      </a>
       <div class="org-code-footer">
         <i class="fas fa-key me-1"></i>
         <span>{{ session.get('org_code','') }}</span>
       </div>
       <a href="/logout" class="logout-btn">
-        <i class="fas fa-sign-out-alt"></i><span>تسجيل الخروج</span>
+        <i class="fas fa-sign-out-alt"></i><span>{{ t.nav_logout }}</span>
       </a>
     </div>
   </aside>
@@ -146,11 +159,12 @@
 <script>
 // ══ ساعة السايدبار ══
 (function() {
-  const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const days = {{ t.days | tojson }};
+  const isAr = {{ 'true' if lang=='ar' else 'false' }};
   function tick() {
     const now = new Date();
     let h = now.getHours();
-    const ampm = h >= 12 ? 'م' : 'ص';
+    const ampm = isAr ? (h >= 12 ? 'م' : 'ص') : (h >= 12 ? 'PM' : 'AM');
     h = h % 12 || 12;
     const m  = String(now.getMinutes()).padStart(2,'0');
     const s  = String(now.getSeconds()).padStart(2,'0');
@@ -175,7 +189,6 @@ const mainContent= document.getElementById('main-content');
 const toggleBtn  = document.getElementById('sidebar-toggle');
 const toggleIcon = document.getElementById('toggle-icon');
 
-// قراءة الحالة المحفوظة
 let sidebarOpen = localStorage.getItem('sidebarOpen') !== 'false';
 
 function setSidebar(open) {
@@ -199,6 +212,30 @@ function setSidebar(open) {
 toggleBtn.addEventListener('click', () => setSidebar(!sidebarOpen));
 setSidebar(sidebarOpen);
 </script>
+
+<style>
+.lang-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: background .2s;
+  letter-spacing: 1px;
+}
+.lang-toggle-btn:hover {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+</style>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

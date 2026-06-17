@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}إضافة مستخدم{% endblock %}
+{% block title %}{{ t.add_new_user_title }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-user-plus"></i> إضافة مستخدم يدوياً</h2>
-  <a href="/users" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+  <h2 class="page-title"><i class="fas fa-user-plus"></i> {{ t.add_new_user_title }}</h2>
+  <a href="/users" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> {{ t.btn_back }}</a>
 </div>
 
 <div class="card" style="max-width:520px;">
-  <div class="card-header"><i class="fas fa-user-cog" style="color:#1a6b3a;"></i> بيانات المستخدم الجديد</div>
+  <div class="card-header"><i class="fas fa-user-cog" style="color:#1a6b3a;"></i> {{ t.new_user_data }}</div>
   <div class="card-body">
     {% if error %}
     <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
@@ -15,47 +15,45 @@
 
     <form method="POST">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
-        <label class="form-label">الاسم الكامل <span class="text-danger">*</span></label>
-        <input class="form-control" name="full_name" placeholder="الاسم الرباعي" required>
+        <label class="form-label">{{ t.full_name_label }} <span class="text-danger">*</span></label>
+        <input class="form-control" name="full_name" placeholder="{{ t.full_name_label }}" required>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">رقم الهوية <span class="text-danger">*</span></label>
+        <label class="form-label">{{ t.col_id_number }} <span class="text-danger">*</span></label>
         <input class="form-control" name="id_number"
-               placeholder="9 أرقام فقط" maxlength="9"
+               placeholder="{{ t.form_id_placeholder }}" maxlength="9"
                inputmode="numeric" required>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+        <label class="form-label">{{ t.col_username }} <span class="text-danger">*</span></label>
         <input class="form-control" name="username"
-               placeholder="يُستخدم عند تسجيل الدخول" minlength="3" required>
+               placeholder="{{ t.col_username }}" minlength="3" required>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+        <label class="form-label">{{ t.password_label }} <span class="text-danger">*</span></label>
         <input type="password" class="form-control" name="password"
-               placeholder="4 أحرف على الأقل" minlength="4" required>
+               placeholder="4+" minlength="4" required>
       </div>
 
-      <!-- نوع الحساب كـ select واضح -->
       <div class="mb-4">
-        <label class="form-label">نوع الحساب <span class="text-danger">*</span></label>
+        <label class="form-label">{{ t.account_type }} <span class="text-danger">*</span></label>
         <select class="form-select" name="role" required>
-          <option value="">-- اختر نوع الحساب --</option>
-          <option value="accountant">محاسب — فواتير الإدخال والصرف والأصناف</option>
-          <option value="data_entry">مدخل بيانات — إدارة بيانات المستفيدين فقط</option>
-          <option value="observer">مراقب عام — عرض المخزون والبرامج فقط</option>
+          <option value="">{{ t.select_account_type }}</option>
+          <option value="accountant">{{ t.role_accountant }}</option>
+          <option value="data_entry">{{ t.role_data_entry }}</option>
+          <option value="observer">{{ t.role_observer }}</option>
         </select>
       </div>
 
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
-          <i class="fas fa-save me-1"></i> إضافة المستخدم
+          <i class="fas fa-save me-1"></i> {{ t.add_user_btn }}
         </button>
-        <a href="/users" class="btn btn-secondary">إلغاء</a>
+        <a href="/users" class="btn btn-secondary">{{ t.btn_cancel }}</a>
       </div>
     </form>
   </div>

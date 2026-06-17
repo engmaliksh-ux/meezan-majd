@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}الأصناف{% endblock %}
+{% block title %}{{ t.page_products }}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-box"></i> الأصناف</h2>
+  <h2 class="page-title"><i class="fas fa-box"></i> {{ t.page_products }}</h2>
   {% if session.get('role') != 'observer' %}
-  <a href="/add_product" class="btn btn-primary"><i class="fas fa-plus me-1"></i> إضافة صنف</a>
+  <a href="/add_product" class="btn btn-primary"><i class="fas fa-plus me-1"></i> {{ t.add_product_btn }}</a>
   {% endif %}
 </div>
 
 <div class="table-wrapper">
   <div class="table-header">
-    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>قائمة الأصناف</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ products|length }} صنف</span>
+    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.products_list }}</h5>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ products|length }} {{ t.stat_products }}</span>
   </div>
   {% if products %}
   <div class="table-responsive">
@@ -19,13 +19,13 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>اسم الصنف</th>
-          <th>الوحدة</th>
-          <th>الكمية المتاحة</th>
-          <th>سعر الإدخال الأول</th>
-          <th>سعر الإدخال الأخير</th>
-          <th>آخر تعديل</th>
-          {% if session.get('role') != 'observer' %}<th>الإجراءات</th>{% endif %}
+          <th>{{ t.col_product_name }}</th>
+          <th>{{ t.col_unit }}</th>
+          <th>{{ t.col_qty_available }}</th>
+          <th>{{ t.col_first_price }}</th>
+          <th>{{ t.col_last_price }}</th>
+          <th>{{ t.col_last_modified }}</th>
+          {% if session.get('role') != 'observer' %}<th>{{ t.col_actions }}</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -51,11 +51,11 @@
           {% if session.get('role') != 'observer' %}
           <td>
             <a href="/edit_product/{{ p[0] }}" class="btn btn-warning btn-sm me-1">
-              <i class="fas fa-edit me-1"></i>تعديل
+              <i class="fas fa-edit me-1"></i>{{ t.btn_edit }}
             </a>
             <a href="/delete_product/{{ p[0] }}" class="btn btn-danger btn-sm"
-               onclick="return confirm('حذف هذا الصنف نهائياً؟')">
-              <i class="fas fa-trash me-1"></i>حذف
+               onclick="return confirm('{{ t.delete_product_confirm }}')">
+              <i class="fas fa-trash me-1"></i>{{ t.btn_delete }}
             </a>
           </td>
           {% endif %}
@@ -67,8 +67,8 @@
   {% else %}
   <div class="text-center py-5" style="color:#6c7a72;">
     <i class="fas fa-box-open fa-3x mb-3" style="color:#d8e8de;"></i>
-    <p class="fw-bold">لا توجد أصناف حتى الآن</p>
-    <a href="/add_product" class="btn btn-primary btn-sm">إضافة أول صنف</a>
+    <p class="fw-bold">{{ t.no_products }}</p>
+    <a href="/add_product" class="btn btn-primary btn-sm">{{ t.add_first_product }}</a>
   </div>
   {% endif %}
 </div>
