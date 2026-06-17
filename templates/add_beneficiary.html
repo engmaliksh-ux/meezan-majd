@@ -169,12 +169,6 @@
         </div>
       </div>
 
-      <div class="mb-4">
-        <label class="form-label">{{ t.form_notes }}</label>
-        <textarea class="form-control" name="notes"
-                  placeholder="{{ t.form_notes_placeholder }}">{{ form_data.get('notes','') }}</textarea>
-      </div>
-
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> {{ t.btn_save_beneficiary }}</button>
         <a href="/beneficiaries" class="btn btn-secondary">{{ t.btn_cancel }}</a>

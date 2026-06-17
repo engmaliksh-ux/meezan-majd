@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block title %}الفواتير المضافة – ميزان مجد{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-archive"></i> الفواتير المضافة (المغلقة)</h2>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
+      <i class="fas fa-print me-1"></i> طباعة الكشف
+    </button>
+    <a href="{{ url_for('incoming_invoice') }}" class="btn btn-secondary btn-sm no-print">
+      <i class="fas fa-arrow-right me-1"></i> العودة للمشتريات
+    </a>
+  </div>
+</div>
+
+{% if invoices %}
+<!-- ملخص إجمالي -->
+<div class="table-wrapper mb-3 no-print">
+  <div class="inventory-total-box">
+    <i class="fas fa-coins me-2" style="color:#f0a500;"></i>
+    إجمالي الفواتير المضافة:
+    <span class="inventory-total-value">{{ "%.2f"|format(total_all) }}</span>
+    &nbsp;|&nbsp; عدد الفواتير: <strong>{{ invoices|length }}</strong>
+  </div>
+</div>
+
+<!-- فهرس سريع -->
+<div class="quick-index mb-4 no-print">
+  <div class="qi-title"><i class="fas fa-list-ol me-1"></i> انتقال سريع:</div>
+  <div class="qi-links">
+    {% for inv in invoices %}
+    <a href="#inv-{{ inv.id }}" class="qi-link">
+      <span class="qi-num">#{{ inv.display_num }}</span>
+      <span class="qi-name">{{ inv.supplier }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% for inv in invoices %}
+<div class="card mb-4 invoice-card" id="inv-{{ inv.id }}">
+  <!-- رأس الفاتورة -->
+  <div class="card-header d-flex justify-content-between align-items-center"
+       style="background:#e3f2fd;border-bottom:2px solid #90caf9;">
+    <div class="d-flex align-items-center gap-3">
+      <div class="inv-num-circle">{{ inv.display_num }}</div>
+      <div>
+        <div class="fw-bold" style="font-size:1rem;color:#1565c0;">{{ inv.supplier }}</div>
+        <div style="font-size:.8rem;color:#888;">
+          <i class="fas fa-calendar me-1"></i>{{ inv.invoice_date or (inv.created_at[:10] if inv.created_at else '—') }}
+          &nbsp;|&nbsp;
+          <i class="fas fa-user me-1"></i>{{ inv.created_by or '—' }}
+        </div>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <!-- حالة الدفع -->
+      {% if inv.is_paid %}
+        <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.82rem;padding:6px 10px;">
+          <i class="fas fa-check-circle me-1"></i>مدفوعة
+        </span>
+      {% else %}
+        <span class="badge" style="background:#fde8e8;color:#c62828;font-size:.82rem;padding:6px 10px;">
+          <i class="fas fa-clock me-1"></i>غير مدفوعة
+        </span>
+      {% endif %}
+      <span class="fw-bold" style="color:#1a6b3a;font-size:1.05rem;">{{ "%.2f"|format(inv.total) }}</span>
+      <button class="btn btn-outline-secondary btn-sm no-print"
+              onclick="printSingleInvoice('inv-body-{{ inv.id }}', '{{ inv.supplier }}', '{{ inv.display_num }}')">
+        <i class="fas fa-print"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body" id="inv-body-{{ inv.id }}">
+    <!-- جدول الأصناف -->
+    <div class="table-responsive mb-3">
+      <table class="table table-sm table-bordered mb-0">
+        <thead style="background:#e3f2fd;font-size:.82rem;">
+          <tr>
+            <th style="width:36px;">#</th>
+            <th>اسم الصنف</th>
+            <th>الوحدة</th>
+            <th>الكمية</th>
+            <th>سعر الوحدة</th>
+            <th>تاريخ الشراء</th>
+            <th>الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inv.lines %}
+          <tr>
+            <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+            <td class="fw-bold">{{ item.product_name }}</td>
+            <td style="color:#6c7a72;">{{ item.product_unit or '—' }}</td>
+            <td><span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ "%.2f"|format(item.quantity) }}</span></td>
+            <td>{{ "%.2f"|format(item.unit_price) }}</td>
+            <td style="color:#6c7a72;white-space:nowrap;">{{ item.purchase_date or '—' }}</td>
+            <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.total_price) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot style="background:#f5f5f5;">
+          <tr>
+            <td colspan="6" class="text-end fw-bold" style="color:#1565c0;">إجمالي الفاتورة</td>
+            <td class="fw-bold" style="color:#1a6b3a;font-size:1rem;">{{ "%.2f"|format(inv.total) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- الصور الثلاث -->
+    <div class="row g-3 mb-2">
+
+      <!-- صورة الفاتورة -->
+      <div class="col-md-4">
+        <div class="img-card">
+          <div class="img-card-title">
+            <i class="fas fa-file-image me-1" style="color:#1565c0;"></i> صورة الفاتورة
+          </div>
+          {% if inv.invoice_image %}
+          <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank" class="img-link">
+            <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}"
+                 class="inv-img" alt="صورة الفاتورة">
+            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
+          </a>
+          {% else %}
+          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div>لا توجد صورة</div></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- سند قبض التاجر -->
+      <div class="col-md-4">
+        <div class="img-card {% if inv.receipt_image %}img-card-paid{% endif %}">
+          <div class="img-card-title">
+            <i class="fas fa-receipt me-1" style="color:#1a6b3a;"></i> سند قبض التاجر
+            {% if inv.is_paid %}
+              <span class="badge ms-1" style="background:#e8f5ee;color:#1a6b3a;font-size:.62rem;">مدفوعة</span>
+            {% else %}
+              <span class="badge ms-1" style="background:#fde8e8;color:#c62828;font-size:.62rem;">غير مدفوعة</span>
+            {% endif %}
+          </div>
+          {% if inv.receipt_image %}
+          <a href="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}" target="_blank" class="img-link">
+            <img src="{{ url_for('static', filename='uploads/' + inv.receipt_image) }}"
+                 class="inv-img" alt="سند القبض">
+            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
+          </a>
+          {% else %}
+          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div style="color:#c62828;font-size:.75rem;">لم يرفع — غير مدفوعة</div></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ملحق مختوم -->
+      <div class="col-md-4">
+        <div class="img-card">
+          <div class="img-card-title">
+            <i class="fas fa-stamp me-1" style="color:#856404;"></i> ملحق المختوم بترويسة
+          </div>
+          {% if inv.attachment_image %}
+          <a href="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}" target="_blank" class="img-link">
+            <img src="{{ url_for('static', filename='uploads/' + inv.attachment_image) }}"
+                 class="inv-img" alt="ملحق مختوم">
+            <div class="img-overlay"><i class="fas fa-expand me-1"></i>فتح</div>
+          </a>
+          {% else %}
+          <div class="img-placeholder-card"><i class="fas fa-image fa-2x" style="color:#ddd;"></i><div>لا توجد صورة</div></div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div><!-- /row -->
+
+    <!-- شريط تذييل الفاتورة -->
+    <div class="inv-footer-bar">
+      <div>
+        <i class="fas fa-lock me-1" style="color:#6c7a72;"></i>
+        <span style="color:#6c7a72;font-size:.82rem;">فاتورة مغلقة — {{ inv.created_at or '' }}</span>
+      </div>
+      <a href="#top" class="btn btn-outline-secondary btn-sm no-print">
+        <i class="fas fa-arrow-up me-1"></i> للأعلى
+      </a>
+    </div>
+  </div><!-- /card-body -->
+</div><!-- /card -->
+{% endfor %}
+
+{% else %}
+<div class="text-center py-5" style="color:#6c7a72;">
+  <i class="fas fa-archive fa-3x mb-3" style="color:#d8e8de;"></i>
+  <p class="fw-bold">لا توجد فواتير مغلقة حتى الآن</p>
+  <a href="{{ url_for('incoming_invoice') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-arrow-right me-1"></i> العودة للمشتريات
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function printSingleInvoice(bodyId, supplier, num) {
+  const body = document.getElementById(bodyId);
+  if (!body) return;
+  const w = window.open('', '_blank', 'width=900,height=650');
+  w.document.write(`
+    <html dir="rtl"><head><meta charset="utf-8">
+    <title>فاتورة #${num} — ${supplier}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;direction:rtl;}
+      table{width:100%;border-collapse:collapse;}
+      th,td{border:1px solid #ccc;padding:6px 10px;text-align:right;font-size:13px;}
+      th{background:#e3f2fd;}
+      .fw-bold{font-weight:700;}
+      .text-end{text-align:left;}
+      img{max-width:200px;max-height:140px;border:1px solid #eee;border-radius:6px;margin:4px;}
+      h2{color:#1565c0;}
+      .meta{color:#888;font-size:12px;margin-bottom:10px;}
+      @media print{button{display:none;}}
+    </style></head><body>
+    <h2>فاتورة مشتريات #${num}</h2>
+    <div class="meta">المورد: <strong>${supplier}</strong></div>
+    ${body.innerHTML}
+    <script>setTimeout(()=>{ window.print(); },300);<\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+</script>
+
+<style>
+/* فهرس سريع */
+.quick-index { background:#f8fbff;border:1px solid #90caf9;border-radius:10px;padding:12px 16px; }
+.qi-title { font-weight:800;font-size:.82rem;color:#1565c0;margin-bottom:8px; }
+.qi-links { display:flex;flex-wrap:wrap;gap:8px; }
+.qi-link { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#fff;border:1px solid #90caf9;border-radius:16px;font-size:.78rem;text-decoration:none;color:#1565c0;transition:all .2s; }
+.qi-link:hover { background:#e3f2fd;border-color:#1565c0;color:#0d47a1; }
+.qi-num { font-weight:800; }
+.qi-name { color:#444; }
+
+/* رقم الفاتورة الدائري */
+.inv-num-circle { display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:#1565c0;color:#fff;border-radius:50%;font-weight:900;font-size:1rem;flex-shrink:0; }
+
+/* بطاقات الصور */
+.img-card { border:2px solid #d8e8de;border-radius:10px;overflow:hidden; }
+.img-card-paid { border-color:#66bb6a; }
+.img-card-title { padding:8px 12px;font-weight:700;font-size:.8rem;border-bottom:1px solid #e0e0e0;background:#f8f8f8; }
+.img-link { display:block;position:relative;overflow:hidden;background:#fafafa; }
+.inv-img { width:100%;max-height:160px;object-fit:contain;display:block;padding:8px; }
+.img-overlay { position:absolute;inset:0;background:rgba(0,0,0,.35);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;opacity:0;transition:opacity .2s; }
+.img-link:hover .img-overlay { opacity:1; }
+.img-placeholder-card { padding:30px;text-align:center;color:#aaa;font-size:.78rem;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fafafa; }
+
+/* تذييل الفاتورة */
+.inv-footer-bar { margin-top:8px;padding:8px 4px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e3f2fd; }
+
+/* طباعة */
+@media print {
+  .no-print { display:none !important; }
+  .card { break-inside:avoid;margin-bottom:20px;border:1px solid #ccc; }
+  .quick-index { display:none; }
+}
+</style>
+{% endblock %}

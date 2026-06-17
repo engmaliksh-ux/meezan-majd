@@ -69,7 +69,6 @@
           <th>{{ t.col_family_members }}</th>
           <th>{{ t.col_children }}</th>
           <th>{{ t.col_orphans }}</th>
-          <th>{{ t.col_notes }}</th>
           {% if session.get('role') != 'observer' %}<th>{{ t.col_actions }}</th>{% endif %}
         </tr>
       </thead>
@@ -119,9 +118,6 @@
             {% else %}
               <span style="color:#aaa;">—</span>
             {% endif %}
-          </td>
-          <td style="font-size:.8rem;color:#6c7a72;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-            {{ b.notes or '—' }}
           </td>
           {% if session.get('role') != 'observer' %}
           <td>

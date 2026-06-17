@@ -259,8 +259,13 @@ def migrate_db():
         ("products",          "last_modified", "TEXT"),
         ("incoming_invoices",  "is_closed",     "INTEGER NOT NULL DEFAULT 0"),
         ("incoming_invoices",  "invoice_image", "TEXT"),
-        ("incoming_invoice_items", "purchase_date", "TEXT"),
+        ("incoming_invoice_items", "purchase_date",    "TEXT"),
         ("beneficiaries",         "beneficiary_type", "TEXT DEFAULT 'person'"),
+        ("incoming_invoices",     "seq_num",          "INTEGER"),
+        ("incoming_invoices",     "invoice_date",     "TEXT"),
+        ("incoming_invoices",     "receipt_image",    "TEXT"),
+        ("incoming_invoices",     "attachment_image", "TEXT"),
+        ("incoming_invoices",     "is_paid",          "INTEGER DEFAULT 0"),
     ]
     for table, col, defn in migrations:
         try:

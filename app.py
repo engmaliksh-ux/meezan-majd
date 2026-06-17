@@ -1229,8 +1229,8 @@ def incoming_invoice():
         return redirect(url_for("incoming_invoice"))
 
     if request.method == "POST":
-        invoice_number  = request.form.get("invoice_number", "").strip()
         supplier        = request.form.get("supplier", "").strip()
+        invoice_date    = request.form.get("invoice_date", "").strip()
         product_names   = request.form.getlist("product_name[]")
         product_units   = request.form.getlist("product_unit[]")
         quantities      = request.form.getlist("quantity[]")
@@ -1243,11 +1243,15 @@ def incoming_invoice():
             if nm.strip() and qty and price and pdate
         ]
 
-        if not invoice_number or not supplier:
-            flash("يرجى تعبئة رقم الفاتورة واسم المورد", "danger")
+        if not supplier:
+            flash("يرجى تعبئة اسم المورد", "danger")
         elif not valid_items:
             flash("يرجى إضافة صنف واحد على الأقل ببيانات كاملة", "danger")
         else:
+            # ترقيم تلقائي
+            c.execute("SELECT COALESCE(MAX(seq_num),0) FROM incoming_invoices WHERE org_id=?", (org_id,))
+            next_seq = c.fetchone()[0] + 1
+
             invoice_image = None
             img_file = request.files.get("invoice_image")
             if img_file and img_file.filename and allowed_file(img_file.filename) and allowed_file_content(img_file):
@@ -1257,8 +1261,9 @@ def incoming_invoice():
                 img_file.save(os.path.join(app.config["UPLOAD_FOLDER"], invoice_image))
 
             c.execute(
-                "INSERT INTO incoming_invoices (org_id, invoice_number, supplier, created_by, invoice_image) VALUES (?,?,?,?,?)",
-                (org_id, invoice_number, supplier, session["user"], invoice_image)
+                "INSERT INTO incoming_invoices (org_id, seq_num, invoice_number, invoice_date, supplier, created_by, invoice_image) VALUES (?,?,?,?,?,?,?)",
+                (org_id, next_seq, str(next_seq), invoice_date or datetime.now().strftime("%Y-%m-%d"),
+                 supplier, session["user"], invoice_image)
             )
             invoice_id = c.lastrowid
 
@@ -1295,39 +1300,50 @@ def incoming_invoice():
             flash("✅ تم حفظ فاتورة المشتريات", "success")
             return redirect(url_for("incoming_invoice"))
 
-    # --- جلب الأصناف الموجودة لاقتراح التسمية (autocomplete) ---
+    # --- جلب الأصناف لـ autocomplete ---
     c.execute("SELECT name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
     existing_products = [dict(r) for r in c.fetchall()]
 
-    # --- جلب كل الفواتير مع أصنافها لعرض الكشف الكامل ---
+    # --- الكشف المختصر: كل الفواتير (مفتوحة ومغلقة) ---
     c.execute("""
-        SELECT id, invoice_number, supplier, is_closed, invoice_image, grand_total, created_at
-        FROM incoming_invoices WHERE org_id=? ORDER BY id DESC
+        SELECT id, seq_num, invoice_number, invoice_date, supplier,
+               is_closed, is_paid, grand_total, invoice_image, receipt_image, attachment_image, created_at
+        FROM incoming_invoices WHERE org_id=? ORDER BY COALESCE(seq_num,id) ASC
     """, (org_id,))
-    invoices_rows = c.fetchall()
+    all_inv_rows = c.fetchall()
 
-    invoices = []
+    # --- الفواتير المفتوحة مع تفاصيلها لعرضها في الصفحة ---
+    summary = []
+    open_invoices = []
     total_purchases = 0.0
-    for inv in invoices_rows:
+
+    for inv in all_inv_rows:
         inv_d = dict(inv)
         c.execute("""
-            SELECT ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date, p.name AS product_name
+            SELECT ii.id, ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
+                   p.name AS product_name, p.unit AS product_unit, p.id AS product_id
             FROM incoming_invoice_items ii
             JOIN products p ON p.id = ii.product_id
-            WHERE ii.invoice_id=?
-            ORDER BY ii.purchase_date, ii.id
+            WHERE ii.invoice_id=? ORDER BY ii.id
         """, (inv["id"],))
         items = [dict(r) for r in c.fetchall()]
         inv_total = sum(it["total_price"] for it in items)
         inv_d["lines"] = items
         inv_d["total"] = inv_total
+        inv_d["display_num"] = inv_d.get("seq_num") or inv_d.get("invoice_number") or inv_d["id"]
         total_purchases += inv_total
-        invoices.append(inv_d)
+        summary.append(inv_d)
+        if not inv_d["is_closed"]:
+            open_invoices.append(inv_d)
 
     conn.close()
     today_str = datetime.now().strftime("%Y-%m-%d")
-    return render_template("incoming_invoices.html", existing_products=existing_products,
-        invoices=invoices, total_purchases=total_purchases, today_str=today_str)
+    return render_template("incoming_invoices.html",
+        existing_products=existing_products,
+        summary=summary,
+        open_invoices=open_invoices,
+        total_purchases=total_purchases,
+        today_str=today_str)
 
 
 @app.route("/incoming_invoice/<int:id>/add_items", methods=["POST"])
@@ -1447,6 +1463,188 @@ def upload_invoice_image(id):
 
     conn.close()
     return redirect(url_for("incoming_invoice"))
+
+
+@app.route("/incoming_invoice/<int:id>/upload/<img_type>", methods=["POST"])
+@invoices_required
+def upload_invoice_image_typed(id, img_type):
+    """رفع صور الفاتورة الثلاث: invoice / receipt / attachment"""
+    if img_type not in ("invoice", "receipt", "attachment"):
+        flash("نوع الصورة غير صالح", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, is_closed FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    inv = c.fetchone()
+    if not inv:
+        conn.close()
+        flash("الفاتورة غير موجودة", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    field = {"invoice": "invoice_image", "receipt": "receipt_image", "attachment": "attachment_image"}[img_type]
+    img_file = request.files.get("img_file")
+    if img_file and img_file.filename and allowed_file(img_file.filename) and allowed_file_content(img_file):
+        ext = img_file.filename.rsplit(".", 1)[1].lower()
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        filename = f"{img_type}_{org_id}_{stamp}.{ext}"
+        img_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        # حالة الدفع تُحدَّد تلقائياً من وجود صورة سند القبض
+        if img_type == "receipt":
+            c.execute(f"UPDATE incoming_invoices SET {field}=?, is_paid=1 WHERE id=? AND org_id=?", (filename, id, org_id))
+        else:
+            c.execute(f"UPDATE incoming_invoices SET {field}=? WHERE id=? AND org_id=?", (filename, id, org_id))
+        conn.commit()
+        flash("✅ تم رفع الصورة", "success")
+    else:
+        flash("يرجى اختيار صورة بصيغة png / jpg / jpeg / webp", "danger")
+
+    conn.close()
+    return redirect(url_for("incoming_invoice") + f"#inv-{id}")
+
+
+@app.route("/incoming_invoice/<int:id>/delete")
+@invoices_required
+def delete_incoming_invoice(id):
+    """حذف فاتورة وإعادة ترقيم الفواتير التالية"""
+    if session.get("role") not in ("admin", "accountant"):
+        flash("ليس لديك صلاحية حذف الفواتير", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("SELECT id, seq_num FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    inv = c.fetchone()
+    if not inv:
+        conn.close()
+        flash("الفاتورة غير موجودة", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    deleted_seq = inv["seq_num"]
+
+    # حذف دفعات المخزون المرتبطة بهذه الفاتورة
+    c.execute("DELETE FROM stock_batches WHERE invoice_id=? AND org_id=?", (id, org_id))
+    # حذف أصناف الفاتورة
+    c.execute("DELETE FROM incoming_invoice_items WHERE invoice_id=?", (id,))
+    # حذف الفاتورة
+    c.execute("DELETE FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+
+    # إعادة ترقيم الفواتير التالية
+    if deleted_seq:
+        c.execute("""
+            UPDATE incoming_invoices
+            SET seq_num = seq_num - 1,
+                invoice_number = CAST((seq_num - 1) AS TEXT)
+            WHERE org_id=? AND seq_num > ?
+        """, (org_id, deleted_seq))
+
+    conn.commit()
+    conn.close()
+    flash("🗑️ تم حذف الفاتورة وإعادة الترقيم", "warning")
+    return redirect(url_for("incoming_invoice"))
+
+
+@app.route("/incoming_invoice/<int:id>/update", methods=["POST"])
+@invoices_required
+def update_invoice(id):
+    """تعديل فاتورة مفتوحة (أدمن فقط): المورد، التاريخ، أسعار الأصناف"""
+    if session.get("role") != "admin":
+        flash("هذه الميزة للأدمن فقط", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("SELECT is_closed FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    inv = c.fetchone()
+    if not inv or inv["is_closed"]:
+        conn.close()
+        flash("لا يمكن تعديل فاتورة مغلقة", "danger")
+        return redirect(url_for("incoming_invoice"))
+
+    supplier     = request.form.get("supplier", "").strip()
+    invoice_date = request.form.get("invoice_date", "").strip()
+    if supplier:
+        c.execute("UPDATE incoming_invoices SET supplier=?, invoice_date=? WHERE id=? AND org_id=?",
+                  (supplier, invoice_date, id, org_id))
+
+    # تعديل أصناف الفاتورة (السعر والاسم والتاريخ فقط، الكمية ثابتة)
+    item_ids    = request.form.getlist("item_id[]")
+    prod_names  = request.form.getlist("prod_name[]")
+    unit_prices = request.form.getlist("unit_price[]")
+    prod_dates  = request.form.getlist("prod_date[]")
+
+    for item_id, pname, uprice, pdate in zip(item_ids, prod_names, unit_prices, prod_dates):
+        try:
+            uprice_f = float(uprice)
+            # تحديث اسم المنتج
+            c.execute("SELECT product_id, quantity FROM incoming_invoice_items WHERE id=? AND invoice_id=?",
+                      (item_id, id))
+            row = c.fetchone()
+            if not row:
+                continue
+            pid, qty = row["product_id"], row["quantity"]
+            new_total = qty * uprice_f
+            # تحديث اسم المنتج إذا تغيّر
+            if pname.strip():
+                c.execute("UPDATE products SET name=? WHERE id=? AND org_id=?",
+                          (pname.strip(), pid, org_id))
+            # تحديث الصنف وسعر الـ stock_batch المقابل
+            c.execute("UPDATE incoming_invoice_items SET unit_price=?, total_price=?, purchase_date=? WHERE id=?",
+                      (uprice_f, new_total, pdate, item_id))
+            c.execute("UPDATE stock_batches SET unit_price=?, entry_date=? WHERE product_id=? AND invoice_id=? AND org_id=?",
+                      (uprice_f, pdate, pid, id, org_id))
+        except (ValueError, TypeError):
+            pass
+
+    conn.commit()
+    conn.close()
+    flash("✅ تم حفظ التعديلات", "success")
+    return redirect(url_for("incoming_invoice") + f"#inv-{id}")
+
+
+@app.route("/incoming_invoices_list")
+@invoices_view_required
+def incoming_invoices_list():
+    """صفحة عرض الفواتير المضافة (المغلقة) مع كامل تفاصيلها"""
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT id, seq_num, invoice_number, invoice_date, supplier,
+               is_paid, grand_total, invoice_image, receipt_image, attachment_image, created_at, created_by
+        FROM incoming_invoices
+        WHERE org_id=? AND is_closed=1
+        ORDER BY COALESCE(seq_num,id) ASC
+    """, (org_id,))
+    inv_rows = c.fetchall()
+
+    invoices = []
+    total_all = 0.0
+    for inv in inv_rows:
+        inv_d = dict(inv)
+        c.execute("""
+            SELECT ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
+                   p.name AS product_name, p.unit AS product_unit
+            FROM incoming_invoice_items ii
+            JOIN products p ON p.id = ii.product_id
+            WHERE ii.invoice_id=? ORDER BY ii.id
+        """, (inv["id"],))
+        items = [dict(r) for r in c.fetchall()]
+        inv_total = sum(it["total_price"] for it in items)
+        inv_d["lines"] = items
+        inv_d["total"] = inv_total
+        inv_d["display_num"] = inv_d.get("seq_num") or inv_d.get("invoice_number") or inv_d["id"]
+        total_all += inv_total
+        invoices.append(inv_d)
+
+    conn.close()
+    return render_template("incoming_invoices_list.html", invoices=invoices, total_all=total_all)
 
 
 # ══════════════════════════════════════════
