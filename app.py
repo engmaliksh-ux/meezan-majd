@@ -1683,6 +1683,7 @@ def outgoing_invoice():
         beneficiary    = request.form.get("beneficiary", "").strip()
         notes          = request.form.get("notes", "").strip()
         product_ids    = request.form.getlist("product_id[]")
+        product_names  = request.form.getlist("product_name[]")
         quantities     = request.form.getlist("quantity[]")
 
         # البرنامج هو الجهة المستفيدة الرئيسية
@@ -1711,7 +1712,19 @@ def outgoing_invoice():
         )
         invoice_id = c.lastrowid
         errors = []
-        for pid, qty in zip(product_ids, quantities):
+        # ضمان نفس طول القوائم الثلاث بتعبئة الناقص بـ ''
+        max_len = max(len(product_ids), len(product_names), len(quantities))
+        product_ids   += [''] * (max_len - len(product_ids))
+        product_names += [''] * (max_len - len(product_names))
+        quantities    += [''] * (max_len - len(quantities))
+
+        for pid, pname, qty in zip(product_ids, product_names, quantities):
+            # إذا product_id فارغ ولكن في اسم، ابحث عنه بالاسم
+            if not pid and pname:
+                c.execute("SELECT id FROM products WHERE name=? AND org_id=?", (pname.strip(), org_id))
+                row = c.fetchone()
+                if row:
+                    pid = str(row["id"])
             if pid and qty:
                 try:
                     qty_needed = float(qty)

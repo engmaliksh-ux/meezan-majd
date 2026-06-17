@@ -80,6 +80,16 @@
   {% endif %}
 </div>
 
+<!-- Datalist لأصناف المخزون (مشترك بين كل الصفوف) -->
+<datalist id="inventory-datalist">
+  {% for item in inventory %}
+  <option value="{{ item.name }}"
+          data-id="{{ item.id }}"
+          data-avail="{{ item.total_qty }}"
+          data-unit="{{ item.unit }}">
+  {% endfor %}
+</datalist>
+
 <!-- فورم فاتورة الصرف -->
 {% if session.get('role') != 'observer' %}
 <div id="outgoing-card" style="display:none;">
@@ -144,14 +154,16 @@
             <tbody id="out-items-body">
               <tr class="out-row">
                 <td>
-                  <select class="form-select" name="product_id[]" onchange="updateAvailable(this)" required>
-                    <option value="">-- اختر الصنف --</option>
-                    {% for item in inventory %}
-                    <option value="{{ item.id }}" data-avail="{{ item.total_qty }}">
-                      {{ item.name }} ({{ "%.1f"|format(item.total_qty) }} {{ item.unit }})
-                    </option>
-                    {% endfor %}
-                  </select>
+                  <input type="hidden" name="product_id[]" class="pid-hidden" value="">
+                  <input type="text"
+                         class="form-control product-name-input"
+                         name="product_name[]"
+                         list="inventory-datalist"
+                         placeholder="اكتب اسم الصنف أو اختر من القائمة..."
+                         autocomplete="off">
+                  <div class="manual-hint" style="display:none;font-size:.72rem;color:#856404;margin-top:3px;">
+                    <i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن
+                  </div>
                 </td>
                 <td>
                   <input type="number" class="form-control" name="quantity[]"
@@ -197,6 +209,44 @@
 {% block scripts %}
 {% if session.get('role') != 'observer' %}
 <script>
+// خريطة الأصناف: اسم الصنف → {id, avail, unit}
+const inventoryMap = {};
+{% for item in inventory %}
+inventoryMap[{{ item.name | tojson }}] = {
+  id:    {{ item.id }},
+  avail: {{ item.total_qty }},
+  unit:  {{ item.unit | tojson }}
+};
+{% endfor %}
+
+// عند تغيير حقل الصنف — تحديث الـ product_id والكمية المتاحة
+function handleProductInput(input) {
+  const row     = input.closest('.out-row');
+  const pidHid  = row.querySelector('.pid-hidden');
+  const avCell  = row.querySelector('.available-cell');
+  const hint    = row.querySelector('.manual-hint');
+  const name    = input.value.trim();
+  const match   = inventoryMap[name];
+
+  if (match) {
+    pidHid.value = match.id;
+    avCell.textContent = match.avail.toFixed(2);
+    avCell.style.color = match.avail === 0 ? '#c62828' : match.avail < 10 ? '#856404' : '#1a6b3a';
+    hint.style.display = 'none';
+  } else {
+    pidHid.value = '';
+    avCell.textContent = '—';
+    avCell.style.color = '#1a6b3a';
+    hint.style.display = name ? 'block' : 'none';
+  }
+}
+
+// إضافة مستمعي الأحداث للصف الأول
+document.querySelectorAll('.product-name-input').forEach(inp => {
+  inp.addEventListener('input',  () => handleProductInput(inp));
+  inp.addEventListener('change', () => handleProductInput(inp));
+});
+
 // إظهار/إخفاء فورم الصرف
 const outCard = document.getElementById('outgoing-card');
 document.getElementById('toggle-outgoing').addEventListener('click', () => {
@@ -208,19 +258,27 @@ document.getElementById('cancel-outgoing').addEventListener('click', () => {
   outCard.style.display = 'none';
 });
 
-// قائمة الأصناف مع الكميات المتاحة
-const inventoryOptions = `{% for item in inventory %}<option value="{{ item.id }}" data-avail="{{ item.total_qty }}">{{ item.name }} ({{ "%.1f"|format(item.total_qty) }} {{ item.unit }})</option>{% endfor %}`;
-
-function updateAvailable(sel) {
-  const opt = sel.options[sel.selectedIndex];
-  const avail = parseFloat(opt.dataset.avail || 0);
-  const cell = sel.closest('tr').querySelector('.available-cell');
-  if (sel.value) {
-    cell.textContent = avail.toFixed(2);
-    cell.style.color = avail === 0 ? '#c62828' : avail < 10 ? '#856404' : '#1a6b3a';
-  } else {
-    cell.textContent = '—';
-  }
+function newRowHTML() {
+  return `
+    <td>
+      <input type="hidden" name="product_id[]" class="pid-hidden" value="">
+      <input type="text"
+             class="form-control product-name-input"
+             name="product_name[]"
+             list="inventory-datalist"
+             placeholder="اكتب اسم الصنف أو اختر من القائمة..."
+             autocomplete="off">
+      <div class="manual-hint" style="display:none;font-size:.72rem;color:#856404;margin-top:3px;">
+        <i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن
+      </div>
+    </td>
+    <td><input type="number" class="form-control" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
+    <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
+    <td class="text-center">
+      <button type="button" class="btn btn-danger btn-sm remove-out-row">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>`;
 }
 
 function updateRemoveBtns() {
@@ -232,21 +290,14 @@ document.getElementById('add-out-row').addEventListener('click', () => {
   const tbody = document.getElementById('out-items-body');
   const tr = document.createElement('tr');
   tr.className = 'out-row';
-  tr.innerHTML = `
-    <td>
-      <select class="form-select" name="product_id[]" onchange="updateAvailable(this)" required>
-        <option value="">-- اختر الصنف --</option>
-        ${inventoryOptions}
-      </select>
-    </td>
-    <td><input type="number" class="form-control" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
-    <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
-    <td class="text-center">
-      <button type="button" class="btn btn-danger btn-sm remove-out-row">
-        <i class="fas fa-times"></i>
-      </button>
-    </td>`;
+  tr.innerHTML = newRowHTML();
   tbody.appendChild(tr);
+
+  // ربط المستمعين للصف الجديد
+  const inp = tr.querySelector('.product-name-input');
+  inp.addEventListener('input',  () => handleProductInput(inp));
+  inp.addEventListener('change', () => handleProductInput(inp));
+
   updateRemoveBtns();
 });
 
