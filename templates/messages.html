@@ -7,12 +7,10 @@
     <i class="fas fa-comments"></i>
     {% if lang=='en' %}Internal Chat{% elif lang=='tr' %}Dahili Sohbet{% else %}الشات الداخلي{% endif %}
   </h2>
-  {% if session.get('role') == 'admin' %}
   <button class="btn btn-sm btn-outline-danger no-print" onclick="clearHistory()">
     <i class="fas fa-trash-alt me-1"></i>
     {% if lang=='en' %}Clear History{% elif lang=='tr' %}Geçmişi Temizle{% else %}مسح السجل{% endif %}
   </button>
-  {% endif %}
 </div>
 
 <div class="chat-wrapper">
@@ -111,105 +109,105 @@ chatBox.scrollTop = chatBox.scrollHeight;
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function roleLbl(r){ return r==='admin'?(lang==='en'?'Admin':lang==='tr'?'Yönetici':'أدمن'):(lang==='en'?'Observer':lang==='tr'?'Gözlemci':'مراقب'); }
 function detectLang(t){
-  if(/[؀-ۿ؀-ۿ]/.test(t)) return 'ar';
-  if(/[çğışöüÇĞİŞÖÜ]/.test(t))      return 'tr';
+  if(/[؀-ۿ]/.test(t)) return 'ar';   // عربي
+  if(/[çğışöüÇĞİŞÖÜ]/u.test(t)) return 'tr';  // تركي
   return 'en';
 }
 
-/* ── ترجمة تلقائية ── */
-const trCache = {};
-const trQueue = [];
-let trRunning = false;
+/* ══ نظام الترجمة ══ */
+const trCache  = {};   // id → {original, translated}
+const trQueue  = [];
+let   trBusy   = false;
 
+/* جدولة الترجمة */
 function scheduleTranslate(id, text){
   if(!text || trCache[id]) return;
   const src = detectLang(text);
-  if(src === targetLang) return;   // نفس اللغة لا حاجة
-  trQueue.push({id, text, src});
-  if(!trRunning) runTrQueue();
+  if(src === targetLang) return;           // نفس اللغة
+  if(trQueue.find(x=>x.id==id)) return;   // مجدولة مسبقاً
+  trQueue.push({id, text, src, dst: targetLang});
+  if(!trBusy) runQueue();
 }
 
-async function runTrQueue(){
-  trRunning = true;
+async function runQueue(){
+  trBusy = true;
   while(trQueue.length){
-    const {id, text, src} = trQueue.shift();
-    await doTranslate(id, text, src, targetLang);
-    await new Promise(r => setTimeout(r, 400)); // rate-limit
+    const job = trQueue.shift();
+    await callTranslate(job.id, job.text, job.src, job.dst);
+    if(trQueue.length) await new Promise(r=>setTimeout(r,500));
   }
-  trRunning = false;
+  trBusy = false;
 }
 
-async function doTranslate(id, text, src, dst){
+async function callTranslate(id, text, src, dst){
+  if(trCache[id]) return;
   try {
-    const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${dst}`;
-    const res  = await fetch(url);
-    const data = await res.json();
-    const out  = (data?.responseData?.translatedText || '').trim();
-    if(!out || out === text) return;
-    trCache[id] = {original: text, translated: out};
-    applyTranslation(id, out, text);
-  } catch(e){}
+    const r = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}%7C${dst}`,
+      {method:'GET'}
+    );
+    if(!r.ok) return;
+    const j = await r.json();
+    const t = (j?.responseData?.translatedText||'').trim();
+    if(!t || t===text || t.toLowerCase().startsWith('mymemory')) return;
+    trCache[id] = {original:text, translated:t};
+    renderTranslation(id, t, text);
+  } catch(e){ console.warn('translate err',e); }
 }
 
-function applyTranslation(id, translated, original){
-  const bubble = document.getElementById('bubble-' + id);
+/* تطبيق الترجمة على الفقاعة */
+function renderTranslation(id, translated, original){
+  const bubble = document.getElementById('bubble-'+id);
   if(!bubble) return;
   const textEl = bubble.querySelector('.msg-text');
   if(!textEl) return;
-  textEl.dataset.original   = original;
-  textEl.dataset.translated = translated;
-  textEl.dataset.showing    = 'translated';
-  textEl.innerHTML = esc(translated) +
-    ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Original':'النص الأصلي'}">🌐</span>`;
+  textEl.dataset.orig = original;
+  textEl.dataset.tr   = translated;
+  textEl.dataset.show = 'tr';
+  textEl.innerHTML = esc(translated)+`<span class="tr-badge" onclick="toggleTr(${id})">🌐</span>`;
 }
 
 function toggleTr(id){
-  const bubble = document.getElementById('bubble-' + id);
+  const bubble = document.getElementById('bubble-'+id);
   if(!bubble) return;
-  const textEl = bubble.querySelector('.msg-text');
-  if(!textEl) return;
-  if(textEl.dataset.showing === 'translated'){
-    textEl.innerHTML = esc(textEl.dataset.original) +
-      ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Show translation':'عرض الترجمة'}">↩🌐</span>`;
-    textEl.dataset.showing = 'original';
+  const el = bubble.querySelector('.msg-text');
+  if(!el||!el.dataset.tr) return;
+  if(el.dataset.show==='tr'){
+    el.innerHTML = esc(el.dataset.orig)+`<span class="tr-badge" onclick="toggleTr(${id})">↩</span>`;
+    el.dataset.show='orig';
   } else {
-    textEl.innerHTML = esc(textEl.dataset.translated) +
-      ` <span class="tr-badge" onclick="toggleTr(${id})" title="${lang==='en'?'Original':'النص الأصلي'}">🌐</span>`;
-    textEl.dataset.showing = 'translated';
+    el.innerHTML = esc(el.dataset.tr)+`<span class="tr-badge" onclick="toggleTr(${id})">🌐</span>`;
+    el.dataset.show='tr';
   }
 }
 
 /* زر الترجمة اليدوية */
 async function manualTranslate(id){
-  const bubble = document.getElementById('bubble-' + id);
+  const bubble = document.getElementById('bubble-'+id);
   if(!bubble) return;
-  const textEl = bubble.querySelector('.msg-text');
-  if(!textEl) return;
-  // toggle إذا مترجمة مسبقاً
-  if(textEl.dataset.translated){ toggleTr(id); return; }
-  const text = textEl.innerText.trim();
+  const el = bubble.querySelector('.msg-text');
+  if(!el) return;
+  if(el.dataset.tr){ toggleTr(id); return; }  // مترجمة → toggle
+  const text = (el.dataset.orig || el.innerText).trim();
   if(!text) return;
   const src = detectLang(text);
-  const dst = src === targetLang ? (targetLang==='ar'?'en':'ar') : targetLang;
-  textEl.innerHTML = `<span style="opacity:.5">⏳</span>`;
-  await doTranslate(id, text, src, dst);
-  if(!textEl.dataset.translated) textEl.innerHTML = esc(text); // فشل الترجمة
+  const dst = src===targetLang ? (targetLang==='ar'?'en':'ar') : targetLang;
+  el.innerHTML = `⏳`;
+  await callTranslate(id, text, src, dst);
+  if(!el.dataset.tr) el.innerHTML = esc(text);  // فشل → أعد الأصل
 }
 
-/* ترجمة الرسائل عند تحميل الصفحة (من غير المستخدم الحالي) */
-function autoTranslateExisting(){
-  document.querySelectorAll('.chat-msg:not(.msg-mine)').forEach(el => {
-    const id     = el.dataset.id;
-    const bubble = document.getElementById('bubble-' + id);
-    if(!bubble) return;
-    const textEl = bubble.querySelector('.msg-text');
-    if(textEl && textEl.innerText.trim()){
-      scheduleTranslate(id, textEl.innerText.trim());
-    }
+/* ترجمة تلقائية لرسائل الآخرين عند فتح الصفحة */
+function autoTranslateAll(){
+  document.querySelectorAll('.chat-msg:not(.msg-mine)').forEach(el=>{
+    const id = el.dataset.id;
+    const b  = document.getElementById('bubble-'+id);
+    if(!b) return;
+    const t  = b.querySelector('.msg-text');
+    if(t && t.innerText.trim()) scheduleTranslate(id, t.innerText.trim());
   });
 }
-// بعد ثانية من التحميل لا نبطئ الصفحة
-setTimeout(autoTranslateExisting, 1000);
+setTimeout(autoTranslateAll, 800);
 
 /* ── بناء فقاعة ── */
 function bubbleContent(content, attachment){

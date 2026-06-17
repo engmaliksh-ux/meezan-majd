@@ -2503,8 +2503,8 @@ def messages_delete(msg_id):
 @app.route("/messages/clear", methods=["POST"])
 @login_required
 def messages_clear():
-    """يمسح كامل سجل المحادثة — للأدمن فقط"""
-    if session.get("role") != "admin":
+    """يمسح كامل سجل المحادثة — للأدمن والمراقب"""
+    if not _chat_allowed():
         return {"ok": False}, 403
     org_id = session["org_id"]
     conn = get_connection()
