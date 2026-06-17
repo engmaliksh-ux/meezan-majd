@@ -14,6 +14,29 @@
     <form method="POST" action="/edit_beneficiary/{{ b.id }}" novalidate>
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
+      <!-- نوع المستفيد -->
+      <div class="mb-4">
+        <label class="form-label fw-bold">{{ t.benef_type_label }} <span class="text-danger">*</span></label>
+        <div class="d-flex gap-3 mt-1">
+          <label class="type-opt {% if b.get('beneficiary_type','person')=='person' %}active{% endif %}"
+                 id="type-person-lbl">
+            <input type="radio" name="beneficiary_type" value="person"
+                   {% if b.get('beneficiary_type','person')=='person' %}checked{% endif %}
+                   onchange="toggleType()">
+            <i class="fas fa-user me-2" style="color:#1a6b3a;"></i>
+            {{ t.benef_type_person }}
+          </label>
+          <label class="type-opt {% if b.get('beneficiary_type')=='camp' %}active{% endif %}"
+                 id="type-camp-lbl">
+            <input type="radio" name="beneficiary_type" value="camp"
+                   {% if b.get('beneficiary_type')=='camp' %}checked{% endif %}
+                   onchange="toggleType()">
+            <i class="fas fa-tents me-2" style="color:#856404;"></i>
+            {{ t.benef_type_camp }}
+          </label>
+        </div>
+      </div>
+
       <div class="row g-3 mb-3">
         <div class="col-md-8">
           <label class="form-label">{{ t.form_full_name }} <span class="text-danger">*</span></label>
@@ -153,6 +176,10 @@
 .check-opt input[type=checkbox] { width:18px;height:18px;accent-color:#1a6b3a;flex-shrink:0; }
 .check-opt-title { font-weight:700;font-size:.88rem; }
 .check-opt-desc { font-size:.74rem;color:#6c7a72; }
+.type-opt { display:flex;align-items:center;gap:8px;padding:10px 18px;border:2px solid #d8e8de;border-radius:8px;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .2s;flex:1;max-width:200px; }
+.type-opt:hover { border-color:#1a6b3a;background:#f0faf4; }
+.type-opt.active { border-color:#1a6b3a;background:#e8f5ee; }
+.type-opt input[type=radio] { display:none; }
 </style>
 <script>
 function checkSingleMember(input, maritalId) {
@@ -187,6 +214,11 @@ if (idInput) {
   idInput.addEventListener('input', function(){
     this.value = this.value.replace(/\D/g,'').slice(0,9);
   });
+}
+function toggleType() {
+  const val = document.querySelector('[name=beneficiary_type]:checked')?.value;
+  document.getElementById('type-person-lbl').classList.toggle('active', val === 'person');
+  document.getElementById('type-camp-lbl').classList.toggle('active', val === 'camp');
 }
 </script>
 {% endblock %}

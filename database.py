@@ -260,6 +260,7 @@ def migrate_db():
         ("incoming_invoices",  "is_closed",     "INTEGER NOT NULL DEFAULT 0"),
         ("incoming_invoices",  "invoice_image", "TEXT"),
         ("incoming_invoice_items", "purchase_date", "TEXT"),
+        ("beneficiaries",         "beneficiary_type", "TEXT DEFAULT 'person'"),
     ]
     for table, col, defn in migrations:
         try:

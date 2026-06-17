@@ -109,6 +109,13 @@ TRANSLATIONS = {
         'no_beneficiaries': 'لا يوجد مستفيدون حتى الآن',
         'add_first_beneficiary': 'إضافة أول مستفيد',
         'delete_beneficiary_confirm': 'حذف هذا المستفيد؟',
+        'benef_type_label':  'نوع المستفيد',
+        'benef_type_person': 'شخص / أسرة',
+        'benef_type_camp':   'مخيم',
+        'filter_all':        'الكل',
+        'filter_persons':    'الأشخاص والأسر',
+        'filter_camps':      'المخيمات',
+        'col_benef_type':    'النوع',
 
         # ── نموذج إضافة/تعديل المستفيد ──
         'form_full_name': 'الاسم الرباعي',
@@ -367,6 +374,13 @@ TRANSLATIONS = {
         'no_beneficiaries': 'Henüz yararlanıcı bulunmuyor',
         'add_first_beneficiary': 'İlk Yararlanıcıyı Ekle',
         'delete_beneficiary_confirm': 'Bu yararlanıcıyı sil?',
+        'benef_type_label':  'Yararlanıcı Türü',
+        'benef_type_person': 'Kişi / Aile',
+        'benef_type_camp':   'Kamp',
+        'filter_all':        'Tümü',
+        'filter_persons':    'Kişiler ve Aileler',
+        'filter_camps':      'Kamplar',
+        'col_benef_type':    'Tür',
 
         # ── Yararlanıcı ekleme/düzenleme formu ──
         'form_full_name': 'Ad Soyad (Dört İsim)',

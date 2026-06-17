@@ -27,7 +27,31 @@
 <div class="table-wrapper">
   <div class="table-header">
     <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.beneficiaries_list }}</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ beneficiaries|length }}</span>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;" id="count-badge">{{ beneficiaries|length }}</span>
+  </div>
+
+  <!-- تبويبات الفلتر حسب النوع -->
+  <div class="px-3 pb-2 pt-1 d-flex gap-2 flex-wrap">
+    <button class="filter-tab active" data-type="all">
+      <i class="fas fa-list me-1"></i> {{ t.filter_all }}
+      <span class="tab-count" id="cnt-all">{{ beneficiaries|length }}</span>
+    </button>
+    <button class="filter-tab" data-type="person">
+      <i class="fas fa-user me-1"></i> {{ t.filter_persons }}
+      <span class="tab-count" id="cnt-person">
+        {%- set pc = namespace(n=0) -%}
+        {%- for b in beneficiaries if b.get('beneficiary_type','person') == 'person' -%}{%- set pc.n = pc.n + 1 -%}{%- endfor -%}
+        {{ pc.n }}
+      </span>
+    </button>
+    <button class="filter-tab" data-type="camp">
+      <i class="fas fa-tents me-1"></i> {{ t.filter_camps }}
+      <span class="tab-count" id="cnt-camp">
+        {%- set cc = namespace(n=0) -%}
+        {%- for b in beneficiaries if b.get('beneficiary_type') == 'camp' -%}{%- set cc.n = cc.n + 1 -%}{%- endfor -%}
+        {{ cc.n }}
+      </span>
+    </button>
   </div>
 
   {% if beneficiaries %}
@@ -36,6 +60,7 @@
       <thead>
         <tr>
           <th>#</th>
+          <th>{{ t.col_benef_type }}</th>
           <th>{{ t.col_full_name }}</th>
           <th>{{ t.col_gender }}</th>
           <th>{{ t.col_id_number }}</th>
@@ -48,10 +73,17 @@
           {% if session.get('role') != 'observer' %}<th>{{ t.col_actions }}</th>{% endif %}
         </tr>
       </thead>
-      <tbody>
+      <tbody id="beneficiaries-tbody">
         {% for b in beneficiaries %}
-        <tr>
+        <tr data-type="{{ b.get('beneficiary_type', 'person') }}">
           <td><span class="seq-badge">{{ b.seq_num }}</span></td>
+          <td>
+            {% if b.get('beneficiary_type') == 'camp' %}
+              <span class="badge" style="background:#fff3cd;color:#856404;"><i class="fas fa-tents me-1"></i>{{ t.benef_type_camp }}</span>
+            {% else %}
+              <span class="badge" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-user me-1"></i>{{ t.benef_type_person }}</span>
+            {% endif %}
+          </td>
           <td style="font-weight:700;text-align:right;">
             {{ b.full_name }}
             {% if b.get('wife_pregnant') %}
@@ -121,5 +153,28 @@
 <style>
 .seq-badge { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--primary);color:#fff;border-radius:50%;font-weight:800;font-size:.82rem; }
 .orphans-alert { background:#fff8e1;border:2px solid #ffe082;border-radius:10px;padding:12px 18px;font-size:.9rem;color:#856404;font-weight:600; }
+.filter-tab { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border:2px solid #d8e8de;border-radius:20px;background:#fff;font-size:.82rem;font-weight:700;cursor:pointer;color:#6c7a72;transition:all .2s; }
+.filter-tab:hover { border-color:#1a6b3a;color:#1a6b3a; }
+.filter-tab.active { border-color:#1a6b3a;background:#e8f5ee;color:#1a6b3a; }
+.tab-count { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;background:rgba(0,0,0,.08);border-radius:10px;font-size:.75rem;padding:0 5px; }
+.filter-tab.active .tab-count { background:rgba(26,107,58,.15); }
 </style>
+<script>
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.type;
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rows = document.querySelectorAll('#beneficiaries-tbody tr');
+    let visible = 0;
+    rows.forEach(row => {
+      const show = type === 'all' || row.dataset.type === type ||
+                   (type === 'person' && !row.dataset.type);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('count-badge').textContent = visible;
+  });
+});
+</script>
 {% endblock %}

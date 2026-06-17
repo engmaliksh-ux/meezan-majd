@@ -1011,7 +1011,7 @@ def delete_product(id):
 BENEF_KEYS = ["id", "org_id", "seq_num", "full_name", "gender", "phone",
               "address", "address2", "camp_name", "id_number", "family_size",
               "marital_status", "children_count", "wife_pregnant", "wife_nursing",
-              "has_orphans", "orphans_count", "notes", "created_at"]
+              "has_orphans", "orphans_count", "notes", "created_at", "beneficiary_type"]
 
 
 @app.route("/beneficiaries")
@@ -1037,6 +1037,7 @@ def beneficiaries():
         d.setdefault("wife_nursing", 0)
         d.setdefault("has_orphans", 0)
         d.setdefault("orphans_count", 0)
+        d.setdefault("beneficiary_type", "person")
         data.append(d)
 
     return render_template("beneficiaries.html", beneficiaries=data)
@@ -1059,8 +1060,9 @@ def add_beneficiary():
         wife_pregnant  = 1 if request.form.get("wife_pregnant") else 0
         wife_nursing   = 1 if request.form.get("wife_nursing") else 0
         has_orphans    = 1 if request.form.get("has_orphans") else 0
-        orphans_count  = request.form.get("orphans_count", "0").strip()
-        notes          = request.form.get("notes", "").strip()
+        orphans_count    = request.form.get("orphans_count", "0").strip()
+        notes            = request.form.get("notes", "").strip()
+        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
 
         errors = []
         if len(full_name.split()) < 2:
@@ -1090,11 +1092,11 @@ def add_beneficiary():
             """INSERT INTO beneficiaries
                (org_id, seq_num, full_name, gender, phone, address, address2, camp_name,
                 id_number, family_size, marital_status, children_count,
-                wife_pregnant, wife_nursing, has_orphans, orphans_count, notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (session["org_id"], next_seq, full_name, gender, phone, address, address2,
              camp_name, id_number, family_size, marital_status, children_count,
-             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes)
+             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type)
         )
         conn.commit()
         conn.close()
@@ -1125,8 +1127,9 @@ def edit_beneficiary(id):
         wife_pregnant  = 1 if request.form.get("wife_pregnant") else 0
         wife_nursing   = 1 if request.form.get("wife_nursing") else 0
         has_orphans    = 1 if request.form.get("has_orphans") else 0
-        orphans_count  = request.form.get("orphans_count", "0").strip()
-        notes          = request.form.get("notes", "").strip()
+        orphans_count    = request.form.get("orphans_count", "0").strip()
+        notes            = request.form.get("notes", "").strip()
+        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
 
         errors = []
         if len(full_name.split()) < 2:
@@ -1149,6 +1152,7 @@ def edit_beneficiary(id):
                 "children_count": children_count, "wife_pregnant": wife_pregnant,
                 "wife_nursing": wife_nursing, "has_orphans": has_orphans,
                 "orphans_count": orphans_count, "notes": notes,
+                "beneficiary_type": beneficiary_type,
             }
             return render_template("edit_beneficiary.html", b=b)
 
@@ -1163,11 +1167,13 @@ def edit_beneficiary(id):
             """UPDATE beneficiaries
                SET full_name=?,gender=?,phone=?,address=?,address2=?,camp_name=?,
                    id_number=?,family_size=?,marital_status=?,children_count=?,
-                   wife_pregnant=?,wife_nursing=?,has_orphans=?,orphans_count=?,notes=?
+                   wife_pregnant=?,wife_nursing=?,has_orphans=?,orphans_count=?,notes=?,
+                   beneficiary_type=?
                WHERE id=? AND org_id=?""",
             (full_name, gender, phone, address, address2, camp_name,
              id_number, family_size, marital_status, children_count,
-             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, id, org_id)
+             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes,
+             beneficiary_type, id, org_id)
         )
         conn.commit()
         conn.close()
@@ -1190,6 +1196,7 @@ def edit_beneficiary(id):
     b.setdefault("wife_nursing", 0)
     b.setdefault("has_orphans", 0)
     b.setdefault("orphans_count", 0)
+    b.setdefault("beneficiary_type", "person")
     return render_template("edit_beneficiary.html", b=b)
 
 
