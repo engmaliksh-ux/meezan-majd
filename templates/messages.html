@@ -108,9 +108,12 @@ chatBox.scrollTop = chatBox.scrollHeight;
 /* ── utils ── */
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function roleLbl(r){ return r==='admin'?(lang==='en'?'Admin':lang==='tr'?'Yönetici':'أدمن'):(lang==='en'?'Observer':lang==='tr'?'Gözlemci':'مراقب'); }
+
+// كشف لغة النص
 function detectLang(t){
-  if(/[؀-ۿ]/.test(t)) return 'ar';   // عربي
-  if(/[çğışöüÇĞİŞÖÜ]/u.test(t)) return 'tr';  // تركي
+  if(!t) return 'en';
+  if(/[؀-ۿ]/.test(t)) return 'ar';                        // عربي
+  if(/[çğışöüÇĞİŞÖÜ]/.test(t)) return 'tr'; // تركي
   return 'en';
 }
 
@@ -142,17 +145,17 @@ async function runQueue(){
 async function callTranslate(id, text, src, dst){
   if(trCache[id]) return;
   try {
-    const r = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}%7C${dst}`,
-      {method:'GET'}
-    );
+    const r = await fetch('/translate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRF-Token': csrfToken},
+      body: JSON.stringify({text, dst})
+    });
     if(!r.ok) return;
     const j = await r.json();
-    const t = (j?.responseData?.translatedText||'').trim();
-    if(!t || t===text || t.toLowerCase().startsWith('mymemory')) return;
-    trCache[id] = {original:text, translated:t};
-    renderTranslation(id, t, text);
-  } catch(e){ console.warn('translate err',e); }
+    if(!j.ok || j.same || !j.translated) return;
+    trCache[id] = {original: text, translated: j.translated};
+    renderTranslation(id, j.translated, text);
+  } catch(e){ console.warn('translate err', e); }
 }
 
 /* تطبيق الترجمة على الفقاعة */

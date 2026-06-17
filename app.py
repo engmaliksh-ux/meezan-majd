@@ -2500,6 +2500,45 @@ def messages_delete(msg_id):
     return {"ok": True}
 
 
+@app.route("/translate", methods=["POST"])
+@login_required
+def translate_text():
+    """ترجمة نص عبر MyMemory — سيرفر سايد"""
+    if not _chat_allowed():
+        return jsonify({"ok": False}), 403
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    dst  = data.get("dst", "ar")
+    if not text or len(text) > 1000:
+        return jsonify({"ok": False, "err": "invalid"}), 400
+
+    import re as _re, urllib.request as _ur, urllib.parse as _up, json as _json2
+    # كشف لغة المصدر
+    if _re.search(r'[؀-ۿ]', text):
+        src = 'ar'
+    elif _re.search(r'[çğışöüÇĞİŞÖÜ]', text):
+        src = 'tr'
+    else:
+        src = 'en'
+
+    if src == dst:
+        return jsonify({"ok": True, "same": True})
+
+    try:
+        url = (
+            "https://api.mymemory.translated.net/get?"
+            + _up.urlencode({"q": text, "langpair": f"{src}|{dst}"})
+        )
+        with _ur.urlopen(url, timeout=8) as r:
+            d = _json2.loads(r.read())
+        t = (d.get("responseData", {}).get("translatedText") or "").strip()
+        if not t or t == text or "MYMEMORY" in t.upper():
+            return jsonify({"ok": False, "err": "no_result"})
+        return jsonify({"ok": True, "translated": t, "src": src})
+    except Exception as e:
+        return jsonify({"ok": False, "err": str(e)}), 500
+
+
 @app.route("/messages/clear", methods=["POST"])
 @login_required
 def messages_clear():
