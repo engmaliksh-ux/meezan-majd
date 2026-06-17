@@ -304,7 +304,14 @@ def migrate_db():
     )
     """)
 
+    # أعمدة الشات الجديدة (attachment, edited)
+    for _col, _def in [("attachment", "TEXT"), ("edited", "INTEGER DEFAULT 0")]:
+        try:
+            c.execute(f"ALTER TABLE messages ADD COLUMN {_col} {_def}")
+        except Exception:
+            pass
     conn.commit()
+
     for table, col, defn in migrations:
         try:
             c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")

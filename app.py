@@ -2317,7 +2317,8 @@ def messages_page():
     c    = conn.cursor()
     # جلب آخر 200 رسالة
     c.execute("""
-        SELECT id, sender_name, sender_role, content, created_at
+        SELECT id, sender_id, sender_name, sender_role, content, attachment,
+               COALESCE(edited,0) AS edited, created_at
         FROM messages WHERE org_id=?
         ORDER BY id DESC LIMIT 200
     """, (org_id,))
@@ -2339,9 +2340,13 @@ def messages_page():
 def messages_send():
     if not _chat_allowed():
         return {"ok": False}, 403
-    content = (request.json or {}).get("content", "").strip()
-    if not content or len(content) > 2000:
+    data    = request.json or {}
+    content = data.get("content", "").strip()
+    attach  = data.get("attachment", "")   # اسم الملف المرفق (بعد رفعه)
+    if not content and not attach:
         return {"ok": False, "err": "empty"}, 400
+    if len(content) > 2000:
+        return {"ok": False, "err": "too_long"}, 400
     org_id   = session["org_id"]
     user_id  = session["user_id"]
     name     = session.get("full_name") or session.get("user", "")
@@ -2349,9 +2354,9 @@ def messages_send():
     conn = get_connection()
     c    = conn.cursor()
     c.execute("""
-        INSERT INTO messages(org_id, sender_id, sender_name, sender_role, content)
-        VALUES(?,?,?,?,?)
-    """, (org_id, user_id, name, role, content))
+        INSERT INTO messages(org_id, sender_id, sender_name, sender_role, content, attachment)
+        VALUES(?,?,?,?,?,?)
+    """, (org_id, user_id, name, role, content, attach or None))
     new_id = c.lastrowid
     # تحديث آخر مقروء للمرسل نفسه
     c.execute("""
@@ -2361,7 +2366,8 @@ def messages_send():
     conn.commit()
     conn.close()
     from datetime import datetime
-    return {"ok": True, "id": new_id, "time": datetime.now().strftime("%H:%M")}
+    return {"ok": True, "id": new_id, "time": datetime.now().strftime("%H:%M"),
+            "attachment": attach or None}
 
 
 @app.route("/messages/poll")
@@ -2375,7 +2381,7 @@ def messages_poll():
     conn = get_connection()
     c    = conn.cursor()
     c.execute("""
-        SELECT id, sender_name, sender_role, content, created_at
+        SELECT id, sender_id, sender_name, sender_role, content, attachment, created_at
         FROM messages WHERE org_id=? AND id>?
         ORDER BY id ASC LIMIT 50
     """, (org_id, since))
@@ -2389,8 +2395,10 @@ def messages_poll():
         """, (user_id, last_id))
         conn.commit()
     conn.close()
-    return {"msgs": [{"id":r["id"],"name":r["sender_name"],"role":r["sender_role"],
-                      "content":r["content"],"time":r["created_at"][-5:]} for r in rows]}
+    return {"msgs": [{"id":r["id"],"sender_id":r["sender_id"],
+                      "name":r["sender_name"],"role":r["sender_role"],
+                      "content":r["content"],"attachment":r["attachment"],
+                      "time":r["created_at"][-5:]} for r in rows]}
 
 
 @app.route("/messages/unread_count")
@@ -2409,6 +2417,110 @@ def messages_unread_count():
     count  = c.fetchone()["n"]
     conn.close()
     return {"count": count}
+
+
+# ── رفع مرفق للشات ──
+CHAT_UPLOAD_FOLDER = os.path.join("static", "chat_uploads")
+os.makedirs(CHAT_UPLOAD_FOLDER, exist_ok=True)
+
+ALLOWED_CHAT_EXT = {
+    "jpg","jpeg","png","gif","webp","bmp",   # صور
+    "pdf","doc","docx","xls","xlsx",          # مستندات
+    "txt","csv","zip","rar"                   # أخرى
+}
+
+@app.route("/messages/upload", methods=["POST"])
+@login_required
+def messages_upload():
+    if not _chat_allowed():
+        return {"ok": False}, 403
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return {"ok": False, "err": "no_file"}, 400
+    ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+    if ext not in ALLOWED_CHAT_EXT:
+        return {"ok": False, "err": "type_not_allowed"}, 400
+    import uuid
+    safe_name = f"{uuid.uuid4().hex}.{ext}"
+    f.save(os.path.join(CHAT_UPLOAD_FOLDER, safe_name))
+    return {"ok": True, "filename": safe_name, "original": f.filename}
+
+
+@app.route("/messages/<int:msg_id>/edit", methods=["POST"])
+@login_required
+def messages_edit(msg_id):
+    if not _chat_allowed():
+        return {"ok": False}, 403
+    content  = (request.json or {}).get("content", "").strip()
+    if not content or len(content) > 2000:
+        return {"ok": False, "err": "invalid"}, 400
+    user_id  = session["user_id"]
+    org_id   = session["org_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT sender_id, org_id FROM messages WHERE id=?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["org_id"] != org_id or row["sender_id"] != user_id:
+        conn.close()
+        return {"ok": False, "err": "forbidden"}, 403
+    c.execute("UPDATE messages SET content=?, edited=1 WHERE id=?", (content, msg_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.route("/messages/<int:msg_id>/delete", methods=["POST"])
+@login_required
+def messages_delete(msg_id):
+    if not _chat_allowed():
+        return {"ok": False}, 403
+    user_id = session["user_id"]
+    org_id  = session["org_id"]
+    role    = session.get("role", "")
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT sender_id, org_id, attachment FROM messages WHERE id=?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["org_id"] != org_id:
+        conn.close()
+        return {"ok": False, "err": "not_found"}, 404
+    # يسمح للمرسل نفسه أو الأدمن بالحذف
+    if row["sender_id"] != user_id and role != "admin":
+        conn.close()
+        return {"ok": False, "err": "forbidden"}, 403
+    # حذف الملف المرفق إن وجد
+    if row["attachment"]:
+        try:
+            os.remove(os.path.join(CHAT_UPLOAD_FOLDER, row["attachment"]))
+        except Exception:
+            pass
+    c.execute("DELETE FROM messages WHERE id=?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.route("/messages/clear", methods=["POST"])
+@login_required
+def messages_clear():
+    """يمسح كامل سجل المحادثة — للأدمن فقط"""
+    if session.get("role") != "admin":
+        return {"ok": False}, 403
+    org_id = session["org_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    # احذف المرفقات أولاً
+    c.execute("SELECT attachment FROM messages WHERE org_id=? AND attachment IS NOT NULL", (org_id,))
+    for row in c.fetchall():
+        try:
+            os.remove(os.path.join(CHAT_UPLOAD_FOLDER, row["attachment"]))
+        except Exception:
+            pass
+    c.execute("DELETE FROM messages WHERE org_id=?", (org_id,))
+    c.execute("DELETE FROM message_reads WHERE user_id IN (SELECT id FROM users WHERE org_id=?)", (org_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ══════════════════════════════════════════
