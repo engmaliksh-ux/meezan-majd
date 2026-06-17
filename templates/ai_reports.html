@@ -136,40 +136,88 @@ async function generateReport() {
   appendBot(thinking);
 
   try {
-    const res = await fetch('/ai_reports/generate', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ query, fmt: currentFmt })
-    });
+    const isFmt = currentFmt;
 
-    // آخر رسالة (thinking)
-    const log = document.getElementById('report-log');
-    const last = log.lastElementChild;
-    if (last && last.classList.contains('report-bot-msg')) last.remove();
+    if (isFmt === 'pdf') {
+      // PDF: نفتح HTML قابل للطباعة في نافذة جديدة (المتصفح يتولى Print→PDF)
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/ai_reports/generate';
+      form.target = '_blank';
+      form.style.display = 'none';
 
-    if (!res.ok || res.headers.get('content-type')?.includes('application/json')) {
-      const d = await res.json();
-      appendBot(`<span style="color:#c62828;">❌ ${d.msg || 'خطأ'}</span>`);
+      const csrfInput = document.createElement('input');
+      csrfInput.name  = '_csrf_token';
+      csrfInput.value = "{{ csrf_token() }}";
+      form.appendChild(csrfInput);
+
+      const qInput = document.createElement('input');
+      qInput.name  = 'query';
+      qInput.value = query;
+      form.appendChild(qInput);
+
+      const fInput = document.createElement('input');
+      fInput.name  = 'fmt';
+      fInput.value = 'pdf';
+      form.appendChild(fInput);
+
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+
+      // آخر رسالة (thinking)
+      const log2 = document.getElementById('report-log');
+      const last2 = log2.lastElementChild;
+      if (last2 && last2.classList.contains('report-bot-msg')) last2.remove();
+
+      const pdfMsg = {
+        ar: '✅ تم فتح التقرير في نافذة جديدة — استخدم <b>Ctrl+P</b> لحفظه كـ PDF.',
+        tr: '✅ Rapor yeni sekmede açıldı — PDF olarak kaydetmek için <b>Ctrl+P</b> kullanın.',
+        en: '✅ Report opened in a new tab — use <b>Ctrl+P</b> to save as PDF.',
+      }["{{ lang }}"] || "✅ Opened in new tab.";
+      appendBot(pdfMsg);
+
     } else {
-      // تحميل الملف
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      const cd   = res.headers.get('content-disposition') || '';
-      const m    = cd.match(/filename="?([^"]+)"?/);
-      a.href     = url;
-      a.download = m ? m[1] : 'report.docx';
-      a.click();
-      URL.revokeObjectURL(url);
+      // Word: تحميل ملف .docx عبر fetch
+      const res = await fetch('/ai_reports/generate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ query, fmt: 'docx' })
+      });
 
-      const ok = {
-        ar: `✅ تم توليد التقرير! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>تحميل مجدداً</a>`,
-        tr: `✅ Rapor oluşturuldu! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Tekrar İndir</a>`,
-        en: `✅ Report generated! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Download again</a>`,
-      }["{{ lang }}"] || "✅ Done!";
-      appendBot(ok);
+      // آخر رسالة (thinking)
+      const log = document.getElementById('report-log');
+      const last = log.lastElementChild;
+      if (last && last.classList.contains('report-bot-msg')) last.remove();
+
+      const ct = res.headers.get('content-type') || '';
+      if (!res.ok || ct.includes('application/json')) {
+        const d = await res.json();
+        appendBot(`<span style="color:#c62828;">❌ ${d.msg || 'خطأ'}</span>`);
+      } else {
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const cd   = res.headers.get('content-disposition') || '';
+        const m    = cd.match(/filename="?([^"]+)"?/);
+        a.href     = url;
+        a.download = m ? m[1] : 'report.docx';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+        const ok = {
+          ar: `✅ تم توليد التقرير! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>تحميل مجدداً</a>`,
+          tr: `✅ Rapor oluşturuldu! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Tekrar İndir</a>`,
+          en: `✅ Report generated! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Download again</a>`,
+        }["{{ lang }}"] || "✅ Done!";
+        appendBot(ok);
+      }
     }
   } catch(e) {
+    // في حالة PDF نزيل رسالة thinking لو لا تزال موجودة
+    const log3 = document.getElementById('report-log');
+    const last3 = log3.lastElementChild;
+    if (last3 && last3.classList.contains('report-bot-msg') && last3.textContent.includes('⏳')) last3.remove();
     appendBot(`<span style="color:#c62828;">❌ ${e.message}</span>`);
   } finally {
     btn.disabled = false;

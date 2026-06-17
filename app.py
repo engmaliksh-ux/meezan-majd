@@ -2433,9 +2433,14 @@ def ai_reports_generate():
         from flask import jsonify
         return jsonify({"ok": False}), 403
 
-    data     = request.json or {}
-    query    = data.get("query", "").strip().lower()
-    fmt      = data.get("fmt", "docx")   # 'docx' أو 'pdf'
+    # يقبل JSON (من fetch/docx) أو form POST (من PDF form-submit)
+    if request.is_json:
+        data  = request.json or {}
+        query = data.get("query", "").strip().lower()
+        fmt   = data.get("fmt", "docx")
+    else:
+        query = request.form.get("query", "").strip().lower()
+        fmt   = request.form.get("fmt", "docx")
     org_id   = session["org_id"]
     lang     = session.get("lang", "ar")
 
@@ -2529,42 +2534,9 @@ def ai_reports_generate():
 
     conn.close()
 
-    # ── توليد ملف Word ──
-    from docx import Document
-    from docx.shared import Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
+    # ── بناء بيانات التقرير كـ HTML (مشترك بين Word وPDF) ──
     from datetime import datetime as _dt
 
-    def _set_cell_rtl(cell):
-        """يضبط خلية جدول لتكون RTL"""
-        tc = cell._tc
-        tcPr = tc.get_or_add_tcPr()
-        pass  # Word يتعامل مع Arabic تلقائياً من ترميز Unicode
-
-    def _set_para_rtl(para):
-        """يضبط فقرة RTL فقط — بدون تعديل الـ styles العامة"""
-        if lang != "ar":
-            return
-        pPr = para._p.get_or_add_pPr()
-        bidi = OxmlElement('w:bidi')
-        bidi.set(qn('w:val'), '1')
-        # أضف bidi فقط إذا لم يكن موجوداً
-        existing = pPr.find(qn('w:bidi'))
-        if existing is None:
-            pPr.insert(0, bidi)
-        jc = OxmlElement('w:jc')
-        jc.set(qn('w:val'), 'right')
-        existing_jc = pPr.find(qn('w:jc'))
-        if existing_jc is None:
-            pPr.append(jc)
-        else:
-            existing_jc.set(qn('w:val'), 'right')
-
-    doc = Document()
-
-    # العنوان
     titles = {
         "purchases":     {"ar":"تقرير فواتير المشتريات","tr":"Satın Alma Faturaları Raporu","en":"Purchase Invoices Report"},
         "outgoing":      {"ar":"تقرير فواتير الصرف","tr":"Çıkış Faturaları Raporu","en":"Outgoing Invoices Report"},
@@ -2574,165 +2546,260 @@ def ai_reports_generate():
         "stock":         {"ar":"تقرير المخزون","tr":"Stok Raporu","en":"Stock Report"},
         "summary":       {"ar":"التقرير الشامل","tr":"Genel Özet Rapor","en":"Full Summary Report"},
     }
-    title_txt = titles.get(rtype, {}).get(lang, titles.get(rtype,{}).get("ar","تقرير"))
-    h = doc.add_heading(f"{org_name} — {title_txt}", 0)
-    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_para_rtl(h)
-    date_str = {"ar":f"التاريخ: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
-                "tr":f"Tarih: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
-                "en":f"Date: {_dt.now().strftime('%Y-%m-%d %H:%M')}"}.get(lang,"")
-    sub = doc.add_paragraph(date_str)
-    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_txt  = titles.get(rtype, {}).get(lang, "Report")
+    date_str   = _dt.now().strftime("%Y-%m-%d %H:%M")
+    is_rtl     = (lang == "ar")
+    dir_attr   = 'rtl' if is_rtl else 'ltr'
+
+    # ── توليد Word بـ python-docx (بدون أي XML manipulation) ──
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from flask import send_file
+
+    doc = Document()
+
+    # عنوان رئيسي
+    title_para = doc.add_heading(f"{org_name} — {title_txt}", 0)
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    date_para = doc.add_paragraph(date_str)
+    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph()
 
-    def _add_table(headers, rows_list, key_fn):
+    def _add_section(heading_txt, headers, rows_list, key_fn, summary_txt=""):
+        doc.add_heading(heading_txt, 1)
         if not rows_list:
-            p = doc.add_paragraph({"ar":"لا توجد بيانات","tr":"Veri yok","en":"No data"}.get(lang,"No data"))
-            _set_para_rtl(p)
+            doc.add_paragraph({"ar":"لا توجد بيانات","tr":"Veri yok","en":"No data"}.get(lang,"No data"))
+            doc.add_paragraph()
             return
-        table = doc.add_table(rows=1, cols=len(headers))
-        table.style = "Table Grid"
-        hdr_row = table.rows[0].cells
+        tbl = doc.add_table(rows=1, cols=len(headers))
+        tbl.style = "Light List Accent 1"
+        hdr_cells = tbl.rows[0].cells
         for i, h in enumerate(headers):
-            hdr_row[i].text = h
+            hdr_cells[i].text = str(h)
+            # تغميق رأس الجدول
+            from docx.shared import Pt
+            run = hdr_cells[i].paragraphs[0].runs
+            if not run:
+                hdr_cells[i].paragraphs[0].add_run(str(h)).bold = True
+            else:
+                run[0].bold = True
         for row in rows_list:
             vals = key_fn(row)
-            cells = table.add_row().cells
+            row_cells = tbl.add_row().cells
             for i, v in enumerate(vals):
-                cells[i].text = str(v) if v is not None else ""
-        p = doc.add_paragraph()
-        _set_para_rtl(p)
+                row_cells[i].text = str(v) if v is not None else ""
+        if summary_txt:
+            doc.add_paragraph(summary_txt)
+        doc.add_paragraph()
 
     # ── مشتريات ──
     if "purchases" in rows_data:
-        h1 = doc.add_heading({"ar":"فواتير المشتريات","tr":"Satın Alma Faturaları","en":"Purchase Invoices"}.get(lang,""), 1)
-        _set_para_rtl(h1)
         hdrs = {"ar":["#","رقم الفاتورة","المورد","التاريخ","الإجمالي","الحالة","الدفع"],
                 "tr":["#","Fatura No","Tedarikçi","Tarih","Toplam","Durum","Ödeme"],
-                "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang)
-        st_map = {"ar":("مفتوحة","مغلقة","مدفوعة","غير مدفوعة"),
-                  "tr":("Açık","Kapalı","Ödendi","Ödenmedi"),
-                  "en":("Open","Closed","Paid","Unpaid")}.get(lang,("Open","Closed","Paid","Unpaid"))
+                "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang,["#","Invoice","Supplier","Date","Total","Status","Payment"])
+        st = {"ar":("مفتوحة","مغلقة","مدفوعة","غير مدفوعة"),
+              "tr":("Açık","Kapalı","Ödendi","Ödenmedi"),
+              "en":("Open","Closed","Paid","Unpaid")}.get(lang,("Open","Closed","Paid","Unpaid"))
         rows_list = rows_data["purchases"]
-        total_all = sum(r["total"] for r in rows_list)
-        _add_table(hdrs, rows_list, lambda r: [
-            r["seq_num"] or "",
-            r["invoice_number"] or "",
-            r["supplier"] or "",
-            r["invoice_date"] or "",
-            f"{r['total']:.2f}",
-            st_map[1] if r["is_closed"] else st_map[0],
-            st_map[2] if r["is_paid"] else st_map[3],
-        ])
-        p = doc.add_paragraph({"ar":f"الإجمالي الكلي: {total_all:.2f}",
-                           "tr":f"Genel Toplam: {total_all:.2f}",
-                           "en":f"Grand Total: {total_all:.2f}"}.get(lang,""))
-        _set_para_rtl(p)
+        total = sum(r["total"] for r in rows_list)
+        _add_section(
+            {"ar":"فواتير المشتريات","tr":"Satın Alma Faturaları","en":"Purchase Invoices"}.get(lang,""),
+            hdrs, rows_list,
+            lambda r: [r["seq_num"] or "", r["invoice_number"] or "", r["supplier"] or "",
+                       r["invoice_date"] or "", f"{r['total']:.2f}",
+                       st[1] if r["is_closed"] else st[0],
+                       st[2] if r["is_paid"] else st[3]],
+            f"{'الإجمالي' if lang=='ar' else ('Toplam' if lang=='tr' else 'Total')}: {total:.2f}"
+        )
 
     # ── صرف ──
     if "outgoing" in rows_data:
-        h1 = doc.add_heading({"ar":"فواتير الصرف","tr":"Çıkış Faturaları","en":"Outgoing Invoices"}.get(lang,""), 1)
-        _set_para_rtl(h1)
         hdrs = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
                 "tr":["Fatura No","Tarih","Kurum","Toplam","Durum"],
                 "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang)
-        st_map = {"ar":("مفتوحة","مغلقة"),"tr":("Açık","Kapalı"),"en":("Open","Closed")}.get(lang)
+        st = {"ar":("مفتوحة","مغلقة"),"tr":("Açık","Kapalı"),"en":("Open","Closed")}.get(lang,("Open","Closed"))
         rows_list = rows_data["outgoing"]
-        total_all = sum(r["total"] for r in rows_list)
-        _add_table(hdrs, rows_list, lambda r: [
-            r["invoice_number"] or "", r["invoice_date"] or "",
-            r["beneficiary"] or "", f"{r['total']:.2f}",
-            st_map[1] if r["is_closed"] else st_map[0],
-        ])
-        p = doc.add_paragraph({"ar":f"الإجمالي: {total_all:.2f}","tr":f"Toplam: {total_all:.2f}","en":f"Total: {total_all:.2f}"}.get(lang,""))
-        _set_para_rtl(p)
+        total = sum(r["total"] for r in rows_list)
+        _add_section(
+            {"ar":"فواتير الصرف","tr":"Çıkış Faturaları","en":"Outgoing Invoices"}.get(lang,""),
+            hdrs, rows_list,
+            lambda r: [r["invoice_number"] or "", r["invoice_date"] or "",
+                       r["beneficiary"] or "", f"{r['total']:.2f}",
+                       st[1] if r["is_closed"] else st[0]],
+            f"{'الإجمالي' if lang=='ar' else ('Toplam' if lang=='tr' else 'Total')}: {total:.2f}"
+        )
 
     # ── مستفيدون ──
     if "beneficiaries" in rows_data:
-        h1 = doc.add_heading({"ar":"المستفيدون","tr":"Yararlanıcılar","en":"Beneficiaries"}.get(lang,""), 1)
-        _set_para_rtl(h1)
         hdrs = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","الأفراد","النوع"],
                 "tr":["Ad Soyad","Cinsiyet","Kimlik","Telefon","Durum","Üyeler","Tür"],
                 "en":["Name","Gender","ID","Phone","Status","Members","Type"]}.get(lang)
         rows_list = rows_data["beneficiaries"]
-        _add_table(hdrs, rows_list, lambda r: [
-            r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
-            r["phone"] or "", r["marital_status"] or "",
-            r["family_members"] or "", r["benef_type"] or "",
-        ])
-        p = doc.add_paragraph({"ar":f"العدد الكلي: {len(rows_list)}",
-                           "tr":f"Toplam: {len(rows_list)}","en":f"Total: {len(rows_list)}"}.get(lang,""))
-        _set_para_rtl(p)
+        _add_section(
+            {"ar":"المستفيدون","tr":"Yararlanıcılar","en":"Beneficiaries"}.get(lang,""),
+            hdrs, rows_list,
+            lambda r: [r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
+                       r["phone"] or "", r["marital_status"] or "",
+                       r["family_members"] or "", r["benef_type"] or ""],
+            f"{'العدد الكلي' if lang=='ar' else ('Toplam' if lang=='tr' else 'Total')}: {len(rows_list)}"
+        )
 
     # ── عاملون ──
     if "workers" in rows_data:
-        h1 = doc.add_heading({"ar":"العاملون","tr":"Çalışanlar","en":"Workers"}.get(lang,""), 1)
-        _set_para_rtl(h1)
         hdrs = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة","ملاحظات"],
                 "tr":["Ad","Kimlik","Proje","Görev","Maaş","Notlar"],
                 "en":["Name","ID","Project","Role","Salary","Notes"]}.get(lang)
         rows_list = rows_data["workers"]
         total_sal = sum((r["monthly_salary"] or 0) for r in rows_list)
-        _add_table(hdrs, rows_list, lambda r: [
-            r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
-            r["job_type"] or "", f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00",
-            r["notes"] or "",
-        ])
-        p = doc.add_paragraph({"ar":f"إجمالي المكافآت الشهرية: {total_sal:.2f}",
-                           "tr":f"Toplam Maaş: {total_sal:.2f}","en":f"Total Salaries: {total_sal:.2f}"}.get(lang,""))
-        _set_para_rtl(p)
+        _add_section(
+            {"ar":"العاملون","tr":"Çalışanlar","en":"Workers"}.get(lang,""),
+            hdrs, rows_list,
+            lambda r: [r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
+                       r["job_type"] or "",
+                       f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00",
+                       r["notes"] or ""],
+            f"{'إجمالي المكافآت' if lang=='ar' else ('Toplam Maaş' if lang=='tr' else 'Total Salaries')}: {total_sal:.2f}"
+        )
 
     # ── برامج ──
     if "programs" in rows_data:
-        h1 = doc.add_heading({"ar":"البرامج والمشاريع","tr":"Programlar","en":"Programs"}.get(lang,""), 1)
-        _set_para_rtl(h1)
+        doc.add_heading({"ar":"البرامج والمشاريع","tr":"Programlar","en":"Programs"}.get(lang,""), 1)
         for i, row in enumerate(rows_data["programs"], 1):
-            p = doc.add_paragraph(f"{i}. {row['name']}")
-            _set_para_rtl(p)
+            doc.add_paragraph(f"{i}. {row['name']}")
+        doc.add_paragraph()
 
     # ── مخزون ──
     if "stock" in rows_data:
-        h1 = doc.add_heading({"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""), 1)
-        _set_para_rtl(h1)
         hdrs = {"ar":["الصنف","الوحدة","الكمية المتاحة","آخر سعر"],
                 "tr":["Ürün","Birim","Mevcut Miktar","Son Fiyat"],
                 "en":["Item","Unit","Available Qty","Last Price"]}.get(lang)
         rows_list = rows_data["stock"]
-        _add_table(hdrs, rows_list, lambda r: [
-            r["name"] or "", r["unit"] or "",
-            f"{r['qty']:.2f}", f"{r['last_price']:.2f}" if r["last_price"] else "0.00",
-        ])
+        _add_section(
+            {"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""),
+            hdrs, rows_list,
+            lambda r: [r["name"] or "", r["unit"] or "",
+                       f"{r['qty']:.2f}",
+                       f"{r['last_price']:.2f}" if r["last_price"] else "0.00"]
+        )
 
-    # ── حفظ وإرسال ──
-    import tempfile, subprocess, os as _os
-    from flask import send_file
-
+    # ── حفظ Word ──
     fname_base = f"report_{rtype}_{_dt.now().strftime('%Y%m%d_%H%M')}"
 
     if fmt == "pdf":
-        # حفظ docx مؤقت ثم تحويله بـ LibreOffice
-        with tempfile.TemporaryDirectory() as tmpdir:
-            docx_path = _os.path.join(tmpdir, fname_base + ".docx")
-            pdf_path  = _os.path.join(tmpdir, fname_base + ".pdf")
-            doc.save(docx_path)
-            try:
-                subprocess.run(
-                    ["libreoffice", "--headless", "--convert-to", "pdf",
-                     "--outdir", tmpdir, docx_path],
-                    timeout=30, check=True,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    env={**_os.environ, "HOME": tmpdir, "DISPLAY": ""}
-                )
-                with open(pdf_path, "rb") as f:
-                    pdf_bytes = f.read()
-                buf = io.BytesIO(pdf_bytes)
-                buf.seek(0)
-                return send_file(buf, as_attachment=True,
-                                 download_name=fname_base + ".pdf",
-                                 mimetype="application/pdf")
-            except Exception as e:
-                from flask import jsonify
-                return jsonify({"ok": False, "msg": f"فشل تحويل PDF: {e}"}), 500
+        # توليد HTML للعرض والطباعة كـ PDF من المتصفح
+        # بناء جداول HTML
+        def _html_table(headers, rows_list, key_fn):
+            if not rows_list:
+                return f'<p>{"لا توجد بيانات" if lang=="ar" else "No data"}</p>'
+            th_cells = "".join(f"<th>{h}</th>" for h in headers)
+            rows_html = ""
+            for row in rows_list:
+                vals = key_fn(row)
+                td = "".join(f"<td>{str(v) if v is not None else ''}</td>" for v in vals)
+                rows_html += f"<tr>{td}</tr>"
+            return f"<table><thead><tr>{th_cells}</tr></thead><tbody>{rows_html}</tbody></table>"
+
+        sections_html = ""
+
+        if "purchases" in rows_data:
+            hdrs = {"ar":["#","رقم الفاتورة","المورد","التاريخ","الإجمالي","الحالة","الدفع"],
+                    "tr":["#","Fatura No","Tedarikçi","Tarih","Toplam","Durum","Ödeme"],
+                    "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang,[])
+            st = {"ar":("مفتوحة","مغلقة","مدفوعة","غير مدفوعة"),
+                  "tr":("Açık","Kapalı","Ödendi","Ödenmedi"),
+                  "en":("Open","Closed","Paid","Unpaid")}.get(lang,("Open","Closed","Paid","Unpaid"))
+            rl = rows_data["purchases"]
+            total = sum(r["total"] for r in rl)
+            sections_html += f'<h2>{"فواتير المشتريات" if lang=="ar" else ("Satın Alma" if lang=="tr" else "Purchase Invoices")}</h2>'
+            sections_html += _html_table(hdrs, rl, lambda r: [
+                r["seq_num"] or "", r["invoice_number"] or "", r["supplier"] or "",
+                r["invoice_date"] or "", f"{r['total']:.2f}",
+                st[1] if r["is_closed"] else st[0], st[2] if r["is_paid"] else st[3]])
+            sections_html += f'<p class="total">{"الإجمالي" if lang=="ar" else "Total"}: {total:.2f}</p>'
+
+        if "outgoing" in rows_data:
+            hdrs = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
+                    "tr":["Fatura No","Tarih","Kurum","Toplam","Durum"],
+                    "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang,[])
+            st = {"ar":("مفتوحة","مغلقة"),"tr":("Açık","Kapalı"),"en":("Open","Closed")}.get(lang,("Open","Closed"))
+            rl = rows_data["outgoing"]
+            total = sum(r["total"] for r in rl)
+            sections_html += f'<h2>{"فواتير الصرف" if lang=="ar" else ("Çıkış Faturaları" if lang=="tr" else "Outgoing Invoices")}</h2>'
+            sections_html += _html_table(hdrs, rl, lambda r: [
+                r["invoice_number"] or "", r["invoice_date"] or "",
+                r["beneficiary"] or "", f"{r['total']:.2f}",
+                st[1] if r["is_closed"] else st[0]])
+            sections_html += f'<p class="total">{"الإجمالي" if lang=="ar" else "Total"}: {total:.2f}</p>'
+
+        if "beneficiaries" in rows_data:
+            hdrs = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","الأفراد","النوع"],
+                    "tr":["Ad","Cinsiyet","Kimlik","Telefon","Durum","Üyeler","Tür"],
+                    "en":["Name","Gender","ID","Phone","Status","Members","Type"]}.get(lang,[])
+            rl = rows_data["beneficiaries"]
+            sections_html += f'<h2>{"المستفيدون" if lang=="ar" else ("Yararlanıcılar" if lang=="tr" else "Beneficiaries")}</h2>'
+            sections_html += _html_table(hdrs, rl, lambda r: [
+                r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
+                r["phone"] or "", r["marital_status"] or "",
+                r["family_members"] or "", r["benef_type"] or ""])
+            sections_html += f'<p class="total">{"العدد" if lang=="ar" else "Total"}: {len(rl)}</p>'
+
+        if "workers" in rows_data:
+            hdrs = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة"],
+                    "tr":["Ad","Kimlik","Proje","Görev","Maaş"],
+                    "en":["Name","ID","Project","Role","Salary"]}.get(lang,[])
+            rl = rows_data["workers"]
+            total_sal = sum((r["monthly_salary"] or 0) for r in rl)
+            sections_html += f'<h2>{"العاملون" if lang=="ar" else ("Çalışanlar" if lang=="tr" else "Workers")}</h2>'
+            sections_html += _html_table(hdrs, rl, lambda r: [
+                r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
+                r["job_type"] or "", f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00"])
+            sections_html += f'<p class="total">{"إجمالي المكافآت" if lang=="ar" else "Total Salaries"}: {total_sal:.2f}</p>'
+
+        if "programs" in rows_data:
+            sections_html += f'<h2>{"البرامج" if lang=="ar" else "Programs"}</h2><ol>'
+            for row in rows_data["programs"]:
+                sections_html += f"<li>{row['name']}</li>"
+            sections_html += "</ol>"
+
+        if "stock" in rows_data:
+            hdrs = {"ar":["الصنف","الوحدة","الكمية","آخر سعر"],
+                    "tr":["Ürün","Birim","Miktar","Son Fiyat"],
+                    "en":["Item","Unit","Qty","Last Price"]}.get(lang,[])
+            rl = rows_data["stock"]
+            sections_html += f'<h2>{"المخزون" if lang=="ar" else "Stock"}</h2>'
+            sections_html += _html_table(hdrs, rl, lambda r: [
+                r["name"] or "", r["unit"] or "",
+                f"{r['qty']:.2f}", f"{r['last_price']:.2f}" if r["last_price"] else "0.00"])
+
+        html_content = f"""<!DOCTYPE html>
+<html lang="{lang}" dir="{dir_attr}">
+<head>
+<meta charset="UTF-8">
+<title>{title_txt}</title>
+<style>
+  body{{font-family:Arial,'Cairo',sans-serif;direction:{dir_attr};font-size:12px;margin:20px;color:#222;}}
+  h1{{text-align:center;color:#1a6b3a;font-size:18px;border-bottom:2px solid #1a6b3a;padding-bottom:6px;}}
+  h2{{color:#1565c0;font-size:14px;margin-top:18px;}}
+  .meta{{text-align:center;color:#888;font-size:11px;margin-bottom:20px;}}
+  table{{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px;}}
+  th{{background:#1a6b3a;color:#fff;padding:6px 8px;text-align:{("right" if is_rtl else "left")};}}
+  td{{border:1px solid #ddd;padding:5px 8px;}}
+  tr:nth-child(even){{background:#f5f5f5;}}
+  .total{{font-weight:bold;color:#c62828;text-align:{("left" if is_rtl else "right")};}}
+  @media print{{body{{margin:10px;}}}}
+</style>
+</head>
+<body>
+<h1>{org_name} — {title_txt}</h1>
+<div class="meta">{date_str}</div>
+{sections_html}
+<script>window.onload=function(){{window.print();}}</script>
+</body>
+</html>"""
+        from flask import Response
+        return Response(html_content, mimetype="text/html; charset=utf-8")
+
     else:
         buf = io.BytesIO()
         doc.save(buf)
