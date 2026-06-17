@@ -36,10 +36,15 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo"><i class="fas fa-balance-scale"></i></div>
-      <div>
+      <div style="flex:1;">
         <div class="sidebar-title">{{ t.app_name }}</div>
         <div class="sidebar-org">{{ session.get('org_name','') }}</div>
       </div>
+      <a href="{{ url_for('set_lang', lang='tr' if lang=='ar' else 'ar') }}"
+         class="lang-toggle-btn-top"
+         title="{{ t.lang_toggle_title }}">
+        {{ t.lang_toggle }}
+      </a>
     </div>
 
     <div class="sidebar-user">
@@ -118,12 +123,6 @@
         </div>
         <div class="clock-ampm" id="sb-ampm">--</div>
       </div>
-      <!-- زر تبديل اللغة -->
-      <a href="{{ url_for('set_lang', lang='tr' if lang=='ar' else 'ar') }}"
-         class="lang-toggle-btn"
-         title="{{ t.lang_toggle_title }}">
-        <i class="fas fa-language me-1"></i>{{ t.lang_toggle }}
-      </a>
       <div class="org-code-footer">
         <i class="fas fa-key me-1"></i>
         <span>{{ session.get('org_code','') }}</span>
@@ -214,24 +213,25 @@ setSidebar(sidebarOpen);
 </script>
 
 <style>
-.lang-toggle-btn {
-  display: flex;
+.lang-toggle-btn-top {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.18);
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: 8px;
-  padding: 6px 14px;
-  font-size: .82rem;
-  font-weight: 700;
+  padding: 4px 10px;
+  font-size: .78rem;
+  font-weight: 800;
   text-decoration: none;
-  margin-bottom: 8px;
-  transition: background .2s;
   letter-spacing: 1px;
+  transition: background .2s;
+  flex-shrink: 0;
+  align-self: center;
 }
-.lang-toggle-btn:hover {
-  background: rgba(255,255,255,0.25);
+.lang-toggle-btn-top:hover {
+  background: rgba(255,255,255,0.3);
   color: #fff;
 }
 </style>
