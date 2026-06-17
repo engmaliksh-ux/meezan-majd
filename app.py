@@ -1124,11 +1124,17 @@ def edit_beneficiary(id):
         if errors:
             for e in errors:
                 flash(e, "danger")
-            c.execute("SELECT * FROM beneficiaries WHERE id=? AND org_id=?", (id, org_id))
-            row = c.fetchone()
             conn.close()
-            b = row_to_dict(row, BENEF_KEYS) if row else {}
-            b.setdefault("address2", ""); b.setdefault("camp_name", ""); b.setdefault("marital_status", "married")
+            # أعِد عرض البيانات المُدخلة (لا تمسحها بإعادة تحميل DB)
+            b = {
+                "id": id, "full_name": full_name, "gender": gender,
+                "phone": phone, "address": address, "address2": address2,
+                "camp_name": camp_name, "id_number": id_number,
+                "family_size": family_size, "marital_status": marital_status,
+                "children_count": children_count, "wife_pregnant": wife_pregnant,
+                "wife_nursing": wife_nursing, "has_orphans": has_orphans,
+                "orphans_count": orphans_count, "notes": notes,
+            }
             return render_template("edit_beneficiary.html", b=b)
 
         try:
@@ -1717,16 +1723,13 @@ def outgoing_invoice():
                 except ValueError:
                     pass
         conn.commit()
+        conn.close()
         for err in errors:
             flash(err, "warning")
         if not errors:
             flash("✅ تم حفظ فاتورة الصرف وتم خصم الكمية من المخزن تلقائياً", "success")
-        pl, bl, progs = get_render_data()
-        inventory, total_value = get_inventory()
-        conn.close()
-        return render_template("outgoing_invoices.html",
-            products=pl, beneficiaries=bl, programs=progs,
-            inventory=inventory, total_value=total_value)
+            return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
 
     pl, bl, progs = get_render_data()
     inventory, total_value = get_inventory()
@@ -1734,6 +1737,45 @@ def outgoing_invoice():
     return render_template("outgoing_invoices.html",
         products=pl, beneficiaries=bl, programs=progs,
         inventory=inventory, total_value=total_value)
+
+
+# ══════════════════════════════════════════
+# كشف فواتير الصرف
+# ══════════════════════════════════════════
+@app.route("/outgoing_invoices_list")
+@invoices_view_required
+def outgoing_invoices_list():
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, invoice_number, invoice_date, beneficiary, notes, created_by, created_at
+        FROM outgoing_invoices WHERE org_id=? ORDER BY id DESC
+    """, (org_id,))
+    invoices_rows = c.fetchall()
+
+    invoices = []
+    total_all = 0.0
+    for inv in invoices_rows:
+        inv_d = dict(inv)
+        c.execute("""
+            SELECT oi.quantity, oi.unit_price, oi.total_price,
+                   p.name as product_name, p.unit
+            FROM outgoing_invoice_items oi
+            JOIN products p ON p.id = oi.product_id
+            WHERE oi.invoice_id=?
+            ORDER BY oi.id
+        """, (inv["id"],))
+        items = [dict(r) for r in c.fetchall()]
+        inv_total = sum(it["total_price"] for it in items)
+        inv_d["items"] = items
+        inv_d["total"] = inv_total
+        total_all += inv_total
+        invoices.append(inv_d)
+
+    conn.close()
+    return render_template("outgoing_invoices_list.html",
+                           invoices=invoices, total_all=total_all)
 
 
 if __name__ == "__main__":

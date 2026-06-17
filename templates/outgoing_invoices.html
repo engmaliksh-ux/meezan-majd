@@ -4,11 +4,16 @@
 
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-warehouse"></i> المخزن</h2>
-  {% if session.get('role') != 'observer' %}
-  <button class="btn btn-danger" type="button" id="toggle-outgoing">
-    <i class="fas fa-file-export me-1"></i> فاتورة صرف جديدة
-  </button>
-  {% endif %}
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('outgoing_invoices_list') }}" class="btn btn-outline-danger btn-sm">
+      <i class="fas fa-list me-1"></i> كشف فواتير الصرف
+    </a>
+    {% if session.get('role') != 'observer' %}
+    <button class="btn btn-danger" type="button" id="toggle-outgoing">
+      <i class="fas fa-file-export me-1"></i> فاتورة صرف جديدة
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 <!-- كشف الأصناف الموجودة بالمخزن -->

@@ -5,9 +5,16 @@
 
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-cart-shopping"></i> المشتريات</h2>
-  <button type="button" class="btn btn-primary" id="toggle-add-invoice">
-    <i class="fas fa-plus me-1"></i> إضافة فاتورة جديدة
-  </button>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('outgoing_invoice') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-warehouse me-1"></i> المخزن
+    </a>
+    {% if session.get('role') != 'observer' %}
+    <button type="button" class="btn btn-primary" id="toggle-add-invoice">
+      <i class="fas fa-plus me-1"></i> إضافة فاتورة جديدة
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card mb-4" id="add-invoice-card" style="display:none;">
@@ -119,7 +126,7 @@
     </table>
   </div>
 
-  {% if not inv.is_closed %}
+  {% if not inv.is_closed and session.get('role') != 'observer' %}
   <div class="add-items-section">
     <div class="add-items-title"><i class="fas fa-plus-circle me-1"></i> إضافة أصناف لهذه الفاتورة</div>
     <form method="POST" action="/incoming_invoice/{{ inv.id }}/add_items">
@@ -159,21 +166,30 @@
     <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" target="_blank">
       <img src="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}" class="invoice-image-thumb" alt="صورة الفاتورة">
     </a>
+    <div class="mt-2">
+      <a href="{{ url_for('static', filename='uploads/' + inv.invoice_image) }}"
+         download="{{ inv.invoice_image }}"
+         class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-download me-1"></i> تحميل الصورة
+      </a>
+    </div>
     {% else %}
     <span class="text-muted" style="font-size:.82rem;">لم يتم إرفاق صورة</span>
     {% endif %}
+    {% if session.get('role') != 'observer' %}
     <form method="POST" action="/incoming_invoice/{{ inv.id }}/upload_image" enctype="multipart/form-data" class="invoice-image-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="file" name="invoice_image" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm">
       <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-upload me-1"></i> {{ 'تغيير' if inv.invoice_image else 'رفع الصورة' }}</button>
     </form>
+    {% endif %}
   </div>
 
   <div class="invoice-total-row">
     <div class="invoice-total-value"><i class="fas fa-coins me-1" style="color:#f0a500;"></i> إجمالي الفاتورة: <span>{{ "%.2f"|format(inv.total) }}</span></div>
     {% if inv.is_closed %}
     <span class="badge invoice-badge-closed" style="font-size:.85rem;padding:8px 14px;"><i class="fas fa-lock me-1"></i>مغلقة نهائياً</span>
-    {% else %}
+    {% elif session.get('role') != 'observer' %}
     <a href="/incoming_invoice/{{ inv.id }}/close" class="btn btn-danger btn-sm" onclick="return confirm('سيتم إغلاق الفاتورة نهائياً. هل أنت متأكد؟')"><i class="fas fa-lock me-1"></i> إغلاق الفاتورة</a>
     {% endif %}
   </div>
@@ -245,11 +261,14 @@ document.querySelectorAll('.add-row-btn-inv').forEach(btn => {
   updateBtns();
 });
 
-document.getElementById('toggle-add-invoice').addEventListener('click', ()=>{
-  const card = document.getElementById('add-invoice-card');
-  const show = card.style.display==='none';
-  card.style.display = show ? 'block' : 'none';
-  if(show) card.scrollIntoView({behavior:'smooth',block:'start'});
-});
+const toggleAddInvoice = document.getElementById('toggle-add-invoice');
+if (toggleAddInvoice) {
+  toggleAddInvoice.addEventListener('click', ()=>{
+    const card = document.getElementById('add-invoice-card');
+    const show = card.style.display==='none';
+    card.style.display = show ? 'block' : 'none';
+    if(show) card.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+}
 </script>
 {% endblock %}
