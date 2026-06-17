@@ -57,7 +57,7 @@
           <!-- زر الترجمة -->
           <button class="msg-action-btn translate-btn" onclick="translateMsg({{ msg.id }})"
                   title="{% if lang=='en' %}Translate{% elif lang=='tr' %}Çevir{% else %}ترجمة{% endif %}">
-            <i class="fas fa-language"></i>
+            🌐
           </button>
           {% if is_mine %}
           <button class="msg-action-btn" onclick="startEdit({{ msg.id }})"
@@ -154,7 +154,7 @@ function buildMsg(id, senderId, name, role, content, attachment, time, edited) {
   const isMine  = senderId === myId;
   const canAct  = isMine || myRole === 'admin';
   const editedBadge = edited ? `<span class="msg-edited">· ${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'}</span>` : '';
-  const translateBtn = `<button class="msg-action-btn translate-btn" onclick="translateMsg(${id})" title="${lang==='en'?'Translate':'ترجمة'}"><i class="fas fa-language"></i></button>`;
+  const translateBtn = `<button class="msg-action-btn translate-btn" onclick="translateMsg(${id})" title="${lang==='en'?'Translate':'ترجمة'}">🌐</button>`;
   const editBtn  = isMine ? `<button class="msg-action-btn" onclick="startEdit(${id})"><i class="fas fa-pen"></i></button>` : '';
   const delBtn   = canAct ? `<button class="msg-action-btn msg-del-btn" onclick="deleteMsg(${id})"><i class="fas fa-trash"></i></button>` : '';
 
@@ -229,35 +229,41 @@ function clearAttach() {
 // ══ ترجمة ══
 const translateCache = {};
 async function translateMsg(id) {
-  const trDiv  = document.getElementById('tr-' + id);
-  // toggle — إذا كانت مرئية أخفها
+  const trDiv = document.getElementById('tr-' + id);
   if (trDiv.style.display !== 'none') { trDiv.style.display = 'none'; return; }
 
-  const bubble  = document.getElementById('bubble-' + id);
-  const textEl  = bubble.querySelector('.msg-text');
-  const text    = textEl ? textEl.innerText.trim() : '';
+  const bubble = document.getElementById('bubble-' + id);
+  const textEl = bubble.querySelector('.msg-text');
+  const text   = textEl ? textEl.innerText.trim() : '';
   if (!text) return;
 
-  // من الكاش
   if (translateCache[id]) { trDiv.innerHTML = translateCache[id]; trDiv.style.display = 'block'; return; }
 
-  trDiv.innerHTML = `<span class="tr-loading"><i class="fas fa-circle-notch fa-spin"></i></span>`;
+  trDiv.innerHTML = `<span class="tr-loading">⏳</span>`;
   trDiv.style.display = 'block';
 
+  // نحدد اللغة المصدر تلقائياً من نص الرسالة
+  const hasArabic  = /[؀-ۿ]/.test(text);
+  const hasTurkish = /[çğışöüÇĞİŞÖÜ]/.test(text);
+  const srcLang    = hasArabic ? 'ar' : hasTurkish ? 'tr' : 'en';
+
+  // الهدف = اللغة الحالية للواجهة، إذا كانت نفس المصدر نترجم للعربية
+  const dstLang = targetLang === srcLang ? (srcLang === 'ar' ? 'en' : 'ar') : targetLang;
+
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=auto|${targetLang}`;
+    const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${srcLang}|${dstLang}`;
     const res  = await fetch(url);
     const data = await res.json();
-    const translated = data?.responseData?.translatedText || '';
-    if (translated && translated.toLowerCase() !== text.toLowerCase()) {
-      const html = `<i class="fas fa-language tr-icon"></i> ${esc(translated)}`;
+    const out  = (data?.responseData?.translatedText || '').trim();
+    if (out && out !== text) {
+      const html = `🌐 ${esc(out)}`;
       translateCache[id] = html;
       trDiv.innerHTML = html;
     } else {
-      trDiv.innerHTML = `<span style="color:#aaa;font-size:.72rem;">${lang==='en'?'Already in target language':'النص بنفس اللغة'}</span>`;
+      trDiv.style.display = 'none';
     }
   } catch(e) {
-    trDiv.innerHTML = `<span style="color:#c62828;font-size:.72rem;">❌</span>`;
+    trDiv.innerHTML = `<span style="font-size:.7rem;color:#c62828;">❌</span>`;
   }
 }
 
@@ -378,89 +384,79 @@ document.getElementById('msg-input').addEventListener('keydown', function(e) {
 
 /* ── رسالة ── */
 .chat-msg {
-  display: flex; flex-direction: column;
-  max-width: 68%;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;   /* ← الفقاعة تلتصق بالنص */
+  max-width: 65%;
 }
-/* تموضع: رسالتي على اليمين، الطرف الآخر على اليسار */
-.msg-mine { align-self: flex-end; }
+.msg-mine             { align-self: flex-end; }
 .chat-msg:not(.msg-mine) { align-self: flex-start; }
 
 /* meta */
 .msg-meta {
-  font-size: .64rem; color: #c0c0c0;
+  font-size: .63rem; color: #c5c5c5;
   margin-bottom: 2px;
   display: flex; gap: 4px; align-items: center;
 }
-.msg-mine .msg-meta { justify-content: flex-end; }
+.msg-mine .msg-meta              { justify-content: flex-end; }
 .chat-msg:not(.msg-mine) .msg-meta { justify-content: flex-start; }
-.msg-role   { font-weight: 600; color: #b5bbb8; }
+.msg-role   { font-weight: 600; color: #bbb; }
 .msg-time   { color: #ccc; }
 .msg-edited { color: #ccc; font-style: italic; }
 
 /* bubble wrap */
-.msg-bubble-wrap { display: flex; align-items: flex-end; gap: 3px; }
-.msg-mine .msg-bubble-wrap         { flex-direction: row-reverse; }
+.msg-bubble-wrap {
+  display: flex; align-items: flex-end; gap: 3px;
+}
+.msg-mine .msg-bubble-wrap            { flex-direction: row-reverse; }
 .chat-msg:not(.msg-mine) .msg-bubble-wrap { flex-direction: row; }
 
-/* فقاعة — حجم خفيف وخط صغير */
+/* فقاعة */
 .msg-bubble {
   padding: 6px 11px;
-  border-radius: 16px;
-  font-size: .79rem; line-height: 1.43;
+  border-radius: 14px;
+  font-size: .79rem; line-height: 1.44;
   word-break: break-word; white-space: pre-wrap;
-  display: inline-block;
-  max-width: 100%;
 }
 
-/* أدمن = أخضر دائماً */
-.msg-admin.msg-bubble,
-.msg-admin .msg-bubble {
-  background: #1a6b3a; color: #fff;
-}
-.msg-admin.msg-mine .msg-bubble   { border-bottom-right-radius: 4px; }
-.msg-admin:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 4px; }
+/* أدمن = أخضر */
+.msg-admin .msg-bubble { background: #1a6b3a; color: #fff; }
+.msg-admin.msg-mine .msg-bubble       { border-bottom-right-radius: 3px; }
+.msg-admin:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 3px; }
 
-/* مراقب = أبيض دائماً */
-.msg-observer.msg-bubble,
-.msg-observer .msg-bubble {
-  background: #fff; color: #2d2d2d;
-  border: 1px solid #e4e4e4;
-}
-.msg-observer.msg-mine .msg-bubble    { border-bottom-right-radius: 4px; }
-.msg-observer:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 4px; }
+/* مراقب = أبيض */
+.msg-observer .msg-bubble { background: #fff; color: #2d2d2d; border: 1px solid #e4e4e4; }
+.msg-observer.msg-mine .msg-bubble       { border-bottom-right-radius: 3px; }
+.msg-observer:not(.msg-mine) .msg-bubble { border-bottom-left-radius: 3px; }
 
-/* أزرار (تظهر عند hover) */
+/* أزرار — تظهر فقط عند hover، بدون border أو خلفية للـ wrapper */
 .msg-actions {
   display: flex; flex-direction: column;
-  gap: 2px; opacity: 0; transition: opacity .15s;
+  gap: 1px; opacity: 0; transition: opacity .15s;
+  flex-shrink: 0;
 }
 .chat-msg:hover .msg-actions { opacity: 1; }
 
 .msg-action-btn {
   background: none; border: none; cursor: pointer;
-  font-size: .7rem; padding: 3px 4px;
-  border-radius: 5px; color: #bbb;
-  transition: all .15s; line-height: 1;
+  font-size: .68rem; padding: 2px 4px;
+  border-radius: 4px; color: #ccc;
+  transition: all .13s; line-height: 1;
 }
-.msg-action-btn:hover   { background: #eee; color: #555; }
-.translate-btn:hover    { color: #1565c0 !important; }
-.msg-del-btn:hover      { color: #c62828 !important; }
+.msg-action-btn:hover { background: #f0f0f0; color: #555; }
+.translate-btn:hover  { color: #1565c0 !important; }
+.msg-del-btn:hover    { color: #c62828 !important; }
 
-/* ترجمة */
+/* ترجمة — نص خفيف تحت الفقاعة بدون border */
 .msg-translation {
-  font-size: .74rem; color: #666;
-  margin-top: 3px; padding: 4px 10px;
-  background: rgba(255,255,255,.85);
-  border-radius: 8px; border: 1px dashed #d0d8d4;
-  max-width: 100%; word-break: break-word;
+  font-size: .73rem; color: #888;
+  margin-top: 2px; padding: 2px 4px;
+  word-break: break-word;
+  font-style: italic;
 }
-.msg-mine.msg-admin .msg-translation {
-  background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.25);
-  color: #dff0e8;
-}
-.msg-mine.msg-admin .tr-icon { color: #a8d5b8; }
-.tr-icon    { color: #1a6b3a; font-size: .7rem; margin-inline-end: 4px; }
+.msg-admin .msg-translation { color: rgba(255,255,255,.65); }
+.tr-icon    { color: #1a6b3a; font-size: .68rem; margin-inline-end: 3px; }
+.msg-admin .tr-icon { color: rgba(255,255,255,.8); }
 .tr-loading { color: #bbb; }
 
 /* صور ومرفقات */
