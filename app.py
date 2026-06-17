@@ -1543,10 +1543,10 @@ def delete_incoming_invoice(id):
 @app.route("/incoming_invoice/<int:id>/update", methods=["POST"])
 @invoices_required
 def update_invoice(id):
-    """تعديل فاتورة مفتوحة (أدمن فقط): المورد، التاريخ، أسعار الأصناف"""
+    """تعديل فاتورة مفتوحة (أدمن فقط): المورد، التاريخ، الأصناف كاملة"""
     if session.get("role") != "admin":
         flash("هذه الميزة للأدمن فقط", "danger")
-        return redirect(url_for("incoming_invoice"))
+        return redirect(url_for("incoming_invoices_list"))
 
     org_id = session["org_id"]
     conn = get_connection()
@@ -1557,47 +1557,105 @@ def update_invoice(id):
     if not inv or inv["is_closed"]:
         conn.close()
         flash("لا يمكن تعديل فاتورة مغلقة", "danger")
-        return redirect(url_for("incoming_invoice"))
+        return redirect(url_for("incoming_invoices_list"))
 
+    # تعديل رأس الفاتورة
     supplier     = request.form.get("supplier", "").strip()
     invoice_date = request.form.get("invoice_date", "").strip()
     if supplier:
         c.execute("UPDATE incoming_invoices SET supplier=?, invoice_date=? WHERE id=? AND org_id=?",
                   (supplier, invoice_date, id, org_id))
 
-    # تعديل أصناف الفاتورة (السعر والاسم والتاريخ فقط، الكمية ثابتة)
+    # تعديل الأصناف (اسم + سعر + كمية + تاريخ)
     item_ids    = request.form.getlist("item_id[]")
     prod_names  = request.form.getlist("prod_name[]")
     unit_prices = request.form.getlist("unit_price[]")
+    quantities  = request.form.getlist("quantity[]")
     prod_dates  = request.form.getlist("prod_date[]")
 
-    for item_id, pname, uprice, pdate in zip(item_ids, prod_names, unit_prices, prod_dates):
+    for item_id, pname, uprice, qty_str, pdate in zip(item_ids, prod_names, unit_prices, quantities, prod_dates):
         try:
             uprice_f = float(uprice)
-            # تحديث اسم المنتج
+            new_qty  = float(qty_str)
+            if new_qty <= 0:
+                continue
             c.execute("SELECT product_id, quantity FROM incoming_invoice_items WHERE id=? AND invoice_id=?",
                       (item_id, id))
             row = c.fetchone()
             if not row:
                 continue
-            pid, qty = row["product_id"], row["quantity"]
-            new_total = qty * uprice_f
-            # تحديث اسم المنتج إذا تغيّر
+            pid, old_qty = row["product_id"], row["quantity"]
+            qty_diff = new_qty - old_qty   # موجب = زيادة، سالب = نقصان
+
+            # تحديث اسم المنتج
             if pname.strip():
-                c.execute("UPDATE products SET name=? WHERE id=? AND org_id=?",
-                          (pname.strip(), pid, org_id))
-            # تحديث الصنف وسعر الـ stock_batch المقابل
-            c.execute("UPDATE incoming_invoice_items SET unit_price=?, total_price=?, purchase_date=? WHERE id=?",
-                      (uprice_f, new_total, pdate, item_id))
-            c.execute("UPDATE stock_batches SET unit_price=?, entry_date=? WHERE product_id=? AND invoice_id=? AND org_id=?",
-                      (uprice_f, pdate, pid, id, org_id))
+                c.execute("UPDATE products SET name=?, last_modified=? WHERE id=? AND org_id=?",
+                          (pname.strip(), pdate, pid, org_id))
+
+            # تحديث الصنف في الفاتورة
+            c.execute("""
+                UPDATE incoming_invoice_items
+                SET quantity=?, unit_price=?, total_price=?, purchase_date=?
+                WHERE id=?
+            """, (new_qty, uprice_f, new_qty * uprice_f, pdate, item_id))
+
+            # تحديث stock_batch: الكمية المتبقية + السعر + التاريخ
+            c.execute("""
+                UPDATE stock_batches
+                SET quantity_remaining = quantity_remaining + ?,
+                    unit_price = ?,
+                    entry_date = ?
+                WHERE product_id=? AND invoice_id=? AND org_id=?
+            """, (qty_diff, uprice_f, pdate, pid, id, org_id))
+
         except (ValueError, TypeError):
             pass
 
     conn.commit()
     conn.close()
     flash("✅ تم حفظ التعديلات", "success")
-    return redirect(url_for("incoming_invoice") + f"#inv-{id}")
+    return redirect(url_for("incoming_invoices_list") + f"#inv-{id}")
+
+
+@app.route("/incoming_invoice/item/<int:item_id>/delete")
+@invoices_required
+def delete_incoming_item(item_id):
+    """حذف صنف من فاتورة مشتريات مفتوحة مع إزالته من المخزن (أدمن فقط)"""
+    if session.get("role") != "admin":
+        flash("هذه الميزة للأدمن فقط", "danger")
+        return redirect(url_for("incoming_invoices_list"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT ii.id, ii.invoice_id, ii.product_id, ii.quantity
+        FROM incoming_invoice_items ii
+        JOIN incoming_invoices inv ON inv.id = ii.invoice_id
+        WHERE ii.id=? AND inv.org_id=? AND COALESCE(inv.is_closed,0)=0
+    """, (item_id, org_id))
+    item = c.fetchone()
+    if not item:
+        conn.close()
+        flash("الصنف غير موجود أو الفاتورة مغلقة", "danger")
+        return redirect(url_for("incoming_invoices_list"))
+
+    invoice_id = item["invoice_id"]
+    product_id = item["product_id"]
+    qty        = item["quantity"]
+
+    # إزالة الكمية من المخزن (تخفيض quantity_remaining في الـ batch المرتبط بهذه الفاتورة)
+    c.execute("""
+        UPDATE stock_batches
+        SET quantity_remaining = MAX(0, quantity_remaining - ?)
+        WHERE product_id=? AND invoice_id=? AND org_id=?
+    """, (qty, product_id, invoice_id, org_id))
+
+    c.execute("DELETE FROM incoming_invoice_items WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+    flash("✅ تم حذف الصنف من الفاتورة والمخزن", "success")
+    return redirect(url_for("incoming_invoices_list") + f"#inv-{invoice_id}")
 
 
 @app.route("/incoming_invoices_list")
