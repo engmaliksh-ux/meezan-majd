@@ -24,8 +24,7 @@
     <div class="chat-msg {% if msg.sender_role=='admin' %}msg-admin{% else %}msg-observer{% endif %} {% if is_mine %}msg-mine{% endif %}"
          data-id="{{ msg.id }}" data-sender="{{ msg.sender_id }}">
       <div class="msg-meta">
-        <span class="msg-name">{{ msg.sender_name }}</span>
-        <span class="msg-role">({{ msg.sender_role }})</span>
+        <span class="msg-role">{% if msg.sender_role=='admin' %}{% if lang=='en' %}Admin{% elif lang=='tr' %}Yönetici{% else %}أدمن{% endif %}{% else %}{% if lang=='en' %}Observer{% elif lang=='tr' %}Gözlemci{% else %}مراقب{% endif %}{% endif %}</span>
         <span class="msg-time">{{ msg.created_at[-5:] }}</span>
         {% if msg.edited %}<span class="msg-edited">({% if lang=='en' %}edited{% elif lang=='tr' %}düzenlendi{% else %}معدّل{% endif %})</span>{% endif %}
       </div>
@@ -132,14 +131,14 @@ function buildMsg(id, senderId, name, role, content, attachment, time, edited) {
   const editedBadge = edited ? `<span class="msg-edited">(${lang==='en'?'edited':lang==='tr'?'düzenlendi':'معدّل'})</span>` : '';
   const editBtn = isMine  ? `<button class="msg-action-btn" onclick="startEdit(${id})"><i class="fas fa-pen"></i></button>` : '';
   const delBtn  = canAct  ? `<button class="msg-action-btn msg-del-btn" onclick="deleteMsg(${id})"><i class="fas fa-trash"></i></button>` : '';
+  const roleLabel = role==='admin'?(lang==='en'?'Admin':lang==='tr'?'Yönetici':'أدمن'):(lang==='en'?'Observer':lang==='tr'?'Gözlemci':'مراقب');
   const div = document.createElement('div');
   div.className = `chat-msg ${isAdmin?'msg-admin':'msg-observer'}${isMine?' msg-mine':''}`;
   div.dataset.id = id;
   div.dataset.sender = senderId;
   div.innerHTML = `
     <div class="msg-meta">
-      <span class="msg-name">${esc(name)}</span>
-      <span class="msg-role">(${role})</span>
+      <span class="msg-role">${roleLabel}</span>
       <span class="msg-time">${time}</span>${editedBadge}
     </div>
     <div class="msg-bubble-wrap">
@@ -310,25 +309,24 @@ document.getElementById('msg-input').addEventListener('keydown', function(e) {
   display:flex; flex-direction:column; gap:10px;
   background:#f5f7fa;
 }
-.chat-msg { max-width:76%; display:flex; flex-direction:column; }
+.chat-msg { max-width:70%; display:flex; flex-direction:column; }
 .msg-mine { align-self:flex-end; }
-.msg-meta { font-size:.72rem; color:#999; margin-bottom:3px; display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+.msg-meta { font-size:.67rem; color:#bbb; margin-bottom:2px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
 .msg-mine .msg-meta { justify-content:flex-end; }
-.msg-name  { font-weight:700; color:#444; }
-.msg-role  { color:#ccc; }
+.msg-role  { font-weight:600; color:#b0b8b4; }
 .msg-time  { color:#ccc; }
-.msg-edited{ color:#aaa; font-style:italic; font-size:.68rem; }
+.msg-edited{ color:#ccc; font-style:italic; font-size:.63rem; }
 
 .msg-bubble-wrap { display:flex; align-items:flex-end; gap:4px; }
 .msg-mine .msg-bubble-wrap { flex-direction:row-reverse; }
 
 .msg-bubble {
-  padding:9px 13px; border-radius:14px;
-  font-size:.88rem; line-height:1.5;
+  padding:6px 11px; border-radius:16px;
+  font-size:.8rem; line-height:1.45;
   word-break:break-word; white-space:pre-wrap;
 }
-.msg-admin    .msg-bubble { background:#1a6b3a; color:#fff; }
-.msg-observer .msg-bubble { background:#fff; color:#333; border:1px solid #e0e0e0; }
+.msg-admin    .msg-bubble { background:#1a6b3a; color:#fff; border-bottom-right-radius:4px; }
+.msg-observer .msg-bubble { background:#fff; color:#333; border:1px solid #e4e8e5; border-bottom-left-radius:4px; }
 
 .msg-actions { display:flex; flex-direction:column; gap:3px; opacity:0; transition:opacity .15s; }
 .chat-msg:hover .msg-actions { opacity:1; }
