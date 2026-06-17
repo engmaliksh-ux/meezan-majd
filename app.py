@@ -92,7 +92,7 @@ def add_security_headers(resp):
         "img-src 'self' data:; style-src 'self' 'unsafe-inline' "
         "https://cdn.jsdelivr.net https://fonts.googleapis.com "
         "https://cdnjs.cloudflare.com; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;"
     )
     return resp
 
@@ -1048,7 +1048,7 @@ def add_beneficiary():
         notes          = request.form.get("notes", "").strip()
 
         errors = []
-        if len(full_name.split()) < 4:
+        if len(full_name.split()) < 2:
             errors.append("الاسم يجب أن يكون رباعياً (4 كلمات على الأقل)")
         if id_number and (not id_number.isdigit() or len(id_number) != 9):
             errors.append("رقم الهوية يجب أن يكون 9 أرقام فقط")
@@ -1114,7 +1114,7 @@ def edit_beneficiary(id):
         notes          = request.form.get("notes", "").strip()
 
         errors = []
-        if len(full_name.split()) < 4:
+        if len(full_name.split()) < 2:
             errors.append("الاسم يجب أن يكون رباعياً (4 كلمات على الأقل)")
         if id_number and (not id_number.isdigit() or len(id_number) != 9):
             errors.append("رقم الهوية يجب أن يكون 9 أرقام فقط")

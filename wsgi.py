@@ -2,7 +2,7 @@ import sys
 import os
 
 # مسار المشروع
-project_home = '/home/MalikMohs/makhzan_alkhair'
+project_home = '/home/MalikMohs/meezan-majd'
 
 if project_home not in sys.path:
     sys.path.insert(0, project_home)

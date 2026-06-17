@@ -9,7 +9,7 @@
 <div class="card" style="max-width:680px;">
   <div class="card-header"><i class="fas fa-user" style="color:#f0a500;"></i> {{ b.full_name }}</div>
   <div class="card-body">
-    <form method="POST">
+    <form method="POST" action="/edit_beneficiary/{{ b.id }}" novalidate>
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <div class="row g-3 mb-3">
