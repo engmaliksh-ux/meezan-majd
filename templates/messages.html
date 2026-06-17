@@ -39,9 +39,9 @@
 
 {% block scripts %}
 <script>
-const myName   = "{{ session.get('full_name') or session.get('user','') }}";
-let lastMsgId  = {{ (msgs[-1].id if msgs else 0) }};
-const isRTL    = "{{ lang }}" === "ar";
+const myName    = "{{ session.get('full_name') or session.get('user','') }}";
+const csrfToken = "{{ csrf_token() }}";   // توكن CSRF من الجلسة
+let lastMsgId   = {{ (msgs[-1].id if msgs else 0) }};
 
 // تمرير للأسفل عند التحميل
 const chatBox = document.getElementById('chat-messages');
@@ -71,7 +71,10 @@ async function sendMsg() {
   try {
     const res = await fetch('/messages/send', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','X-CSRFToken': getCsrfToken()},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken      // اسم الهيدر الصحيح
+      },
       body: JSON.stringify({content})
     });
     const d = await res.json();
@@ -79,16 +82,15 @@ async function sendMsg() {
       appendMsg(d.id, myName, "{{ session.get('role','') }}", content, d.time, true);
       input.value = '';
       input.style.height = 'auto';
+    } else {
+      console.error('Send error:', d);
     }
+  } catch(e) {
+    console.error('Network error:', e);
   } finally {
     document.getElementById('send-btn').disabled = false;
     input.focus();
   }
-}
-
-function getCsrfToken() {
-  const m = document.cookie.match(/csrf_token=([^;]+)/);
-  return m ? m[1] : '';
 }
 
 // إرسال بـ Enter (Shift+Enter = سطر جديد)

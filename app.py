@@ -2430,7 +2430,8 @@ def ai_reports():
 def ai_reports_generate():
     """يحلّل طلب المستخدم ويولّد تقرير Word أو PDF من البيانات"""
     if session.get("role") not in ("admin", "observer"):
-        return {"ok": False}, 403
+        from flask import jsonify
+        return jsonify({"ok": False}), 403
 
     data     = request.json or {}
     query    = data.get("query", "").strip().lower()
@@ -2460,11 +2461,12 @@ def ai_reports_generate():
         rtype = "summary"
     else:
         conn.close()
-        return {"ok": False, "msg": {
+        from flask import jsonify
+        return jsonify({"ok": False, "msg": {
             "ar": "لم أفهم نوع التقرير. جرّب: تقرير المشتريات، المخزن، المستفيدين، العاملين، البرامج، الأصناف، أو ملخص شامل.",
             "tr": "Rapor türü anlaşılamadı. Deneyin: satın almalar, depo, yararlanıcılar, çalışanlar, programlar, ürünler veya genel özet.",
             "en": "Report type not recognized. Try: purchases, warehouse, beneficiaries, workers, programs, stock, or full summary."
-        }.get(lang, "Report type not recognized.")}
+        }.get(lang, "Report type not recognized.")})
 
     # ── جمع البيانات ──
     rows_data = {}
@@ -2529,21 +2531,38 @@ def ai_reports_generate():
 
     # ── توليد ملف Word ──
     from docx import Document
-    from docx.shared import Pt, RGBColor, Cm
+    from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
     from datetime import datetime as _dt
 
+    def _set_cell_rtl(cell):
+        """يضبط خلية جدول لتكون RTL"""
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        pass  # Word يتعامل مع Arabic تلقائياً من ترميز Unicode
+
+    def _set_para_rtl(para):
+        """يضبط فقرة RTL فقط — بدون تعديل الـ styles العامة"""
+        if lang != "ar":
+            return
+        pPr = para._p.get_or_add_pPr()
+        bidi = OxmlElement('w:bidi')
+        bidi.set(qn('w:val'), '1')
+        # أضف bidi فقط إذا لم يكن موجوداً
+        existing = pPr.find(qn('w:bidi'))
+        if existing is None:
+            pPr.insert(0, bidi)
+        jc = OxmlElement('w:jc')
+        jc.set(qn('w:val'), 'right')
+        existing_jc = pPr.find(qn('w:jc'))
+        if existing_jc is None:
+            pPr.append(jc)
+        else:
+            existing_jc.set(qn('w:val'), 'right')
+
     doc = Document()
-    # اتجاه RTL للعربية
-    if lang in ("ar",):
-        for s in doc.styles:
-            try:
-                pPr = s.element.get_or_add_pPr()
-                bidi = OxmlElement('w:bidi')
-                pPr.append(bidi)
-            except: pass
 
     # العنوان
     titles = {
@@ -2558,29 +2577,36 @@ def ai_reports_generate():
     title_txt = titles.get(rtype, {}).get(lang, titles.get(rtype,{}).get("ar","تقرير"))
     h = doc.add_heading(f"{org_name} — {title_txt}", 0)
     h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sub = doc.add_paragraph({"ar":f"التاريخ: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
-                              "tr":f"Tarih: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
-                              "en":f"Date: {_dt.now().strftime('%Y-%m-%d %H:%M')}"}.get(lang,""))
+    _set_para_rtl(h)
+    date_str = {"ar":f"التاريخ: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
+                "tr":f"Tarih: {_dt.now().strftime('%Y-%m-%d %H:%M')}",
+                "en":f"Date: {_dt.now().strftime('%Y-%m-%d %H:%M')}"}.get(lang,"")
+    sub = doc.add_paragraph(date_str)
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph()
 
     def _add_table(headers, rows_list, key_fn):
         if not rows_list:
-            doc.add_paragraph({"ar":"لا توجد بيانات","tr":"Veri yok","en":"No data"}.get(lang,"No data"))
+            p = doc.add_paragraph({"ar":"لا توجد بيانات","tr":"Veri yok","en":"No data"}.get(lang,"No data"))
+            _set_para_rtl(p)
             return
         table = doc.add_table(rows=1, cols=len(headers))
         table.style = "Table Grid"
-        hdr = table.rows[0].cells
-        for i, h in enumerate(headers): hdr[i].text = h
+        hdr_row = table.rows[0].cells
+        for i, h in enumerate(headers):
+            hdr_row[i].text = h
         for row in rows_list:
             vals = key_fn(row)
             cells = table.add_row().cells
-            for i, v in enumerate(vals): cells[i].text = str(v) if v is not None else ""
-        doc.add_paragraph()
+            for i, v in enumerate(vals):
+                cells[i].text = str(v) if v is not None else ""
+        p = doc.add_paragraph()
+        _set_para_rtl(p)
 
     # ── مشتريات ──
     if "purchases" in rows_data:
-        doc.add_heading({"ar":"فواتير المشتريات","tr":"Satın Alma Faturaları","en":"Purchase Invoices"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"فواتير المشتريات","tr":"Satın Alma Faturaları","en":"Purchase Invoices"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         hdrs = {"ar":["#","رقم الفاتورة","المورد","التاريخ","الإجمالي","الحالة","الدفع"],
                 "tr":["#","Fatura No","Tedarikçi","Tarih","Toplam","Durum","Ödeme"],
                 "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang)
@@ -2598,13 +2624,15 @@ def ai_reports_generate():
             st_map[1] if r["is_closed"] else st_map[0],
             st_map[2] if r["is_paid"] else st_map[3],
         ])
-        doc.add_paragraph({"ar":f"الإجمالي الكلي: {total_all:.2f}",
+        p = doc.add_paragraph({"ar":f"الإجمالي الكلي: {total_all:.2f}",
                            "tr":f"Genel Toplam: {total_all:.2f}",
                            "en":f"Grand Total: {total_all:.2f}"}.get(lang,""))
+        _set_para_rtl(p)
 
     # ── صرف ──
     if "outgoing" in rows_data:
-        doc.add_heading({"ar":"فواتير الصرف","tr":"Çıkış Faturaları","en":"Outgoing Invoices"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"فواتير الصرف","tr":"Çıkış Faturaları","en":"Outgoing Invoices"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         hdrs = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
                 "tr":["Fatura No","Tarih","Kurum","Toplam","Durum"],
                 "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang)
@@ -2616,11 +2644,13 @@ def ai_reports_generate():
             r["beneficiary"] or "", f"{r['total']:.2f}",
             st_map[1] if r["is_closed"] else st_map[0],
         ])
-        doc.add_paragraph({"ar":f"الإجمالي: {total_all:.2f}","tr":f"Toplam: {total_all:.2f}","en":f"Total: {total_all:.2f}"}.get(lang,""))
+        p = doc.add_paragraph({"ar":f"الإجمالي: {total_all:.2f}","tr":f"Toplam: {total_all:.2f}","en":f"Total: {total_all:.2f}"}.get(lang,""))
+        _set_para_rtl(p)
 
     # ── مستفيدون ──
     if "beneficiaries" in rows_data:
-        doc.add_heading({"ar":"المستفيدون","tr":"Yararlanıcılar","en":"Beneficiaries"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"المستفيدون","tr":"Yararlanıcılar","en":"Beneficiaries"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         hdrs = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","الأفراد","النوع"],
                 "tr":["Ad Soyad","Cinsiyet","Kimlik","Telefon","Durum","Üyeler","Tür"],
                 "en":["Name","Gender","ID","Phone","Status","Members","Type"]}.get(lang)
@@ -2630,12 +2660,14 @@ def ai_reports_generate():
             r["phone"] or "", r["marital_status"] or "",
             r["family_members"] or "", r["benef_type"] or "",
         ])
-        doc.add_paragraph({"ar":f"العدد الكلي: {len(rows_list)}",
+        p = doc.add_paragraph({"ar":f"العدد الكلي: {len(rows_list)}",
                            "tr":f"Toplam: {len(rows_list)}","en":f"Total: {len(rows_list)}"}.get(lang,""))
+        _set_para_rtl(p)
 
     # ── عاملون ──
     if "workers" in rows_data:
-        doc.add_heading({"ar":"العاملون","tr":"Çalışanlar","en":"Workers"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"العاملون","tr":"Çalışanlar","en":"Workers"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         hdrs = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة","ملاحظات"],
                 "tr":["Ad","Kimlik","Proje","Görev","Maaş","Notlar"],
                 "en":["Name","ID","Project","Role","Salary","Notes"]}.get(lang)
@@ -2646,18 +2678,22 @@ def ai_reports_generate():
             r["job_type"] or "", f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00",
             r["notes"] or "",
         ])
-        doc.add_paragraph({"ar":f"إجمالي المكافآت الشهرية: {total_sal:.2f}",
+        p = doc.add_paragraph({"ar":f"إجمالي المكافآت الشهرية: {total_sal:.2f}",
                            "tr":f"Toplam Maaş: {total_sal:.2f}","en":f"Total Salaries: {total_sal:.2f}"}.get(lang,""))
+        _set_para_rtl(p)
 
     # ── برامج ──
     if "programs" in rows_data:
-        doc.add_heading({"ar":"البرامج والمشاريع","tr":"Programlar","en":"Programs"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"البرامج والمشاريع","tr":"Programlar","en":"Programs"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         for i, row in enumerate(rows_data["programs"], 1):
-            doc.add_paragraph(f"{i}. {row['name']}", style="List Number")
+            p = doc.add_paragraph(f"{i}. {row['name']}")
+            _set_para_rtl(p)
 
     # ── مخزون ──
     if "stock" in rows_data:
-        doc.add_heading({"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""), 1)
+        h1 = doc.add_heading({"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""), 1)
+        _set_para_rtl(h1)
         hdrs = {"ar":["الصنف","الوحدة","الكمية المتاحة","آخر سعر"],
                 "tr":["Ürün","Birim","Mevcut Miktar","Son Fiyat"],
                 "en":["Item","Unit","Available Qty","Last Price"]}.get(lang)
@@ -2668,14 +2704,42 @@ def ai_reports_generate():
         ])
 
     # ── حفظ وإرسال ──
-    buf = io.BytesIO()
-    doc.save(buf)
-    buf.seek(0)
-
+    import tempfile, subprocess, os as _os
     from flask import send_file
-    fname = f"report_{rtype}_{_dt.now().strftime('%Y%m%d_%H%M')}.docx"
-    return send_file(buf, as_attachment=True, download_name=fname,
-                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+    fname_base = f"report_{rtype}_{_dt.now().strftime('%Y%m%d_%H%M')}"
+
+    if fmt == "pdf":
+        # حفظ docx مؤقت ثم تحويله بـ LibreOffice
+        with tempfile.TemporaryDirectory() as tmpdir:
+            docx_path = _os.path.join(tmpdir, fname_base + ".docx")
+            pdf_path  = _os.path.join(tmpdir, fname_base + ".pdf")
+            doc.save(docx_path)
+            try:
+                subprocess.run(
+                    ["libreoffice", "--headless", "--convert-to", "pdf",
+                     "--outdir", tmpdir, docx_path],
+                    timeout=30, check=True,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    env={**_os.environ, "HOME": tmpdir, "DISPLAY": ""}
+                )
+                with open(pdf_path, "rb") as f:
+                    pdf_bytes = f.read()
+                buf = io.BytesIO(pdf_bytes)
+                buf.seek(0)
+                return send_file(buf, as_attachment=True,
+                                 download_name=fname_base + ".pdf",
+                                 mimetype="application/pdf")
+            except Exception as e:
+                from flask import jsonify
+                return jsonify({"ok": False, "msg": f"فشل تحويل PDF: {e}"}), 500
+    else:
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+        return send_file(buf, as_attachment=True,
+                         download_name=fname_base + ".docx",
+                         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 if __name__ == "__main__":
