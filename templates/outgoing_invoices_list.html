@@ -75,7 +75,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in inv.items %}
+          {% for item in inv.lines %}
           <tr>
             <td style="color:#6c7a72;">{{ loop.index }}</td>
             <td class="fw-bold">{{ item.product_name }}</td>

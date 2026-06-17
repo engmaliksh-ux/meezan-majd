@@ -1768,7 +1768,7 @@ def outgoing_invoices_list():
         """, (inv["id"],))
         items = [dict(r) for r in c.fetchall()]
         inv_total = sum(it["total_price"] for it in items)
-        inv_d["items"] = items
+        inv_d["lines"] = items
         inv_d["total"] = inv_total
         total_all += inv_total
         invoices.append(inv_d)
