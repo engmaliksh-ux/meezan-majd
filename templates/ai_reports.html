@@ -1,322 +1,246 @@
 {% extends 'base.html' %}
-{% block title %}{% if lang=='en' %}Smart Reports{% elif lang=='tr' %}Akıllı Raporlar{% else %}التقارير الذكية{% endif %} – ميزان مجد{% endblock %}
+{% block title %}
+  {% if lang=='en' %}Reports{% elif lang=='tr' %}Raporlar{% else %}التقارير{% endif %} – ميزان مجد
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h2 class="page-title">
     <i class="fas fa-chart-bar"></i>
-    {% if lang=='en' %}Smart Reports
-    {% elif lang=='tr' %}Akıllı Raporlar
-    {% else %}التقارير الذكية{% endif %}
+    {% if lang=='en' %}Reports
+    {% elif lang=='tr' %}Raporlar
+    {% else %}التقارير{% endif %}
   </h2>
 </div>
 
-<!-- اقتراحات سريعة -->
-<div class="report-suggestions no-print">
-  <p class="suggestion-label">
-    {% if lang=='en' %}Quick suggestions:{% elif lang=='tr' %}Hızlı öneriler:{% else %}اقتراحات سريعة:{% endif %}
-  </p>
-  <div class="suggestion-chips">
-    {% set chips = {
-      'ar': [
-        ("📦 تقرير المشتريات","تقرير فواتير المشتريات"),
-        ("🏭 تقرير المخزن","تقرير فواتير الصرف والمخزن"),
-        ("👥 تقرير المستفيدين","تقرير المستفيدين"),
-        ("👷 تقرير العاملين","تقرير العاملين والرواتب"),
-        ("📋 تقرير البرامج","تقرير البرامج والمشاريع"),
-        ("📊 ملخص شامل","تقرير شامل لكل البيانات"),
-      ],
-      'tr': [
-        ("📦 Satın Almalar","satın alma faturaları raporu"),
-        ("🏭 Depo","çıkış faturaları raporu"),
-        ("👥 Yararlanıcılar","yararlanıcılar raporu"),
-        ("👷 Çalışanlar","çalışanlar raporu"),
-        ("📋 Programlar","programlar raporu"),
-        ("📊 Genel Özet","tüm veriler özet raporu"),
-      ],
-      'en': [
-        ("📦 Purchases","purchase invoices report"),
-        ("🏭 Warehouse","outgoing warehouse report"),
-        ("👥 Beneficiaries","beneficiaries report"),
-        ("👷 Workers","workers salary report"),
-        ("📋 Programs","programs and projects report"),
-        ("📊 Full Summary","full summary report of all data"),
-      ],
-    } %}
-    {% for label, query in chips.get(lang, chips['ar']) %}
-    <button class="chip-btn" onclick="useChip('{{ query }}')">{{ label }}</button>
-    {% endfor %}
-  </div>
+{# ── اختيار الصيغة ── #}
+<div class="fmt-bar">
+  <span class="fmt-label">
+    {% if lang=='en' %}Format:{% elif lang=='tr' %}Biçim:{% else %}صيغة الملف:{% endif %}
+  </span>
+  <button class="fmt-btn active" id="btn-docx" onclick="setFmt('docx')">
+    <i class="fas fa-file-word"></i> Word
+  </button>
+  <button class="fmt-btn" id="btn-pdf" onclick="setFmt('pdf')">
+    <i class="fas fa-file-pdf"></i> PDF
+  </button>
 </div>
 
-<!-- منطقة المحادثة -->
-<div class="report-chat-wrapper">
-  <div class="report-chat-log" id="report-log">
-    <div class="report-bot-msg">
-      <i class="fas fa-robot me-2" style="color:#1a6b3a;"></i>
-      {% if lang=='en' %}
-        Hello! Tell me what report you need and I'll generate it as a Word file instantly. For example: "Purchase invoices report" or "Full stock summary."
-      {% elif lang=='tr' %}
-        Merhaba! Hangi raporu istediğinizi söyleyin, Word dosyası olarak oluşturayım. Örnek: "satın alma raporu" veya "genel stok özeti".
-      {% else %}
-        مرحباً! أخبرني ما التقرير الذي تريده وسأولّده لك فوراً كملف Word. مثلاً: "تقرير فواتير المشتريات" أو "ملخص شامل لكل البيانات".
-      {% endif %}
-    </div>
-  </div>
+{# ── بطاقات التقارير ── #}
+{% set reports = [
+  ("purchases",     "fas fa-shopping-cart", "#1565c0",
+    "تقرير المشتريات",       "Satın Alma Raporu",      "Purchases Report"),
+  ("outgoing",      "fas fa-truck",          "#6a1b9a",
+    "تقرير الصرف",           "Çıkış Faturaları Raporu","Outgoing Report"),
+  ("beneficiaries", "fas fa-users",          "#1a6b3a",
+    "تقرير المستفيدين",      "Yararlanıcılar Raporu",  "Beneficiaries Report"),
+  ("workers",       "fas fa-hard-hat",       "#e65100",
+    "تقرير العاملين",        "Çalışanlar Raporu",      "Workers Report"),
+  ("programs",      "fas fa-project-diagram","#00695c",
+    "تقرير البرامج والمشاريع","Programlar Raporu",     "Programs Report"),
+  ("stock",         "fas fa-boxes",          "#558b2f",
+    "تقرير المخزون",         "Stok Raporu",            "Stock Report"),
+  ("summary",       "fas fa-layer-group",    "#c62828",
+    "التقرير الشامل",        "Genel Özet Raporu",      "Full Summary Report"),
+] %}
 
-  <div class="report-input-bar">
-    <div class="fmt-toggle">
-      <button class="fmt-btn active" id="fmt-docx" onclick="setFmt('docx')">
-        <i class="fas fa-file-word me-1"></i>Word
-      </button>
-      <button class="fmt-btn" id="fmt-pdf" onclick="setFmt('pdf')">
-        <i class="fas fa-file-pdf me-1"></i>PDF
-      </button>
-    </div>
-    <textarea id="report-input" class="report-textarea" rows="1"
-      placeholder="{% if lang=='en' %}What report do you need?{% elif lang=='tr' %}Hangi raporu istiyorsunuz?{% else %}ما التقرير الذي تريده؟{% endif %}">
-    </textarea>
-    <button class="btn btn-primary report-send-btn" onclick="generateReport()" id="gen-btn">
-      <i class="fas fa-paper-plane"></i>
-    </button>
-  </div>
+<div class="report-grid">
+  {% for rtype, icon, color, ar_name, tr_name, en_name in reports %}
+  {% set name = ar_name if lang=='ar' else (tr_name if lang=='tr' else en_name) %}
+  <button class="report-card" onclick="generate('{{ rtype }}')" style="--clr:{{ color }}">
+    <i class="{{ icon }}" style="color:{{ color }}; font-size:2rem;"></i>
+    <span class="card-name">{{ name }}</span>
+    <span class="card-arrow"><i class="fas fa-download"></i></span>
+  </button>
+  {% endfor %}
 </div>
+
+{# ── حالة التنزيل ── #}
+<div id="status-bar" class="status-bar" style="display:none"></div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 let currentFmt = 'docx';
+
 function setFmt(f) {
   currentFmt = f;
-  document.getElementById('fmt-docx').classList.toggle('active', f==='docx');
-  document.getElementById('fmt-pdf').classList.toggle('active', f==='pdf');
+  document.getElementById('btn-docx').classList.toggle('active', f === 'docx');
+  document.getElementById('btn-pdf').classList.toggle('active', f === 'pdf');
 }
 
-function useChip(q) {
-  const inp = document.getElementById('report-input');
-  inp.value = q;
-  inp.focus();
-  generateReport();
-}
-
-function appendUser(text) {
-  const log = document.getElementById('report-log');
-  const d = document.createElement('div');
-  d.className = 'report-user-msg';
-  d.innerHTML = `<i class="fas fa-user me-2" style="color:#1565c0;"></i>${text.replace(/</g,'&lt;')}`;
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
-}
-
-function appendBot(html) {
-  const log = document.getElementById('report-log');
-  const d = document.createElement('div');
-  d.className = 'report-bot-msg';
-  d.innerHTML = `<i class="fas fa-robot me-2" style="color:#1a6b3a;"></i>${html}`;
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
-}
-
-async function generateReport() {
-  const inp   = document.getElementById('report-input');
-  const query = inp.value.trim();
-  if (!query) return;
-
-  appendUser(query);
-  inp.value = '';
-  inp.style.height = 'auto';
-
-  const btn = document.getElementById('gen-btn');
-  btn.disabled = true;
-  const thinking = {
-    ar: '⏳ جاري تحليل الطلب وتوليد التقرير...',
-    tr: '⏳ İstek analiz ediliyor, rapor oluşturuluyor...',
-    en: '⏳ Analyzing request and generating report...'
-  }["{{ lang }}"] || '⏳ Generating...';
-  appendBot(thinking);
-
-  try {
-    const isFmt = currentFmt;
-
-    if (isFmt === 'pdf') {
-      // PDF: نفتح HTML قابل للطباعة في نافذة جديدة (المتصفح يتولى Print→PDF)
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/ai_reports/generate';
-      form.target = '_blank';
-      form.style.display = 'none';
-
-      const csrfInput = document.createElement('input');
-      csrfInput.name  = '_csrf_token';
-      csrfInput.value = "{{ csrf_token() }}";
-      form.appendChild(csrfInput);
-
-      const qInput = document.createElement('input');
-      qInput.name  = 'query';
-      qInput.value = query;
-      form.appendChild(qInput);
-
-      const fInput = document.createElement('input');
-      fInput.name  = 'fmt';
-      fInput.value = 'pdf';
-      form.appendChild(fInput);
-
-      document.body.appendChild(form);
-      form.submit();
-      form.remove();
-
-      // آخر رسالة (thinking)
-      const log2 = document.getElementById('report-log');
-      const last2 = log2.lastElementChild;
-      if (last2 && last2.classList.contains('report-bot-msg')) last2.remove();
-
-      const pdfMsg = {
-        ar: '✅ تم فتح التقرير في نافذة جديدة — استخدم <b>Ctrl+P</b> لحفظه كـ PDF.',
-        tr: '✅ Rapor yeni sekmede açıldı — PDF olarak kaydetmek için <b>Ctrl+P</b> kullanın.',
-        en: '✅ Report opened in a new tab — use <b>Ctrl+P</b> to save as PDF.',
-      }["{{ lang }}"] || "✅ Opened in new tab.";
-      appendBot(pdfMsg);
-
-    } else {
-      // Word: تحميل ملف .docx عبر fetch
-      const res = await fetch('/ai_reports/generate', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ query, fmt: 'docx' })
-      });
-
-      // آخر رسالة (thinking)
-      const log = document.getElementById('report-log');
-      const last = log.lastElementChild;
-      if (last && last.classList.contains('report-bot-msg')) last.remove();
-
-      const ct = res.headers.get('content-type') || '';
-      if (!res.ok || ct.includes('application/json')) {
-        const d = await res.json();
-        appendBot(`<span style="color:#c62828;">❌ ${d.msg || 'خطأ'}</span>`);
-      } else {
-        const blob = await res.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        const cd   = res.headers.get('content-disposition') || '';
-        const m    = cd.match(/filename="?([^"]+)"?/);
-        a.href     = url;
-        a.download = m ? m[1] : 'report.docx';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-        const ok = {
-          ar: `✅ تم توليد التقرير! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>تحميل مجدداً</a>`,
-          tr: `✅ Rapor oluşturuldu! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Tekrar İndir</a>`,
-          en: `✅ Report generated! <a href="${url}" class="btn btn-sm btn-outline-success ms-2" download="${a.download}"><i class="fas fa-download me-1"></i>Download again</a>`,
-        }["{{ lang }}"] || "✅ Done!";
-        appendBot(ok);
-      }
-    }
-  } catch(e) {
-    // في حالة PDF نزيل رسالة thinking لو لا تزال موجودة
-    const log3 = document.getElementById('report-log');
-    const last3 = log3.lastElementChild;
-    if (last3 && last3.classList.contains('report-bot-msg') && last3.textContent.includes('⏳')) last3.remove();
-    appendBot(`<span style="color:#c62828;">❌ ${e.message}</span>`);
-  } finally {
-    btn.disabled = false;
+function showStatus(html, type) {
+  const bar = document.getElementById('status-bar');
+  bar.innerHTML = html;
+  bar.className = 'status-bar status-' + type;
+  bar.style.display = 'block';
+  if (type === 'success' || type === 'info') {
+    setTimeout(() => { bar.style.display = 'none'; }, 5000);
   }
 }
 
-document.getElementById('report-input').addEventListener('keydown', function(e) {
-  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); generateReport(); }
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
+async function generate(rtype) {
+  const L = {
+    ar: { loading: '⏳ جاري توليد التقرير…', done: '✅ تم توليد التقرير!',
+          pdf_done: '✅ تم فتح التقرير — اضغط Ctrl+P لحفظه PDF', err: '❌ خطأ' },
+    tr: { loading: '⏳ Rapor oluşturuluyor…', done: '✅ Rapor hazır!',
+          pdf_done: '✅ Rapor açıldı — PDF için Ctrl+P', err: '❌ Hata' },
+    en: { loading: '⏳ Generating report…', done: '✅ Report ready!',
+          pdf_done: '✅ Report opened — press Ctrl+P to save as PDF', err: '❌ Error' },
+  }["{{ lang }}"] || {};
+
+  showStatus(L.loading, 'loading');
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/ai_reports/generate';
+  form.style.display = 'none';
+
+  const fields = {
+    '_csrf_token': '{{ csrf_token() }}',
+    'rtype': rtype,
+    'fmt': currentFmt,
+  };
+  for (const [name, value] of Object.entries(fields)) {
+    const inp = document.createElement('input');
+    inp.name = name; inp.value = value;
+    form.appendChild(inp);
+  }
+
+  if (currentFmt === 'pdf') {
+    form.target = '_blank';
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    showStatus(L.pdf_done, 'info');
+    return;
+  }
+
+  // Word: fetch + blob download
+  document.body.appendChild(form);
+  const fd = new FormData(form);
+  form.remove();
+
+  try {
+    const res = await fetch('/ai_reports/generate', { method: 'POST', body: fd });
+    const ct  = res.headers.get('content-type') || '';
+
+    if (!res.ok || ct.includes('application/json')) {
+      const j = await res.json().catch(() => ({}));
+      showStatus(`${L.err}: ${j.msg || res.status}`, 'error');
+      return;
+    }
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const cd   = res.headers.get('content-disposition') || '';
+    const m    = cd.match(/filename="?([^";\n]+)"?/);
+    const fn   = m ? m[1] : `report_${rtype}.docx`;
+
+    const a = document.createElement('a');
+    a.href = url; a.download = fn; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+
+    showStatus(
+      `${L.done} <a href="${url}" download="${fn}" class="dl-again"><i class="fas fa-download"></i></a>`,
+      'success'
+    );
+  } catch (e) {
+    showStatus(`${L.err}: ${e.message}`, 'error');
+  }
+}
 </script>
 
 <style>
-.report-suggestions { margin-bottom: 16px; }
-.suggestion-label { font-size:.82rem; font-weight:700; color:#6c7a72; margin-bottom:6px; }
-.suggestion-chips { display:flex; flex-wrap:wrap; gap:7px; }
-.chip-btn {
-  padding: 5px 13px;
-  border-radius: 20px;
-  border: 2px solid #1a6b3a;
+.fmt-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.fmt-label {
+  font-weight: 700;
+  font-size: .88rem;
+  color: #555;
+}
+.fmt-btn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: 2px solid #ccc;
+  background: #fff;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  color: #555;
+  transition: all .15s;
+}
+.fmt-btn.active {
+  border-color: #1a6b3a;
   background: #e8f5ee;
   color: #1a6b3a;
-  font-size: .8rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-  font-family: inherit;
 }
-.chip-btn:hover { background:#1a6b3a; color:#fff; }
 
-.report-chat-wrapper {
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.report-card {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 220px);
-  min-height: 340px;
-  max-width: 860px;
-  margin: 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 16px 20px;
   border-radius: 14px;
-  overflow: hidden;
-  border: 2px solid #d0d0d0;
-  background: #f9f9f9;
-}
-.report-chat-log {
-  flex: 1;
-  overflow-y: auto;
-  padding: 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: #f5f7fa;
-}
-.report-bot-msg, .report-user-msg {
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: .87rem;
-  line-height: 1.55;
-  max-width: 85%;
-}
-.report-bot-msg  { background:#fff; border:1px solid #d8e8de; align-self:flex-start; }
-.report-user-msg { background:#e3f2fd; border:1px solid #90caf9; align-self:flex-end; text-align:right; }
-
-.report-input-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
-  background: #fff;
-  border-top: 2px solid #e0e0e0;
-}
-.fmt-toggle { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
-.fmt-btn {
-  padding: 4px 9px;
-  font-size: .75rem;
-  font-weight: 700;
-  border: 2px solid #d0d0d0;
-  border-radius: 7px;
-  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--clr) 30%, #e0e0e0);
+  background: color-mix(in srgb, var(--clr) 6%, #fff);
   cursor: pointer;
-  color: #666;
-  transition: all .15s;
   font-family: inherit;
+  font-size: .92rem;
+  font-weight: 700;
+  color: #333;
+  transition: transform .15s, box-shadow .15s, background .15s;
+  position: relative;
 }
-.fmt-btn.active { border-color:#1a6b3a; background:#e8f5ee; color:#1a6b3a; }
-.fmt-btn:disabled { opacity:.45; cursor:not-allowed; }
-.report-textarea {
-  flex: 1;
-  resize: none;
-  border: 2px solid #d0d0d0;
+.report-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--clr) 25%, transparent);
+  background: color-mix(in srgb, var(--clr) 12%, #fff);
+}
+.report-card:active { transform: scale(.97); }
+.card-name { text-align: center; line-height: 1.4; }
+.card-arrow {
+  position: absolute;
+  bottom: 10px;
+  font-size: .75rem;
+  color: color-mix(in srgb, var(--clr) 70%, #888);
+  opacity: .6;
+}
+
+.status-bar {
+  padding: 12px 18px;
   border-radius: 10px;
-  padding: 9px 12px;
   font-size: .9rem;
-  font-family: inherit;
-  outline: none;
-  transition: border-color .2s;
-  max-height: 120px;
-  overflow-y: auto;
+  font-weight: 600;
+  margin-top: 4px;
+  transition: opacity .3s;
 }
-.report-textarea:focus { border-color:#1a6b3a; }
-.report-send-btn { height:40px; width:48px; border-radius:10px; flex-shrink:0; }
+.status-loading { background: #fff8e1; border: 2px solid #f9a825; color: #795548; }
+.status-success { background: #e8f5ee; border: 2px solid #1a6b3a; color: #1a6b3a; }
+.status-info    { background: #e3f2fd; border: 2px solid #1565c0; color: #1565c0; }
+.status-error   { background: #ffebee; border: 2px solid #c62828; color: #c62828; }
+.dl-again {
+  margin-inline-start: 10px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #1a6b3a;
+  color: #fff;
+  text-decoration: none;
+  font-size: .82rem;
+}
 </style>
 {% endblock %}
