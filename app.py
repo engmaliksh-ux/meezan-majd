@@ -1,7 +1,7 @@
 import os
 import secrets
 import struct
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g
+from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify
 from database import get_connection, init_db, generate_org_code
 from translations import TRANSLATIONS
 from functools import wraps

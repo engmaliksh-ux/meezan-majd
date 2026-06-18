@@ -530,7 +530,7 @@ window.chatOpen = function() {
   document.getElementById('chat-fab').style.opacity = '1';
   document.getElementById('cp-online-dot').style.display = 'block';
   cpStartPoll();
-  if(cpLastId === 0) cpLoad();
+  if(document.getElementById('cp-msgs').children.length === 0) cpLoad();
   setTimeout(()=>{ document.getElementById('cp-inp').focus(); }, 200);
 };
 
