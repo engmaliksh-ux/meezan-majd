@@ -111,6 +111,13 @@
         <span>{% if lang=='en' %}Chat{% elif lang=='tr' %}Sohbet{% else %}الشات{% endif %}</span>
         <span class="chat-badge" id="chat-unread" style="display:none;">0</span>
       </a>
+      {% if session.get('role') == 'admin' %}
+      <a href="/network" class="nav-item {% if '/network' in request.path %}active{% endif %}">
+        <i class="fas fa-network-wired nav-icon"></i>
+        <span>{% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %}</span>
+        <span class="net-badge" id="net-nav-badge" style="display:none"></span>
+      </a>
+      {% endif %}
       {% endif %}
 
       {% if session.get('role') in ['admin','data_entry','observer'] %}
@@ -293,6 +300,20 @@ setSidebar(sidebarOpen);
   min-width:18px;
   height:18px;
   background:#c62828;
+  color:#fff;
+  border-radius:50%;
+  font-size:.62rem;
+  font-weight:900;
+  margin-right:auto;
+  padding:0 4px;
+}
+.net-badge {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:18px;
+  height:18px;
+  background:#1565c0;
   color:#fff;
   border-radius:50%;
   font-size:.62rem;
@@ -837,6 +858,20 @@ function cpBgPoll(){
 setInterval(cpBgPoll, 10000);
 setInterval(cpBadge, 10000);
 cpBadge();
+
+// ── Network badge ──────────────────────
+async function netBadge(){
+  {% if session.get('role') == 'admin' %}
+  try {
+    const r = await fetch('/network/unread');
+    const d = await r.json();
+    const nb = document.getElementById('net-nav-badge');
+    if(nb){ nb.textContent=d.count; nb.style.display = d.count>0 ? 'inline-flex' : 'none'; }
+  } catch(e){}
+  {% endif %}
+}
+setInterval(netBadge, 15000);
+netBadge();
 
 })(); // end IIFE
 </script>

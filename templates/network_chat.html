@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}{{ partner.name }} – ميزان مجد{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; gap:14px;">
+  <a href="{{ url_for('network') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-arrow-{% if lang=='ar' %}right{% else %}left{% endif %}"></i>
+  </a>
+  <div class="nc-avatar">{{ partner.name[0] | upper }}</div>
+  <h2 class="page-title" style="margin:0;">{{ partner.name }}</h2>
+</div>
+
+<div class="nc-wrapper">
+  <div class="nc-log" id="nc-log">
+    {% for m in messages %}
+    {% set is_mine = (m.from_org_id == my_org_id) %}
+    <div class="nc-msg {% if is_mine %}nc-mine{% else %}nc-theirs{% endif %}" data-id="{{ m.id }}">
+      {% if not is_mine %}
+      <div class="nc-sender">{{ m.sender_name }}</div>
+      {% endif %}
+      <div class="nc-bubble">{{ m.content }}</div>
+      <div class="nc-time">{{ m.created_at[11:16] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="nc-bar">
+    <textarea id="nc-input" class="nc-textarea" rows="1"
+      placeholder="{% if lang=='en' %}Type a message…{% elif lang=='tr' %}Mesaj yaz…{% else %}اكتب رسالة…{% endif %}"
+      onkeydown="ncKeydown(event)"></textarea>
+    <button class="btn btn-primary nc-send-btn" onclick="ncSend()">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const NC_PARTNER  = {{ partner.id }};
+const NC_MY_ORG   = {{ my_org_id }};
+const CSRF_TOKEN  = "{{ csrf_token() }}";
+let   ncLastId    = {{ messages[-1].id if messages else 0 }};
+
+// تمرير للأسفل عند التحميل
+window.addEventListener('DOMContentLoaded', () => {
+  const log = document.getElementById('nc-log');
+  log.scrollTop = log.scrollHeight;
+});
+
+function ncAppend(m) {
+  const log   = document.getElementById('nc-log');
+  const isMine = m.from_org_id === NC_MY_ORG;
+  const div   = document.createElement('div');
+  div.className = 'nc-msg ' + (isMine ? 'nc-mine' : 'nc-theirs');
+  div.dataset.id = m.id;
+  div.innerHTML = `
+    ${!isMine ? `<div class="nc-sender">${m.sender_name}</div>` : ''}
+    <div class="nc-bubble">${m.content.replace(/</g,'&lt;')}</div>
+    <div class="nc-time">${m.created_at.slice(11,16)}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function ncSend() {
+  const inp = document.getElementById('nc-input');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  const fd = new FormData();
+  fd.append('_csrf_token', CSRF_TOKEN);
+  fd.append('content', txt);
+
+  try {
+    const res = await fetch(`/network/send/${NC_PARTNER}`, { method:'POST', body: fd });
+    const j   = await res.json();
+    if (j.ok) {
+      ncAppend(j.msg);
+      ncLastId = j.msg.id;
+    }
+  } catch(e) { console.error(e); }
+}
+
+function ncKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    ncSend();
+  }
+  const el = e.target;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// Poll كل 5 ثواني
+async function ncPoll() {
+  try {
+    const res = await fetch(`/network/poll/${NC_PARTNER}?since=${ncLastId}`);
+    const j   = await res.json();
+    if (j.ok && j.messages.length) {
+      j.messages.forEach(m => ncAppend(m));
+      ncLastId = j.messages[j.messages.length - 1].id;
+    }
+  } catch(e) {}
+}
+setInterval(ncPoll, 5000);
+</script>
+
+<style>
+.nc-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #1a6b3a, #2e9e5e);
+  color: #fff; font-size: 1.1rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nc-wrapper {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 180px); min-height: 340px;
+  max-width: 780px; margin: 0 auto;
+  border-radius: 14px; overflow: hidden;
+  border: 2px solid #d0d0d0; background: #f9f9f9;
+}
+.nc-log {
+  flex: 1; overflow-y: auto; padding: 18px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: #f5f7fa;
+}
+.nc-msg { display: flex; flex-direction: column; max-width: 75%; }
+.nc-mine  { align-self: flex-end; align-items: flex-end; }
+.nc-theirs { align-self: flex-start; align-items: flex-start; }
+.nc-sender { font-size: .75rem; color: #888; margin-bottom: 3px; font-weight: 600; }
+.nc-bubble {
+  padding: 9px 13px; border-radius: 14px;
+  font-size: .88rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+}
+.nc-mine  .nc-bubble { background: #1a6b3a; color: #fff; border-bottom-right-radius: 4px; }
+.nc-theirs .nc-bubble { background: #fff; border: 1px solid #ddd; border-bottom-left-radius: 4px; color: #222; }
+.nc-time { font-size: .7rem; color: #aaa; margin-top: 3px; }
+.nc-bar {
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 12px 14px; background: #fff; border-top: 2px solid #e0e0e0;
+}
+.nc-textarea {
+  flex: 1; resize: none; border: 2px solid #d0d0d0;
+  border-radius: 10px; padding: 9px 12px;
+  font-size: .9rem; font-family: inherit; outline: none;
+  transition: border-color .2s; max-height: 120px; overflow-y: auto;
+}
+.nc-textarea:focus { border-color: #1a6b3a; }
+.nc-send-btn { height: 40px; width: 48px; border-radius: 10px; flex-shrink: 0; }
+</style>
+{% endblock %}

@@ -304,6 +304,29 @@ def migrate_db():
     )
     """)
 
+    # شات بين المؤسسات
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS org_messages (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_org_id  INTEGER NOT NULL,
+        to_org_id    INTEGER NOT NULL,
+        sender_id    INTEGER NOT NULL,
+        sender_name  TEXT    NOT NULL,
+        content      TEXT    NOT NULL,
+        created_at   TEXT    DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (from_org_id) REFERENCES organizations(id),
+        FOREIGN KEY (to_org_id)   REFERENCES organizations(id)
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS org_message_reads (
+        user_id      INTEGER NOT NULL,
+        partner_org  INTEGER NOT NULL,
+        last_msg_id  INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, partner_org)
+    )
+    """)
+
     # أعمدة الشات الجديدة (attachment, edited)
     for _col, _def in [("attachment", "TEXT"), ("edited", "INTEGER DEFAULT 0")]:
         try:

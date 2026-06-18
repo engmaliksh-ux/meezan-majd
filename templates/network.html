@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}
+  {% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %} – ميزان مجد
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">
+    <i class="fas fa-network-wired"></i>
+    {% if lang=='en' %}Organization Network
+    {% elif lang=='tr' %}Kuruluş Ağı
+    {% else %}شبكة التواصل بين المؤسسات{% endif %}
+  </h2>
+</div>
+
+<div class="net-search-bar">
+  <i class="fas fa-search"></i>
+  <input type="text" id="search-inp" class="net-search-input"
+    placeholder="{% if lang=='en' %}Search organizations…{% elif lang=='tr' %}Kuruluş ara…{% else %}ابحث عن مؤسسة…{% endif %}"
+    oninput="filterOrgs(this.value)">
+</div>
+
+{% if orgs %}
+<div class="org-grid" id="org-grid">
+  {% for org in orgs %}
+  <a href="{{ url_for('network_chat', partner_id=org.id) }}" class="org-card" data-name="{{ org.name | lower }}">
+    <div class="org-avatar">{{ org.name[0] | upper }}</div>
+    <div class="org-info">
+      <div class="org-name">{{ org.name }}</div>
+      {% if unread.get(org.id, 0) > 0 %}
+      <span class="org-badge">{{ unread[org.id] }}</span>
+      {% endif %}
+    </div>
+    <i class="fas fa-chevron-{% if lang=='ar' %}left{% else %}right{% endif %} org-arrow"></i>
+  </a>
+  {% endfor %}
+</div>
+<div id="no-results" style="display:none; text-align:center; color:#888; padding:40px; font-size:.95rem;">
+  {% if lang=='en' %}No organizations found{% elif lang=='tr' %}Kuruluş bulunamadı{% else %}لا توجد مؤسسات بهذا الاسم{% endif %}
+</div>
+{% else %}
+<div style="text-align:center; color:#888; padding:60px; font-size:.95rem;">
+  <i class="fas fa-building" style="font-size:3rem; margin-bottom:16px; display:block; color:#ccc;"></i>
+  {% if lang=='en' %}No other organizations registered yet
+  {% elif lang=='tr' %}Henüz başka kuruluş yok
+  {% else %}لا توجد مؤسسات أخرى مسجلة حتى الآن{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterOrgs(val) {
+  const q = val.trim().toLowerCase();
+  const cards = document.querySelectorAll('.org-card');
+  let found = 0;
+  cards.forEach(c => {
+    const match = !q || c.dataset.name.includes(q);
+    c.style.display = match ? '' : 'none';
+    if (match) found++;
+  });
+  const nr = document.getElementById('no-results');
+  if (nr) nr.style.display = found === 0 && q ? 'block' : 'none';
+}
+</script>
+
+<style>
+.net-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 2px solid #d0d0d0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 24px;
+  max-width: 480px;
+  transition: border-color .2s;
+}
+.net-search-bar:focus-within { border-color: #1a6b3a; }
+.net-search-bar i { color: #888; }
+.net-search-input {
+  border: none; outline: none; flex: 1;
+  font-size: .95rem; font-family: inherit; background: transparent;
+}
+.org-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+}
+.org-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: #fff;
+  border-radius: 12px;
+  border: 2px solid #e8e8e8;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .1s;
+}
+.org-card:hover {
+  border-color: #1a6b3a;
+  box-shadow: 0 4px 14px rgba(26,107,58,.12);
+  transform: translateX(-2px);
+}
+.org-avatar {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a6b3a, #2e9e5e);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.org-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.org-name { font-weight: 700; font-size: .95rem; }
+.org-badge {
+  background: #c62828;
+  color: #fff;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+.org-arrow { color: #ccc; font-size: .85rem; }
+</style>
+{% endblock %}

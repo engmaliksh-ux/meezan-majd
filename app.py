@@ -2607,6 +2607,170 @@ def messages_clear():
 
 
 # ══════════════════════════════════════════
+# الشبكة — التواصل بين المؤسسات
+# ══════════════════════════════════════════
+
+@app.route("/network")
+@login_required
+def network():
+    if session.get("role") != "admin":
+        flash("غير مصرّح", "danger")
+        return redirect(url_for("dashboard"))
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    # جميع المؤسسات ما عدا المؤسسة الحالية
+    c.execute("SELECT id, name FROM organizations WHERE id != ? ORDER BY name", (org_id,))
+    orgs = c.fetchall()
+    # عدد الرسائل غير المقروءة لكل مؤسسة
+    unread = {}
+    for org in orgs:
+        c.execute("""
+            SELECT COUNT(*) FROM org_messages
+            WHERE to_org_id=? AND from_org_id=?
+              AND id > COALESCE(
+                (SELECT last_msg_id FROM org_message_reads
+                 WHERE user_id=? AND partner_org=?), 0)
+        """, (org_id, org["id"], session["user_id"], org["id"]))
+        unread[org["id"]] = c.fetchone()[0]
+    conn.close()
+    return render_template("network.html", orgs=orgs, unread=unread)
+
+
+@app.route("/network/chat/<int:partner_id>")
+@login_required
+def network_chat(partner_id):
+    if session.get("role") != "admin":
+        flash("غير مصرّح", "danger")
+        return redirect(url_for("dashboard"))
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    conn    = get_connection()
+    c       = conn.cursor()
+    c.execute("SELECT id, name FROM organizations WHERE id=?", (partner_id,))
+    partner = c.fetchone()
+    if not partner:
+        conn.close()
+        flash("المؤسسة غير موجودة", "danger")
+        return redirect(url_for("network"))
+    # جلب الرسائل بين المؤسستين
+    c.execute("""
+        SELECT * FROM org_messages
+        WHERE (from_org_id=? AND to_org_id=?)
+           OR (from_org_id=? AND to_org_id=?)
+        ORDER BY id ASC LIMIT 200
+    """, (org_id, partner_id, partner_id, org_id))
+    messages = c.fetchall()
+    # تحديث آخر قراءة
+    if messages:
+        last_id = messages[-1]["id"]
+        c.execute("""
+            INSERT INTO org_message_reads(user_id, partner_org, last_msg_id)
+            VALUES(?,?,?)
+            ON CONFLICT(user_id, partner_org)
+            DO UPDATE SET last_msg_id=excluded.last_msg_id
+        """, (user_id, partner_id, last_id))
+        conn.commit()
+    conn.close()
+    return render_template("network_chat.html",
+                           partner=partner, messages=messages,
+                           my_org_id=org_id)
+
+
+@app.route("/network/send/<int:partner_id>", methods=["POST"])
+@login_required
+def network_send(partner_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    name    = session.get("name", "")
+    content = request.form.get("content", "").strip()
+    if not content:
+        return jsonify({"ok": False, "msg": "الرسالة فارغة"}), 400
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    conn = get_connection()
+    c    = conn.cursor()
+    # تحقق أن المؤسسة موجودة
+    c.execute("SELECT id FROM organizations WHERE id=?", (partner_id,))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "msg": "مؤسسة غير موجودة"}), 404
+    from datetime import datetime as _dt
+    now = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""
+        INSERT INTO org_messages(from_org_id, to_org_id, sender_id, sender_name, content, created_at)
+        VALUES(?,?,?,?,?,?)
+    """, (org_id, partner_id, user_id, name, content, now))
+    new_id = c.lastrowid
+    # تحديث آخر قراءة للمُرسِل
+    c.execute("""
+        INSERT INTO org_message_reads(user_id, partner_org, last_msg_id)
+        VALUES(?,?,?)
+        ON CONFLICT(user_id, partner_org)
+        DO UPDATE SET last_msg_id=excluded.last_msg_id
+    """, (user_id, partner_id, new_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "msg": {
+        "id": new_id, "from_org_id": org_id,
+        "sender_name": name, "content": content, "created_at": now
+    }})
+
+
+@app.route("/network/poll/<int:partner_id>")
+@login_required
+def network_poll(partner_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    since   = int(request.args.get("since", 0))
+    conn    = get_connection()
+    c       = conn.cursor()
+    c.execute("""
+        SELECT * FROM org_messages
+        WHERE ((from_org_id=? AND to_org_id=?) OR (from_org_id=? AND to_org_id=?))
+          AND id > ?
+        ORDER BY id ASC
+    """, (org_id, partner_id, partner_id, org_id, since))
+    rows = c.fetchall()
+    if rows:
+        c.execute("""
+            INSERT INTO org_message_reads(user_id, partner_org, last_msg_id)
+            VALUES(?,?,?)
+            ON CONFLICT(user_id, partner_org)
+            DO UPDATE SET last_msg_id=excluded.last_msg_id
+        """, (user_id, partner_id, rows[-1]["id"]))
+        conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "messages": [dict(r) for r in rows]})
+
+
+@app.route("/network/unread")
+@login_required
+def network_unread():
+    if session.get("role") != "admin":
+        return jsonify({"count": 0})
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    conn    = get_connection()
+    c       = conn.cursor()
+    c.execute("""
+        SELECT COUNT(*) FROM org_messages m
+        WHERE m.to_org_id = ?
+          AND m.id > COALESCE(
+            (SELECT last_msg_id FROM org_message_reads
+             WHERE user_id=? AND partner_org=m.from_org_id), 0)
+    """, (org_id, user_id))
+    count = c.fetchone()[0]
+    conn.close()
+    return jsonify({"count": count})
+
+
+# ══════════════════════════════════════════
 # التقارير
 # ══════════════════════════════════════════
 
@@ -2820,31 +2984,117 @@ def ai_reports_generate():
             body += f"<h2>{tx['h_stock']}</h2>"
             body += _tbl(h, rows, lambda r:[r["name"] or"", r["unit"] or"", f"{r['qty']:.2f}"])
 
-        pd = "right" if is_rtl else "left"
-        html = f"""<!DOCTYPE html>
-<html lang="{lang}" dir="{dir_attr}">
-<head><meta charset="UTF-8"><title>{title}</title>
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:Arial,'Segoe UI',sans-serif;font-size:12px;color:#222;padding:20px;direction:{dir_attr}}}
-h1{{text-align:center;color:#1a6b3a;font-size:17px;border-bottom:2px solid #1a6b3a;padding-bottom:6px;margin-bottom:4px}}
-.meta{{text-align:center;color:#888;font-size:10px;margin-bottom:18px}}
-h2{{color:#1565c0;font-size:13px;margin:18px 0 6px}}
-table{{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px}}
-th{{background:#1a6b3a;color:#fff;padding:5px 8px;text-align:{th_align}}}
-td{{border:1px solid #ccc;padding:4px 8px}}
-tr:nth-child(even) td{{background:#f5f5f5}}
-.sm{{font-weight:bold;color:#c62828;margin:4px 0 14px;text-align:{'left' if is_rtl else 'right'};font-size:11px}}
-.nd{{color:#888;font-size:11px;margin:6px 0 14px}}
-ol{{padding-{pd}:20px;margin-bottom:14px}}
-@media print{{body{{padding:10px}}}}
-</style></head>
-<body>
-<h1>{org_name} — {title}</h1>
-<div class="meta">{now_str}</div>
-{body}
-<script>window.onload=function(){{window.print();}}</script>
-</body></html>"""
+        # ── بناء HTML للـ PDF ──
+        dir_attr = "rtl" if is_rtl else "ltr"
+        th_align = "right" if is_rtl else "left"
+        sum_align = "left" if is_rtl else "right"
+        ol_pad   = "right" if is_rtl else "left"
+
+        def _tbl(headers, rows, fn):
+            if not rows:
+                return "<p class='nd'>" + tx["no_data"] + "</p>"
+            ths = "".join("<th>" + str(h) + "</th>" for h in headers)
+            trs = ""
+            for r in rows:
+                vals = fn(r)
+                trs += "<tr>" + "".join(
+                    "<td>" + (str(v) if v is not None else "") + "</td>" for v in vals
+                ) + "</tr>"
+            return "<table><thead><tr>" + ths + "</tr></thead><tbody>" + trs + "</tbody></table>"
+
+        body = ""
+
+        if "purchases" in data:
+            h = {"ar":["#","رقم الفاتورة","المورد","التاريخ","الإجمالي","الحالة","الدفع"],
+                 "tr":["#","Fatura No","Tedarikçi","Tarih","Toplam","Durum","Ödeme"],
+                 "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang,[])
+            rows = data["purchases"]
+            body += "<h2>" + tx["h_purchases"] + "</h2>"
+            body += _tbl(h, rows, lambda r:[
+                r["seq_num"] or "", r["invoice_number"] or "", r["supplier"] or "",
+                r["invoice_date"] or "", "%.2f" % r["total"],
+                tx["closed"] if r["is_closed"] else tx["open_"],
+                tx["paid"] if r["is_paid"] else tx["unpaid"]])
+            body += "<p class='sm'>" + tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)) + "</p>"
+
+        if "outgoing" in data:
+            h = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
+                 "tr":["Fatura No","Tarih","Kurum","Toplam","Durum"],
+                 "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang,[])
+            rows = data["outgoing"]
+            body += "<h2>" + tx["h_outgoing"] + "</h2>"
+            body += _tbl(h, rows, lambda r:[
+                r["invoice_number"] or "", r["invoice_date"] or "",
+                r["beneficiary"] or "", "%.2f" % r["total"],
+                tx["closed"] if r["is_closed"] else tx["open_"]])
+            body += "<p class='sm'>" + tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)) + "</p>"
+
+        if "beneficiaries" in data:
+            h = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","عدد الأفراد","النوع"],
+                 "tr":["Ad Soyad","Cinsiyet","Kimlik","Telefon","Durum","Üye Sayısı","Tür"],
+                 "en":["Name","Gender","ID","Phone","Status","Family Size","Type"]}.get(lang,[])
+            rows = data["beneficiaries"]
+            body += "<h2>" + tx["h_beneficiaries"] + "</h2>"
+            body += _tbl(h, rows, lambda r:[
+                r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
+                r["phone"] or "", r["marital_status"] or "",
+                str(r["family_size"] or ""), r["beneficiary_type"] or ""])
+            body += "<p class='sm'>" + tx["count"] + ": " + str(len(rows)) + "</p>"
+
+        if "workers" in data:
+            h = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة","ملاحظات"],
+                 "tr":["Ad","Kimlik","Proje","Görev","Maaş","Notlar"],
+                 "en":["Name","ID","Project","Role","Salary","Notes"]}.get(lang,[])
+            rows = data["workers"]
+            body += "<h2>" + tx["h_workers"] + "</h2>"
+            body += _tbl(h, rows, lambda r:[
+                r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
+                r["job_type"] or "",
+                ("%.2f" % r["monthly_salary"]) if r["monthly_salary"] else "0.00",
+                r["notes"] or ""])
+            body += "<p class='sm'>" + tx["total"] + ": " + ("%.2f" % sum((r["monthly_salary"] or 0) for r in rows)) + "</p>"
+
+        if "programs" in data:
+            rows = data["programs"]
+            body += "<h2>" + tx["h_programs"] + "</h2><ol>"
+            for r in rows:
+                body += "<li>" + r["name"] + "</li>"
+            body += "</ol>"
+
+        if "stock" in data:
+            h = {"ar":["الصنف","الوحدة","الكمية المتاحة"],
+                 "tr":["Ürün","Birim","Mevcut Miktar"],
+                 "en":["Item","Unit","Available Qty"]}.get(lang,[])
+            rows = data["stock"]
+            body += "<h2>" + tx["h_stock"] + "</h2>"
+            body += _tbl(h, rows, lambda r:[r["name"] or "", r["unit"] or "", "%.2f" % r["qty"]])
+
+        css = (
+            "*{box-sizing:border-box;margin:0;padding:0}"
+            "body{font-family:Arial,sans-serif;font-size:12px;color:#222;padding:20px;direction:" + dir_attr + "}"
+            "h1{text-align:center;color:#1a6b3a;font-size:17px;border-bottom:2px solid #1a6b3a;padding-bottom:6px;margin-bottom:4px}"
+            ".meta{text-align:center;color:#888;font-size:10px;margin-bottom:18px}"
+            "h2{color:#1565c0;font-size:13px;margin:18px 0 6px}"
+            "table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px}"
+            "th{background:#1a6b3a;color:#fff;padding:5px 8px;text-align:" + th_align + "}"
+            "td{border:1px solid #ccc;padding:4px 8px}"
+            "tr:nth-child(even) td{background:#f5f5f5}"
+            ".sm{font-weight:bold;color:#c62828;margin:4px 0 14px;text-align:" + sum_align + ";font-size:11px}"
+            ".nd{color:#888;font-size:11px;margin:6px 0 14px}"
+            "ol{padding-" + ol_pad + ":20px;margin-bottom:14px}"
+            "@media print{body{padding:10px}}"
+        )
+        html = (
+            '<!DOCTYPE html><html lang="' + lang + '" dir="' + dir_attr + '">'
+            '<head><meta charset="UTF-8"><title>' + title + '</title>'
+            '<style>' + css + '</style></head>'
+            '<body>'
+            '<h1>' + org_name + ' — ' + title + '</h1>'
+            '<div class="meta">' + now_str + '</div>'
+            + body +
+            '<script>window.onload=function(){window.print();}</script>'
+            '</body></html>'
+        )
         from flask import Response
         return Response(html, mimetype="text/html; charset=utf-8")
 
@@ -2857,14 +3107,14 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from flask import send_file
     except ImportError as e:
-        return jsonify({"ok": False, "msg": f"python-docx missing: {e}"}), 500
+        return jsonify({"ok": False, "msg": "python-docx missing: " + str(e)}), 500
 
     doc = Document()
     for sec in doc.sections:
         sec.top_margin = sec.bottom_margin = Cm(1.5)
         sec.left_margin = sec.right_margin = Cm(2)
 
-    h0 = doc.add_heading(f"{org_name} — {title}", 0)
+    h0 = doc.add_heading(org_name + " — " + title, 0)
     h0.alignment = WD_ALIGN_PARAGRAPH.CENTER
     mp = doc.add_paragraph(now_str)
     mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -2898,11 +3148,11 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
              "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang,[])
         rows = data["purchases"]
         _wtbl(tx["h_purchases"], h, rows,
-              lambda r:[r["seq_num"] or"", r["invoice_number"] or"", r["supplier"] or"",
-                        r["invoice_date"] or"", f"{r['total']:.2f}",
+              lambda r:[r["seq_num"] or "", r["invoice_number"] or "", r["supplier"] or "",
+                        r["invoice_date"] or "", "%.2f" % r["total"],
                         tx["closed"] if r["is_closed"] else tx["open_"],
                         tx["paid"] if r["is_paid"] else tx["unpaid"]],
-              f"{tx['total']}: {sum(r['total'] for r in rows):.2f}")
+              tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)))
 
     if "outgoing" in data:
         h = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
@@ -2910,10 +3160,10 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
              "en":["Invoice No","Date","Beneficiary","Total","Status"]}.get(lang,[])
         rows = data["outgoing"]
         _wtbl(tx["h_outgoing"], h, rows,
-              lambda r:[r["invoice_number"] or"", r["invoice_date"] or"",
-                        r["beneficiary"] or"", f"{r['total']:.2f}",
+              lambda r:[r["invoice_number"] or "", r["invoice_date"] or "",
+                        r["beneficiary"] or "", "%.2f" % r["total"],
                         tx["closed"] if r["is_closed"] else tx["open_"]],
-              f"{tx['total']}: {sum(r['total'] for r in rows):.2f}")
+              tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)))
 
     if "beneficiaries" in data:
         h = {"ar":["الاسم","الجنس","رقم الهوية","الجوال","الحالة","عدد الأفراد","النوع"],
@@ -2921,10 +3171,10 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
              "en":["Name","Gender","ID","Phone","Status","Family Size","Type"]}.get(lang,[])
         rows = data["beneficiaries"]
         _wtbl(tx["h_beneficiaries"], h, rows,
-              lambda r:[r["full_name"] or"", r["gender"] or"", r["id_number"] or"",
-                        r["phone"] or"", r["marital_status"] or"",
-                        str(r["family_size"] or""), r["beneficiary_type"] or""],
-              f"{tx['count']}: {len(rows)}")
+              lambda r:[r["full_name"] or "", r["id_number"] or "", r["gender"] or "",
+                        r["phone"] or "", r["marital_status"] or "",
+                        str(r["family_size"] or ""), r["beneficiary_type"] or ""],
+              tx["count"] + ": " + str(len(rows)))
 
     if "workers" in data:
         h = {"ar":["الاسم","رقم الهوية","المشروع","طبيعة العمل","المكافأة","ملاحظات"],
@@ -2932,17 +3182,17 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
              "en":["Name","ID","Project","Role","Salary","Notes"]}.get(lang,[])
         rows = data["workers"]
         _wtbl(tx["h_workers"], h, rows,
-              lambda r:[r["full_name"] or"", r["id_number"] or"", r["project_name"] or"",
-                        r["job_type"] or"",
-                        f"{r['monthly_salary']:.2f}" if r["monthly_salary"] else "0.00",
-                        r["notes"] or""],
-              f"{tx['total']}: {sum((r['monthly_salary'] or 0) for r in rows):.2f}")
+              lambda r:[r["full_name"] or "", r["id_number"] or "", r["project_name"] or "",
+                        r["job_type"] or "",
+                        ("%.2f" % r["monthly_salary"]) if r["monthly_salary"] else "0.00",
+                        r["notes"] or ""],
+              tx["total"] + ": " + ("%.2f" % sum((r["monthly_salary"] or 0) for r in rows)))
 
     if "programs" in data:
         rows = data["programs"]
         doc.add_heading(tx["h_programs"], 1)
         for i, row in enumerate(rows, 1):
-            doc.add_paragraph(f"{i}. {row['name']}")
+            doc.add_paragraph(str(i) + ". " + row["name"])
         doc.add_paragraph()
 
     if "stock" in data:
@@ -2951,12 +3201,13 @@ ol{{padding-{pd}:20px;margin-bottom:14px}}
              "en":["Item","Unit","Available Qty"]}.get(lang,[])
         rows = data["stock"]
         _wtbl(tx["h_stock"], h, rows,
-              lambda r:[r["name"] or"", r["unit"] or"", f"{r['qty']:.2f}"])
+              lambda r:[r["name"] or "", r["unit"] or "", "%.2f" % r["qty"]])
 
-    buf = io.BytesIO()
+    import io as _io
+    buf = _io.BytesIO()
     doc.save(buf)
     buf.seek(0)
-    fname = f"report_{rtype}_{_dt.now().strftime('%Y%m%d_%H%M')}.docx"
+    fname = "report_" + rtype + "_" + _dt.now().strftime("%Y%m%d_%H%M") + ".docx"
     return send_file(buf, as_attachment=True, download_name=fname,
                      mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
