@@ -385,7 +385,7 @@ document.addEventListener('click', function() {
 <style>
 /* ═══ FAB ═══ */
 #chat-fab {
-  position:fixed; bottom:22px; right:22px;
+  position:fixed; bottom:22px; left:22px;
   width:54px; height:54px; border-radius:50%;
   background:#1a6b3a; color:#fff;
   display:flex; align-items:center; justify-content:center;
@@ -404,7 +404,7 @@ document.addEventListener('click', function() {
 
 /* ═══ Panel ═══ */
 .cp-panel {
-  position:fixed; bottom:86px; right:22px;
+  position:fixed; bottom:86px; left:22px;
   width:330px; border-radius:16px;
   box-shadow:0 8px 40px rgba(0,0,0,.26);
   background:#fff; display:flex; flex-direction:column;
@@ -504,9 +504,7 @@ document.addEventListener('click', function() {
 .cp-send { color:#1a6b3a; }
 .cp-send:hover { background:#e8f5ee; }
 
-/* RTL في العربي */
-html[dir="rtl"] #chat-fab  { right:auto; left:22px; }
-html[dir="rtl"] .cp-panel  { right:auto; left:22px; }
+/* الـ widget دائماً في الشمال بغض النظر عن RTL/LTR */
 </style>
 
 <script>
@@ -675,16 +673,16 @@ async function cpSend(){
   } catch(e){}
 }
 
-function cpKeydown(e){
+window.cpKeydown = function(e){
   if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); cpSend(); }
-}
-function cpAutoResize(ta){
+};
+window.cpAutoResize = function(ta){
   ta.style.height='auto';
   ta.style.height = Math.min(ta.scrollHeight, 80)+'px';
-}
+};
 
 /* ─── File attach ───────────────────── */
-function cpFileChosen(e){
+window.cpFileChosen = function(e){
   const f = e.target.files[0];
   if(!f) return;
   cpPendingFile = f;
@@ -699,7 +697,7 @@ window.cpClearFile = function(){
 };
 
 /* ─── Edit ──────────────────────────── */
-function cpEditStart(id){
+window.cpEditStart = function(id){
   const el = document.getElementById('cpt-'+id);
   if(!el) return;
   const orig = el.dataset.orig || el.textContent;
@@ -733,7 +731,7 @@ async function cpEditSave(id, txt){
 }
 
 /* ─── Delete ────────────────────────── */
-async function cpDel(id){
+window.cpDel = async function(id){
   const fd = new FormData();
   fd.append('_csrf_token', CP_CSRF);
   const r = await fetch(`/messages/${id}/delete`,{method:'POST',body:fd});
@@ -783,7 +781,7 @@ function cpShowTr(id, translated, original){
   el.dataset.show = 'tr';
   el.innerHTML = cpEsc(translated)+`<span class="cp-tr-badge" onclick="cpToggleTr(${id})">🌐</span>`;
 }
-function cpToggleTr(id){
+window.cpToggleTr = function(id){
   const el = document.getElementById('cpt-'+id);
   if(!el || !el.dataset.tr) return;
   if(el.dataset.show === 'tr'){
@@ -794,7 +792,7 @@ function cpToggleTr(id){
     el.dataset.show = 'tr';
   }
 }
-async function cpManualTr(id){
+window.cpManualTr = async function(id){
   const el = document.getElementById('cpt-'+id);
   if(!el) return;
   if(el.dataset.tr){ cpToggleTr(id); return; }
@@ -827,6 +825,19 @@ async function cpBadge(){
     if(sb){ sb.style.display= d.count>0?'':'none'; if(d.count>0) sb.textContent=d.count; }
   } catch(e){}
 }
+// poll خفيف حتى لما الـ panel مغلق — يحدّث الـ badge
+async function cpBgPoll(){
+  if(cpState === 'open') return;  // الـ poll الرئيسي يتكفّل
+  try {
+    const r = await fetch('/messages/poll?last='+cpLastId);
+    const d = await r.json();
+    if(d.ok && d.messages?.length){
+      d.messages.forEach(m => { cpLastId = Math.max(cpLastId, m.id); });
+    }
+  } catch(e){}
+  cpBadge();
+}
+setInterval(cpBgPoll, 10000);
 setInterval(cpBadge, 10000);
 cpBadge();
 
