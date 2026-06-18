@@ -644,6 +644,84 @@ def change_password():
     return render_template("change_password.html", error=error, success=success)
 
 
+@app.route("/delete_account", methods=["POST"])
+@login_required
+def delete_account():
+    """حذف الحساب — الأدمن يحذف المؤسسة كاملة مع جميع بياناتها"""
+    if session.get("role") != "admin":
+        return jsonify({"ok": False, "err": "forbidden"}), 403
+
+    password = request.form.get("password", "")
+    org_id   = session["org_id"]
+    user_id  = session["user_id"]
+
+    conn = get_connection()
+    c    = conn.cursor()
+    try:
+        # تحقق من كلمة السر
+        c.execute("SELECT password FROM users WHERE id=?", (user_id,))
+        row = c.fetchone()
+        if not row or not check_password_hash(row["password"], password):
+            conn.close()
+            return jsonify({"ok": False, "err": "wrong_password"}), 400
+
+        # ── حذف جميع بيانات المؤسسة ──────────────────────────
+        # message_reads لمستخدمي المؤسسة
+        c.execute("SELECT id FROM users WHERE org_id=?", (org_id,))
+        user_ids = [r["id"] for r in c.fetchall()]
+        if user_ids:
+            placeholders = ",".join("?" * len(user_ids))
+            c.execute(f"DELETE FROM message_reads WHERE user_id IN ({placeholders})", user_ids)
+            c.execute(f"DELETE FROM org_message_reads WHERE user_id IN ({placeholders})", user_ids)
+
+        # بنود الفواتير (لا تحتوي org_id مباشرة)
+        c.execute("SELECT id FROM incoming_invoices WHERE org_id=?", (org_id,))
+        inv_ids = [r["id"] for r in c.fetchall()]
+        if inv_ids:
+            placeholders = ",".join("?" * len(inv_ids))
+            c.execute(f"DELETE FROM incoming_invoice_items WHERE invoice_id IN ({placeholders})", inv_ids)
+
+        c.execute("SELECT id FROM outgoing_invoices WHERE org_id=?", (org_id,))
+        out_ids = [r["id"] for r in c.fetchall()]
+        if out_ids:
+            placeholders = ",".join("?" * len(out_ids))
+            c.execute(f"DELETE FROM outgoing_invoice_items WHERE invoice_id IN ({placeholders})", out_ids)
+
+        # الجداول ذات org_id مباشرة
+        for table in [
+            "program_records", "beneficiaries", "programs", "workers",
+            "products", "stock_batches",
+            "incoming_invoices", "outgoing_invoices",
+            "messages",
+        ]:
+            c.execute(f"DELETE FROM {table} WHERE org_id=?", (org_id,))
+
+        # رسائل شبكة التواصل (from أو to)
+        c.execute("DELETE FROM org_messages WHERE from_org_id=? OR to_org_id=?", (org_id, org_id))
+
+        # طلبات مشاركة المستفيدين
+        c.execute("DELETE FROM beneficiary_share_requests WHERE requester_org_id=? OR owner_org_id=?", (org_id, org_id))
+
+        # المستخدمون ثم المؤسسة
+        c.execute("DELETE FROM users WHERE org_id=?", (org_id,))
+        c.execute("DELETE FROM organizations WHERE id=?", (org_id,))
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"ok": False, "err": str(e)}), 500
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    # تسجيل الخروج
+    session.clear()
+    return jsonify({"ok": True})
+
+
 # ══════════════════════════════════════════
 # صفحة المراقب العام
 # ══════════════════════════════════════════
@@ -2546,6 +2624,27 @@ def messages_delete(msg_id):
     return {"ok": True}
 
 
+@app.route("/messages/clear", methods=["POST"])
+@login_required
+def messages_clear():
+    if not _chat_allowed():
+        return jsonify({"ok": False}), 403
+    user_id = session["user_id"]
+    org_id  = session["org_id"]
+    role    = session.get("role", "")
+    conn = get_connection()
+    c    = conn.cursor()
+    if role == "admin":
+        # الأدمن يمسح كل رسائل المؤسسة
+        c.execute("DELETE FROM messages WHERE org_id=?", (org_id,))
+    else:
+        # غيره يمسح رسائله هو فقط
+        c.execute("DELETE FROM messages WHERE org_id=? AND sender_id=?", (org_id, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/translate", methods=["POST"])
 @login_required
 def translate_text():
@@ -2932,6 +3031,50 @@ def network_send(partner_id):
         "id": new_id, "from_org_id": org_id,
         "sender_name": name, "content": content, "created_at": now
     }})
+
+
+@app.route("/network/delete_msg/<int:msg_id>", methods=["POST"])
+@login_required
+def network_delete_msg(msg_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    # يسمح فقط لمن أرسل الرسالة (من مؤسسته)
+    c.execute("SELECT from_org_id FROM org_messages WHERE id=?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["from_org_id"] != org_id:
+        conn.close()
+        return jsonify({"ok": False, "msg": "غير مصرّح"}), 403
+    c.execute("DELETE FROM org_messages WHERE id=?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/network/clear/<int:partner_id>", methods=["POST"])
+@login_required
+def network_clear(partner_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    # يحذف فقط رسائل مؤسسته في هذه المحادثة
+    c.execute("""
+        DELETE FROM org_messages
+        WHERE from_org_id=? AND to_org_id=?
+    """, (org_id, partner_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/network/poll/<int:partner_id>")

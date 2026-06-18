@@ -414,6 +414,9 @@ document.addEventListener('click', function() {
       <span id="cp-online-dot" style="width:8px;height:8px;border-radius:50%;background:#4caf50;flex-shrink:0;margin-inline-start:6px;display:none"></span>
     </div>
     <div class="cp-ctrl" onclick="event.stopPropagation()">
+      <button class="cp-btn" onclick="cpClear()" title="{% if lang=='en' %}Clear chat history{% elif lang=='tr' %}Geçmişi temizle{% else %}مسح سجل الشات{% endif %}" style="color:#e57373;">
+        <i class="fas fa-trash-alt"></i>
+      </button>
       <button class="cp-btn" id="cp-min-btn" onclick="chatMinimize()" title="تصغير">－</button>
       <button class="cp-btn" onclick="chatClose()" title="إغلاق">✕</button>
     </div>
@@ -671,6 +674,7 @@ function cpEsc(s){ const d=document.createElement('div'); d.textContent=s; retur
 function cpTime(ts){ return (ts||'').slice(-5); }
 
 function cpRender(m, scroll){
+  if(document.querySelector(`.cpmsg[data-id="${m.id}"]`)) return; // منع التكرار
   const isMine = m.sender_id === CP_MY_ID;
   const box    = document.getElementById('cp-msgs');
 
@@ -803,6 +807,23 @@ window.cpDel = async function(id){
   const r = await fetch(`/messages/${id}/delete`,{method:'POST',body:fd});
   const d = await r.json();
   if(d.ok){ const el=document.querySelector(`.cpmsg[data-id="${id}"]`); if(el) el.remove(); }
+}
+
+window.cpClear = async function(){
+  const confirmMsg = CP_MY_ROLE === 'admin'
+    ? "{% if lang=='en' %}Delete ALL messages in this chat?{% elif lang=='tr' %}Bu sohbetteki TÜM mesajlar silinsin mi?{% else %}مسح جميع رسائل الشات؟{% endif %}"
+    : "{% if lang=='en' %}Delete all YOUR messages?{% elif lang=='tr' %}Tüm mesajlarınız silinsin mi?{% else %}مسح جميع رسائلك؟{% endif %}";
+  if (!confirm(confirmMsg)) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', CP_CSRF);
+  try {
+    const r = await fetch('/messages/clear', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('cp-msgs').innerHTML = '';
+      cpLastId = 0; cpLastRendered = 0;
+    }
+  } catch(e) {}
 }
 
 /* ─── Translation (tied to page lang) ─ */

@@ -7,7 +7,12 @@
     <i class="fas fa-arrow-{% if lang=='ar' %}right{% else %}left{% endif %}"></i>
   </a>
   <div class="nc-avatar">{{ partner.name[0] | upper }}</div>
-  <h2 class="page-title" style="margin:0;">{{ partner.name }}</h2>
+  <h2 class="page-title" style="margin:0; flex:1;">{{ partner.name }}</h2>
+  <button class="btn btn-sm btn-outline-danger" onclick="clearHistory()"
+          title="{% if lang=='en' %}Clear my messages{% elif lang=='tr' %}Mesajlarımı sil{% else %}مسح رسائلي{% endif %}">
+    <i class="fas fa-trash-alt me-1"></i>
+    {% if lang=='en' %}Clear History{% elif lang=='tr' %}Geçmişi Temizle{% else %}مسح السجل{% endif %}
+  </button>
 </div>
 
 <div class="nc-wrapper">
@@ -18,8 +23,15 @@
       {% if not is_mine %}
       <div class="nc-sender">{{ m.sender_name }}</div>
       {% endif %}
-      <div class="nc-bubble">{{ m.content }}</div>
-      <div class="nc-time">{{ m.created_at[11:16] }}</div>
+      <div class="nc-bubble"><span class="nctxt" id="nct-{{ m.id }}">{{ m.content }}</span></div>
+      <div class="nc-time">
+        {{ m.created_at[11:16] }}
+        {% if is_mine %}
+        <button class="nc-del-btn" onclick="deleteMsg({{ m.id }}, this)" title="{% if lang=='en' %}Delete{% elif lang=='tr' %}Sil{% else %}حذف{% endif %}">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        {% endif %}
+      </div>
     </div>
     {% endfor %}
   </div>
@@ -42,25 +54,128 @@ const NC_MY_ORG   = {{ my_org_id }};
 const CSRF_TOKEN  = "{{ csrf_token() }}";
 let   ncLastId    = {{ messages[-1].id if messages else 0 }};
 
-// تمرير للأسفل عند التحميل
+// تمرير للأسفل عند التحميل + ترجمة تلقائية
 window.addEventListener('DOMContentLoaded', () => {
   const log = document.getElementById('nc-log');
   log.scrollTop = log.scrollHeight;
+  setTimeout(ncAutoTr, 800);
 });
 
+const DEL_LABEL = "{% if lang=='en' %}Delete{% elif lang=='tr' %}Sil{% else %}حذف{% endif %}";
+const CONFIRM_CLEAR = "{% if lang=='en' %}Delete all YOUR messages in this chat?{% elif lang=='tr' %}Bu sohbetteki tüm mesajlarınız silinsin mi?{% else %}مسح جميع رسائلك في هذه المحادثة؟{% endif %}";
+const CONFIRM_DEL   = "{% if lang=='en' %}Delete this message?{% elif lang=='tr' %}Bu mesaj silinsin mi?{% else %}حذف هذه الرسالة؟{% endif %}";
+
+// ── Translation ──────────────────────────────────────────
+const NC_LANG   = "{{ lang }}";
+const NC_TGT    = NC_LANG === 'tr' ? 'tr' : NC_LANG === 'en' ? 'en' : 'ar';
+let ncTrCache   = {};
+const ncTrQueue = [];
+let ncTrBusy    = false;
+
+function ncEsc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function ncQueueTr(id, text){
+  if(!text || ncTrCache[id]) return;
+  if(ncTrQueue.find(x=>x.id==id)) return;
+  ncTrQueue.push({id,text});
+  if(!ncTrBusy) ncRunTr();
+}
+async function ncRunTr(){
+  ncTrBusy = true;
+  while(ncTrQueue.length){
+    const j = ncTrQueue.shift();
+    await ncDoTr(j.id, j.text);
+    if(ncTrQueue.length) await new Promise(r=>setTimeout(r,450));
+  }
+  ncTrBusy = false;
+}
+async function ncDoTr(id, text){
+  if(ncTrCache[id]) return;
+  try {
+    const r = await fetch('/translate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
+      body: JSON.stringify({text, dst: NC_TGT})
+    });
+    if(!r.ok) return;
+    const j = await r.json();
+    if(!j.ok || j.same || !j.translated) return;
+    ncTrCache[id] = {orig:text, tr:j.translated};
+    ncShowTr(id, j.translated, text);
+  } catch(e){}
+}
+function ncShowTr(id, translated, original){
+  const el = document.getElementById('nct-'+id);
+  if(!el) return;
+  el.dataset.orig = original;
+  el.dataset.tr   = translated;
+  el.dataset.show = 'tr';
+  el.innerHTML = ncEsc(translated)+`<span class="nc-tr-badge" onclick="ncToggleTr(${id})">🌐</span>`;
+}
+window.ncToggleTr = function(id){
+  const el = document.getElementById('nct-'+id);
+  if(!el || !el.dataset.tr) return;
+  if(el.dataset.show==='tr'){
+    el.innerHTML = ncEsc(el.dataset.orig)+`<span class="nc-tr-badge" onclick="ncToggleTr(${id})">🌐</span>`;
+    el.dataset.show='orig';
+  } else {
+    el.innerHTML = ncEsc(el.dataset.tr)+`<span class="nc-tr-badge" onclick="ncToggleTr(${id})">🌐</span>`;
+    el.dataset.show='tr';
+  }
+}
+function ncAutoTr(){
+  document.querySelectorAll('.nc-theirs').forEach(el=>{
+    const id = el.dataset.id;
+    const t  = document.getElementById('nct-'+id);
+    if(t && t.textContent.trim()) ncQueueTr(id, t.textContent.trim());
+  });
+}
+// ─────────────────────────────────────────────────────────
+
 function ncAppend(m) {
-  if (document.querySelector(`[data-id="${m.id}"]`)) return; // منع التكرار
-  const log   = document.getElementById('nc-log');
+  if (document.querySelector(`[data-id="${m.id}"]`)) return;
+  const log    = document.getElementById('nc-log');
   const isMine = m.from_org_id === NC_MY_ORG;
-  const div   = document.createElement('div');
+  const div    = document.createElement('div');
   div.className = 'nc-msg ' + (isMine ? 'nc-mine' : 'nc-theirs');
   div.dataset.id = m.id;
   div.innerHTML = `
     ${!isMine ? `<div class="nc-sender">${m.sender_name}</div>` : ''}
-    <div class="nc-bubble">${m.content.replace(/</g,'&lt;')}</div>
-    <div class="nc-time">${m.created_at.slice(11,16)}</div>`;
+    <div class="nc-bubble"><span class="nctxt" id="nct-${m.id}">${ncEsc(m.content)}</span></div>
+    <div class="nc-time">
+      ${m.created_at.slice(11,16)}
+      ${isMine ? `<button class="nc-del-btn" onclick="deleteMsg(${m.id},this)" title="${DEL_LABEL}"><i class="fas fa-trash-alt"></i></button>` : ''}
+    </div>`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
+  if(!isMine && m.content) ncQueueTr(m.id, m.content);
+}
+
+async function deleteMsg(id, btn) {
+  if (!confirm(CONFIRM_DEL)) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', CSRF_TOKEN);
+  try {
+    const res = await fetch(`/network/delete_msg/${id}`, { method:'POST', body:fd });
+    const j   = await res.json();
+    if (j.ok) {
+      const el = document.querySelector(`[data-id="${id}"]`);
+      if (el) el.remove();
+    }
+  } catch(e) {}
+}
+
+async function clearHistory() {
+  if (!confirm(CONFIRM_CLEAR)) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', CSRF_TOKEN);
+  try {
+    const res = await fetch(`/network/clear/${NC_PARTNER}`, { method:'POST', body:fd });
+    const j   = await res.json();
+    if (j.ok) {
+      document.querySelectorAll('.nc-mine').forEach(el => el.remove());
+    }
+  } catch(e) {}
 }
 
 async function ncSend() {
@@ -138,7 +253,19 @@ setInterval(ncPoll, 5000);
 }
 .nc-mine  .nc-bubble { background: #1a6b3a; color: #fff; border-bottom-right-radius: 4px; }
 .nc-theirs .nc-bubble { background: #fff; border: 1px solid #ddd; border-bottom-left-radius: 4px; color: #222; }
-.nc-time { font-size: .7rem; color: #aaa; margin-top: 3px; }
+.nc-time { font-size: .7rem; color: #aaa; margin-top: 3px; display:flex; align-items:center; gap:6px; }
+.nc-del-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  color: #ccc; font-size: .65rem; line-height: 1;
+  opacity: 0; transition: opacity .2s, color .15s;
+}
+.nc-msg:hover .nc-del-btn { opacity: 1; }
+.nc-del-btn:hover { color: #c62828; }
+.nc-tr-badge {
+  font-size: .72rem; cursor: pointer; margin-inline-start: 4px;
+  opacity: .7; user-select: none;
+}
+.nc-tr-badge:hover { opacity: 1; }
 .nc-bar {
   display: flex; align-items: flex-end; gap: 8px;
   padding: 12px 14px; background: #fff; border-top: 2px solid #e0e0e0;
