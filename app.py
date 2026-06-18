@@ -2700,8 +2700,8 @@ def ai_reports_generate():
     if rtype in ("beneficiaries","summary"):
         c.execute("""
             SELECT full_name, gender, id_number, phone,
-                   marital_status, family_members, children_count,
-                   benef_type, notes
+                   marital_status, family_size, children_count,
+                   beneficiary_type, notes
             FROM beneficiaries WHERE org_id=? ORDER BY id
         """, (org_id,))
         rows_data["beneficiaries"] = c.fetchall()
@@ -2717,8 +2717,7 @@ def ai_reports_generate():
     if rtype in ("stock","summary"):
         c.execute("""
             SELECT p.name, p.unit,
-                   COALESCE(SUM(sb.quantity_remaining),0) as qty,
-                   p.last_price
+                   COALESCE(SUM(sb.quantity_remaining),0) as qty
             FROM products p
             LEFT JOIN stock_batches sb ON sb.product_id=p.id AND sb.org_id=p.org_id
             WHERE p.org_id=?
@@ -2835,7 +2834,7 @@ def ai_reports_generate():
             hdrs, rows_list,
             lambda r: [r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
                        r["phone"] or "", r["marital_status"] or "",
-                       r["family_members"] or "", r["benef_type"] or ""],
+                       str(r["family_size"] or ""), r["beneficiary_type"] or ""],
             f"{'العدد الكلي' if lang=='ar' else ('Toplam' if lang=='tr' else 'Total')}: {len(rows_list)}"
         )
 
@@ -2865,16 +2864,14 @@ def ai_reports_generate():
 
     # ── مخزون ──
     if "stock" in rows_data:
-        hdrs = {"ar":["الصنف","الوحدة","الكمية المتاحة","آخر سعر"],
-                "tr":["Ürün","Birim","Mevcut Miktar","Son Fiyat"],
-                "en":["Item","Unit","Available Qty","Last Price"]}.get(lang)
+        hdrs = {"ar":["الصنف","الوحدة","الكمية المتاحة"],
+                "tr":["Ürün","Birim","Mevcut Miktar"],
+                "en":["Item","Unit","Available Qty"]}.get(lang)
         rows_list = rows_data["stock"]
         _add_section(
             {"ar":"المخزون","tr":"Stok","en":"Stock"}.get(lang,""),
             hdrs, rows_list,
-            lambda r: [r["name"] or "", r["unit"] or "",
-                       f"{r['qty']:.2f}",
-                       f"{r['last_price']:.2f}" if r["last_price"] else "0.00"]
+            lambda r: [r["name"] or "", r["unit"] or "", f"{r['qty']:.2f}"]
         )
 
     # ── حفظ Word ──
@@ -2935,7 +2932,7 @@ def ai_reports_generate():
             sections_html += _html_table(hdrs, rl, lambda r: [
                 r["full_name"] or "", r["gender"] or "", r["id_number"] or "",
                 r["phone"] or "", r["marital_status"] or "",
-                r["family_members"] or "", r["benef_type"] or ""])
+                str(r["family_size"] or ""), r["beneficiary_type"] or ""])
             sections_html += f'<p class="total">{"العدد" if lang=="ar" else "Total"}: {len(rl)}</p>'
 
         if "workers" in rows_data:
@@ -2957,14 +2954,13 @@ def ai_reports_generate():
             sections_html += "</ol>"
 
         if "stock" in rows_data:
-            hdrs = {"ar":["الصنف","الوحدة","الكمية","آخر سعر"],
-                    "tr":["Ürün","Birim","Miktar","Son Fiyat"],
-                    "en":["Item","Unit","Qty","Last Price"]}.get(lang,[])
+            hdrs = {"ar":["الصنف","الوحدة","الكمية"],
+                    "tr":["Ürün","Birim","Miktar"],
+                    "en":["Item","Unit","Qty"]}.get(lang,[])
             rl = rows_data["stock"]
             sections_html += f'<h2>{"المخزون" if lang=="ar" else "Stock"}</h2>'
             sections_html += _html_table(hdrs, rl, lambda r: [
-                r["name"] or "", r["unit"] or "",
-                f"{r['qty']:.2f}", f"{r['last_price']:.2f}" if r["last_price"] else "0.00"])
+                r["name"] or "", r["unit"] or "", f"{r['qty']:.2f}"])
 
         html_content = f"""<!DOCTYPE html>
 <html lang="{lang}" dir="{dir_attr}">
