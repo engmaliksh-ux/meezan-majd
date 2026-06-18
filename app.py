@@ -2624,27 +2624,6 @@ def messages_delete(msg_id):
     return {"ok": True}
 
 
-@app.route("/messages/clear", methods=["POST"])
-@login_required
-def messages_clear():
-    if not _chat_allowed():
-        return jsonify({"ok": False}), 403
-    user_id = session["user_id"]
-    org_id  = session["org_id"]
-    role    = session.get("role", "")
-    conn = get_connection()
-    c    = conn.cursor()
-    if role == "admin":
-        # الأدمن يمسح كل رسائل المؤسسة
-        c.execute("DELETE FROM messages WHERE org_id=?", (org_id,))
-    else:
-        # غيره يمسح رسائله هو فقط
-        c.execute("DELETE FROM messages WHERE org_id=? AND sender_id=?", (org_id, user_id))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
-
-
 @app.route("/translate", methods=["POST"])
 @login_required
 def translate_text():
