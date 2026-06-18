@@ -649,7 +649,7 @@ function cpScrollEnd(){
 }
 
 /* ─── Send ──────────────────────────── */
-async function cpSend(){
+window.cpSend = async function(){
   const inp  = document.getElementById('cp-inp');
   const text = inp.value.trim();
   if(!text && !cpPendingFile) return;
