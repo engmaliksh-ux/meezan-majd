@@ -829,16 +829,9 @@ async function cpBadge(){
     if(sb){ sb.style.display= d.count>0?'':'none'; if(d.count>0) sb.textContent=d.count; }
   } catch(e){}
 }
-// poll خفيف حتى لما الـ panel مغلق — يحدّث الـ badge
-async function cpBgPoll(){
-  if(cpState === 'open') return;  // الـ poll الرئيسي يتكفّل
-  try {
-    const r = await fetch('/messages/poll?last='+cpLastId);
-    const d = await r.json();
-    if(d.ok && d.messages?.length){
-      d.messages.forEach(m => { cpLastId = Math.max(cpLastId, m.id); });
-    }
-  } catch(e){}
+// badge poll فقط — لا نعلّم الرسائل مقروءة إلا لما الـ panel مفتوح
+function cpBgPoll(){
+  if(cpState === 'open') return;
   cpBadge();
 }
 setInterval(cpBgPoll, 10000);
