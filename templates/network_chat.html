@@ -49,6 +49,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function ncAppend(m) {
+  if (document.querySelector(`[data-id="${m.id}"]`)) return; // منع التكرار
   const log   = document.getElementById('nc-log');
   const isMine = m.from_org_id === NC_MY_ORG;
   const div   = document.createElement('div');
