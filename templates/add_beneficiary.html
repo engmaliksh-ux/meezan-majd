@@ -265,26 +265,40 @@ function toggleType() {
 // ── كشف التكرار بين المؤسسات ──
 let _dupBeneficiaryId = null;
 
+function _doSubmit() {
+  document.querySelector('form').submit();
+}
+
 async function checkBeforeSubmit() {
-  const name   = document.querySelector('[name=full_name]').value.trim();
-  const idNum  = document.querySelector('[name=id_number]').value.trim();
-  if (!name || !idNum) {
-    document.querySelector('form').submit();
-    return;
-  }
   try {
-    const res = await fetch('/beneficiaries/check_duplicate?name=' +
-      encodeURIComponent(name) + '&id_number=' + encodeURIComponent(idNum));
-    const d = await res.json();
-    if (d.found) {
-      _dupBeneficiaryId = d.beneficiary_id;
-      const msgs = {
-        ar: `هذا المستفيد (<b>${name}</b> — ${idNum}) مسجل بالفعل في مؤسسة <b>${d.org_name}</b>.<br><br>يمكنك إرسال طلب لإضافته لمؤسستك، وستحتاج موافقة تلك المؤسسة.`,
-        tr: `Bu yararlanıcı (<b>${name}</b> — ${idNum}) zaten <b>${d.org_name}</b> kurumunda kayıtlı.<br><br>Kurumunuza eklemek için istek gönderebilirsiniz.`,
-        en: `This beneficiary (<b>${name}</b> — ${idNum}) is already registered in <b>${d.org_name}</b>.<br><br>You can send a request to add them to your organization.`,
-      };
-      document.getElementById('dup-modal-body').innerHTML = msgs["{{ lang }}"] || msgs.ar;
-      const reqBtn = document.getElementById('dup-request-btn');
+    const nameEl  = document.querySelector('[name=full_name]');
+    const idNumEl = document.querySelector('[name=id_number]');
+    const name    = nameEl  ? nameEl.value.trim()  : '';
+    const idNum   = idNumEl ? idNumEl.value.trim() : '';
+
+    if (!name || !idNum) { _doSubmit(); return; }
+
+    let d;
+    try {
+      const res = await fetch('/beneficiaries/check_duplicate?name=' +
+        encodeURIComponent(name) + '&id_number=' + encodeURIComponent(idNum));
+      if (!res.ok) { _doSubmit(); return; }
+      d = await res.json();
+    } catch(fetchErr) { _doSubmit(); return; }
+
+    if (!d || !d.found) { _doSubmit(); return; }
+
+    // وُجد تكرار
+    _dupBeneficiaryId = d.beneficiary_id;
+    const msgs = {
+      ar: `هذا المستفيد (<b>${name}</b> — ${idNum}) مسجل بالفعل في مؤسسة <b>${d.org_name}</b>.<br><br>يمكنك إرسال طلب لإضافته لمؤسستك، وستحتاج موافقة تلك المؤسسة.`,
+      tr: `Bu yararlanıcı (<b>${name}</b> — ${idNum}) zaten <b>${d.org_name}</b> kurumunda kayıtlı.<br><br>Kurumunuza eklemek için istek gönderebilirsiniz.`,
+      en: `This beneficiary (<b>${name}</b> — ${idNum}) is already registered in <b>${d.org_name}</b>.<br><br>You can send a request to add them to your organization.`,
+    };
+    const bodyEl = document.getElementById('dup-modal-body');
+    if (bodyEl) bodyEl.innerHTML = msgs["{{ lang }}"] || msgs.ar;
+    const reqBtn = document.getElementById('dup-request-btn');
+    if (reqBtn) {
       if (d.pending) {
         reqBtn.disabled = true;
         reqBtn.innerHTML = '<i class="fas fa-clock me-1"></i>' +
@@ -292,12 +306,12 @@ async function checkBeforeSubmit() {
       } else {
         reqBtn.disabled = false;
       }
-      new bootstrap.Modal(document.getElementById('dupModal')).show();
-    } else {
-      document.querySelector('form').submit();
     }
+    const modalEl = document.getElementById('dupModal');
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+
   } catch(e) {
-    document.querySelector('form').submit();
+    _doSubmit();
   }
 }
 
