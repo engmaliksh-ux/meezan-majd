@@ -2335,18 +2335,61 @@ def messages_page():
     return render_template("messages.html", msgs=msgs)
 
 
+@app.route("/messages/data")
+@login_required
+def messages_data():
+    """إرجاع آخر 200 رسالة كـ JSON للـ floating widget"""
+    if not _chat_allowed():
+        return jsonify({"ok": False}), 403
+    org_id  = session["org_id"]
+    user_id = session["user_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""
+        SELECT id, sender_id, sender_name, sender_role, content, attachment,
+               COALESCE(edited,0) AS edited, created_at
+        FROM messages WHERE org_id=?
+        ORDER BY id DESC LIMIT 200
+    """, (org_id,))
+    rows = list(reversed(c.fetchall()))
+    if rows:
+        c.execute("""
+            INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
+            ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
+        """, (user_id, rows[-1]["id"]))
+        conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "messages": [dict(r) for r in rows]})
+
+
 @app.route("/messages/send", methods=["POST"])
 @login_required
 def messages_send():
     if not _chat_allowed():
-        return {"ok": False}, 403
-    data    = request.json or {}
-    content = data.get("content", "").strip()
-    attach  = data.get("attachment", "")   # اسم الملف المرفق (بعد رفعه)
+        return jsonify({"ok": False}), 403
+
+    # قبول JSON أو FormData (مع ملف مرفق)
+    if request.is_json:
+        data    = request.json or {}
+        content = data.get("content", "").strip()
+        attach  = data.get("attachment", "")
+    else:
+        content = request.form.get("content", "").strip()
+        attach  = ""
+        f = request.files.get("attachment")
+        if f and f.filename:
+            ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+            if ext in ALLOWED_CHAT_EXT:
+                import uuid as _uuid
+                safe_name = f"{_uuid.uuid4().hex}.{ext}"
+                f.save(os.path.join(CHAT_UPLOAD_FOLDER, safe_name))
+                attach = safe_name
+
     if not content and not attach:
-        return {"ok": False, "err": "empty"}, 400
+        return jsonify({"ok": False, "err": "empty"}), 400
     if len(content) > 2000:
-        return {"ok": False, "err": "too_long"}, 400
+        return jsonify({"ok": False, "err": "too_long"}), 400
+
     org_id   = session["org_id"]
     user_id  = session["user_id"]
     name     = session.get("full_name") or session.get("user", "")
@@ -2358,47 +2401,47 @@ def messages_send():
         VALUES(?,?,?,?,?,?)
     """, (org_id, user_id, name, role, content, attach or None))
     new_id = c.lastrowid
-    # تحديث آخر مقروء للمرسل نفسه
     c.execute("""
         INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
         ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
     """, (user_id, new_id))
     conn.commit()
     conn.close()
-    from datetime import datetime
-    return {"ok": True, "id": new_id, "time": datetime.now().strftime("%H:%M"),
-            "attachment": attach or None}
+    from datetime import datetime as _dt
+    now_str = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    return jsonify({"ok": True, "msg": {
+        "id": new_id, "sender_id": user_id, "sender_name": name,
+        "sender_role": role, "content": content,
+        "attachment": attach or None, "edited": 0, "created_at": now_str
+    }})
 
 
 @app.route("/messages/poll")
 @login_required
 def messages_poll():
     if not _chat_allowed():
-        return {"msgs": []}, 403
+        return jsonify({"ok": False, "messages": []}), 403
     org_id  = session["org_id"]
     user_id = session["user_id"]
-    since   = request.args.get("since", 0, type=int)
+    # يقبل 'last' أو 'since' للتوافق
+    since = request.args.get("last", request.args.get("since", 0), type=int)
     conn = get_connection()
     c    = conn.cursor()
     c.execute("""
-        SELECT id, sender_id, sender_name, sender_role, content, attachment, created_at
+        SELECT id, sender_id, sender_name, sender_role, content, attachment,
+               COALESCE(edited,0) AS edited, created_at
         FROM messages WHERE org_id=? AND id>?
         ORDER BY id ASC LIMIT 50
     """, (org_id, since))
     rows = c.fetchall()
-    # تحديث آخر مقروء
     if rows:
-        last_id = rows[-1]["id"]
         c.execute("""
             INSERT INTO message_reads(user_id, last_msg_id) VALUES(?,?)
             ON CONFLICT(user_id) DO UPDATE SET last_msg_id=excluded.last_msg_id
-        """, (user_id, last_id))
+        """, (user_id, rows[-1]["id"]))
         conn.commit()
     conn.close()
-    return {"msgs": [{"id":r["id"],"sender_id":r["sender_id"],
-                      "name":r["sender_name"],"role":r["sender_role"],
-                      "content":r["content"],"attachment":r["attachment"],
-                      "time":r["created_at"][-5:]} for r in rows]}
+    return jsonify({"ok": True, "messages": [dict(r) for r in rows]})
 
 
 @app.route("/messages/unread_count")
@@ -2450,10 +2493,12 @@ def messages_upload():
 @login_required
 def messages_edit(msg_id):
     if not _chat_allowed():
-        return {"ok": False}, 403
-    content  = (request.json or {}).get("content", "").strip()
+        return jsonify({"ok": False}), 403
+    content = ((request.json or {}).get("content") if request.is_json
+               else request.form.get("content", ""))
+    content = (content or "").strip()
     if not content or len(content) > 2000:
-        return {"ok": False, "err": "invalid"}, 400
+        return jsonify({"ok": False, "err": "invalid"}), 400
     user_id  = session["user_id"]
     org_id   = session["org_id"]
     conn = get_connection()
