@@ -173,7 +173,8 @@ async function clearHistory() {
     const res = await fetch(`/network/clear/${NC_PARTNER}`, { method:'POST', body:fd });
     const j   = await res.json();
     if (j.ok) {
-      document.querySelectorAll('.nc-mine').forEach(el => el.remove());
+      document.getElementById('nc-log').innerHTML = '';
+      ncLastId = 0;
     }
   } catch(e) {}
 }

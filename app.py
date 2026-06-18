@@ -3046,11 +3046,12 @@ def network_clear(partner_id):
     org_id = session["org_id"]
     conn = get_connection()
     c    = conn.cursor()
-    # يحذف فقط رسائل مؤسسته في هذه المحادثة
+    # يحذف كل رسائل المحادثة من الطرفين
     c.execute("""
         DELETE FROM org_messages
-        WHERE from_org_id=? AND to_org_id=?
-    """, (org_id, partner_id))
+        WHERE (from_org_id=? AND to_org_id=?)
+           OR (from_org_id=? AND to_org_id=?)
+    """, (org_id, partner_id, partner_id, org_id))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
