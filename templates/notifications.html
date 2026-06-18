@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}
+  {% if lang=='en' %}Notifications{% elif lang=='tr' %}Bildirimler{% else %}الإشعارات{% endif %} – ميزان مجد
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">
+    <i class="fas fa-bell"></i>
+    {% if lang=='en' %}Notifications
+    {% elif lang=='tr' %}Bildirimler
+    {% else %}الإشعارات{% endif %}
+  </h2>
+</div>
+
+{% set lbl = {
+  'ar': {'incoming':'طلبات واردة','outgoing':'طلبات صادرة',
+         'empty_in':'لا توجد طلبات واردة','empty_out':'لا توجد طلبات صادرة',
+         'beneficiary':'المستفيد','org':'المؤسسة','date':'التاريخ','action':'الإجراء',
+         'approve':'موافقة','reject':'رفض',
+         'pending':'معلق','approved':'موافق عليه','rejected':'مرفوض',
+         'waiting':'بانتظار الرد'},
+  'tr': {'incoming':'Gelen İstekler','outgoing':'Giden İstekler',
+         'empty_in':'Gelen istek yok','empty_out':'Giden istek yok',
+         'beneficiary':'Yararlanıcı','org':'Kuruluş','date':'Tarih','action':'İşlem',
+         'approve':'Onayla','reject':'Reddet',
+         'pending':'Bekliyor','approved':'Onaylandı','rejected':'Reddedildi',
+         'waiting':'Yanıt bekleniyor'},
+  'en': {'incoming':'Incoming Requests','outgoing':'Outgoing Requests',
+         'empty_in':'No incoming requests','empty_out':'No outgoing requests',
+         'beneficiary':'Beneficiary','org':'Organization','date':'Date','action':'Action',
+         'approve':'Approve','reject':'Reject',
+         'pending':'Pending','approved':'Approved','rejected':'Rejected',
+         'waiting':'Waiting for response'},
+} %}
+{% set L = lbl.get(lang, lbl['ar']) %}
+
+<!-- طلبات واردة -->
+<div class="notif-section">
+  <h4 class="notif-section-title incoming">
+    <i class="fas fa-inbox me-2"></i>{{ L.incoming }}
+    {% set pcount = incoming | selectattr('status','eq','pending') | list | length %}
+    {% if pcount > 0 %}
+    <span class="notif-count">{{ pcount }}</span>
+    {% endif %}
+  </h4>
+
+  {% if incoming %}
+  <div class="notif-table-wrap">
+    <table class="notif-table">
+      <thead>
+        <tr>
+          <th>{{ L.beneficiary }}</th>
+          <th>{{ L.org }}</th>
+          <th>{{ L.date }}</th>
+          <th>{{ L.action }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in incoming %}
+        <tr id="row-in-{{ r.id }}">
+          <td><b>{{ r.full_name }}</b><br><small class="text-muted">{{ r.id_number }}</small></td>
+          <td>{{ r.requester_name }}</td>
+          <td>{{ r.created_at[:10] }}</td>
+          <td>
+            {% if r.status == 'pending' %}
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-success" onclick="approve({{ r.id }})">
+                <i class="fas fa-check me-1"></i>{{ L.approve }}
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="reject({{ r.id }})">
+                <i class="fas fa-times me-1"></i>{{ L.reject }}
+              </button>
+            </div>
+            {% elif r.status == 'approved' %}
+            <span class="badge bg-success">{{ L.approved }}</span>
+            {% else %}
+            <span class="badge bg-danger">{{ L.rejected }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="notif-empty">{{ L.empty_in }}</p>
+  {% endif %}
+</div>
+
+<!-- طلبات صادرة -->
+<div class="notif-section mt-4">
+  <h4 class="notif-section-title outgoing">
+    <i class="fas fa-paper-plane me-2"></i>{{ L.outgoing }}
+  </h4>
+
+  {% if outgoing %}
+  <div class="notif-table-wrap">
+    <table class="notif-table">
+      <thead>
+        <tr>
+          <th>{{ L.beneficiary }}</th>
+          <th>{{ L.org }}</th>
+          <th>{{ L.date }}</th>
+          <th>{{ L.action }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in outgoing %}
+        <tr>
+          <td><b>{{ r.full_name }}</b><br><small class="text-muted">{{ r.id_number }}</small></td>
+          <td>{{ r.owner_name }}</td>
+          <td>{{ r.created_at[:10] }}</td>
+          <td>
+            {% if r.status == 'pending' %}
+            <span class="badge bg-warning text-dark">
+              <i class="fas fa-clock me-1"></i>{{ L.waiting }}
+            </span>
+            {% elif r.status == 'approved' %}
+            <span class="badge bg-success">{{ L.approved }}</span>
+            {% else %}
+            <span class="badge bg-danger">{{ L.rejected }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="notif-empty">{{ L.empty_out }}</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CSRF = "{{ csrf_token() }}";
+
+async function approve(id) {
+  if (!confirm('{{ "تأكيد الموافقة؟" if lang=="ar" else ("Onaylamak istiyor musunuz?" if lang=="tr" else "Confirm approval?") }}')) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', CSRF);
+  const res = await fetch(`/notifications/${id}/approve`, { method:'POST', body: fd });
+  const d   = await res.json();
+  if (d.ok) {
+    const row = document.getElementById('row-in-' + id);
+    if (row) row.querySelector('td:last-child').innerHTML =
+      '<span class="badge bg-success">{{ "موافق عليه" if lang=="ar" else ("Onaylandı" if lang=="tr" else "Approved") }}</span>';
+  }
+}
+
+async function reject(id) {
+  if (!confirm('{{ "تأكيد الرفض؟" if lang=="ar" else ("Reddetmek istiyor musunuz?" if lang=="tr" else "Confirm rejection?") }}')) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', CSRF);
+  const res = await fetch(`/notifications/${id}/reject`, { method:'POST', body: fd });
+  const d   = await res.json();
+  if (d.ok) {
+    const row = document.getElementById('row-in-' + id);
+    if (row) row.querySelector('td:last-child').innerHTML =
+      '<span class="badge bg-danger">{{ "مرفوض" if lang=="ar" else ("Reddedildi" if lang=="tr" else "Rejected") }}</span>';
+  }
+}
+</script>
+
+<style>
+.notif-section { background:#fff; border-radius:14px; border:2px solid #e0e0e0; overflow:hidden; }
+.notif-section-title {
+  display: flex; align-items: center;
+  padding: 14px 20px; margin: 0; font-size: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+.notif-section-title.incoming { background:#fff8e1; color:#e65100; }
+.notif-section-title.outgoing { background:#e3f2fd; color:#1565c0; }
+.notif-count {
+  margin-inline-start: 8px; background:#c62828; color:#fff;
+  border-radius:20px; font-size:.72rem; font-weight:800;
+  padding:2px 8px;
+}
+.notif-table-wrap { overflow-x: auto; }
+.notif-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+.notif-table th { background:#f5f5f5; padding:10px 14px; font-weight:700; color:#555; border-bottom:2px solid #e0e0e0; }
+.notif-table td { padding:10px 14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+.notif-table tr:last-child td { border-bottom:none; }
+.notif-empty { padding:24px; color:#888; text-align:center; font-size:.9rem; margin:0; }
+</style>
+{% endblock %}

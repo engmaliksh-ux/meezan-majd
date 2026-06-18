@@ -117,6 +117,11 @@
         <span>{% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %}</span>
         <span class="net-badge" id="net-nav-badge" style="display:none"></span>
       </a>
+      <a href="/notifications" class="nav-item {% if '/notifications' in request.path %}active{% endif %}">
+        <i class="fas fa-bell nav-icon"></i>
+        <span>{% if lang=='en' %}Notifications{% elif lang=='tr' %}Bildirimler{% else %}الإشعارات{% endif %}</span>
+        <span class="notif-nav-badge" id="notif-nav-badge" style="display:none"></span>
+      </a>
       {% endif %}
       {% endif %}
 
@@ -321,6 +326,20 @@ setSidebar(sidebarOpen);
   margin-right:auto;
   padding:0 4px;
 }
+.notif-nav-badge {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:18px;
+  height:18px;
+  background:#c62828;
+  color:#fff;
+  border-radius:50%;
+  font-size:.62rem;
+  font-weight:900;
+  margin-right:auto;
+  padding:0 4px;
+}
 </style>
 
 <script>
@@ -347,6 +366,28 @@ document.addEventListener('click', function() {
 });
 
 // Chat badge يُحدَّث من الـ widget مباشرة
+
+// ── Notifications badge polling (admin only) ──
+{% if session.get('role') == 'admin' %}
+(function notifBadge() {
+  const el = document.getElementById('notif-nav-badge');
+  if (!el) return;
+  async function poll() {
+    try {
+      const r = await fetch('/notifications/unread_count');
+      const d = await r.json();
+      if (d.count > 0) {
+        el.textContent = d.count;
+        el.style.display = 'inline-flex';
+      } else {
+        el.style.display = 'none';
+      }
+    } catch(e) {}
+  }
+  poll();
+  setInterval(poll, 20000);
+})();
+{% endif %}
 </script>
 
 {% block scripts %}{% endblock %}

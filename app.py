@@ -2607,6 +2607,217 @@ def messages_clear():
 
 
 # ══════════════════════════════════════════
+# توحيد المستفيدين بين المؤسسات
+# ══════════════════════════════════════════
+
+@app.route("/beneficiaries/check_duplicate")
+@login_required
+def beneficiary_check_duplicate():
+    """تحقق إذا المستفيد (اسم + رقم هوية) موجود في مؤسسة أخرى"""
+    org_id   = session["org_id"]
+    name     = request.args.get("name", "").strip()
+    id_num   = request.args.get("id_number", "").strip()
+    if not name or not id_num:
+        return jsonify({"found": False})
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""
+        SELECT b.id, b.full_name, b.id_number, o.name AS org_name, o.id AS org_id
+        FROM beneficiaries b
+        JOIN organizations o ON o.id = b.org_id
+        WHERE b.org_id != ?
+          AND TRIM(LOWER(b.full_name))   = TRIM(LOWER(?))
+          AND TRIM(b.id_number) = TRIM(?)
+        LIMIT 1
+    """, (org_id, name, id_num))
+    row = c.fetchone()
+    # هل في طلب معلق بالفعل؟
+    pending = False
+    if row:
+        c.execute("""
+            SELECT id FROM beneficiary_share_requests
+            WHERE requester_org_id=? AND beneficiary_id=? AND status='pending'
+        """, (org_id, row["id"]))
+        pending = bool(c.fetchone())
+    conn.close()
+    if row:
+        return jsonify({"found": True, "pending": pending,
+                        "beneficiary_id": row["id"],
+                        "org_name": row["org_name"],
+                        "org_id": row["org_id"]})
+    return jsonify({"found": False})
+
+
+@app.route("/beneficiaries/request_share", methods=["POST"])
+@login_required
+def beneficiary_request_share():
+    """إرسال طلب إضافة مستفيد من مؤسسة أخرى"""
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    org_id         = session["org_id"]
+    beneficiary_id = int(request.form.get("beneficiary_id", 0))
+    if not beneficiary_id:
+        return jsonify({"ok": False, "msg": "معرّف المستفيد مفقود"}), 400
+    conn = get_connection()
+    c    = conn.cursor()
+    # تحقق أن المستفيد موجود في مؤسسة أخرى
+    c.execute("SELECT org_id FROM beneficiaries WHERE id=?", (beneficiary_id,))
+    row = c.fetchone()
+    if not row or row["org_id"] == org_id:
+        conn.close()
+        return jsonify({"ok": False, "msg": "المستفيد غير موجود أو ينتمي لمؤسستك"}), 400
+    owner_org_id = row["org_id"]
+    # تحقق إنه ما في طلب معلق بالفعل
+    c.execute("""
+        SELECT id FROM beneficiary_share_requests
+        WHERE requester_org_id=? AND beneficiary_id=? AND status='pending'
+    """, (org_id, beneficiary_id))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "msg": "يوجد طلب معلق بالفعل"})
+    from datetime import datetime as _dt
+    c.execute("""
+        INSERT INTO beneficiary_share_requests
+            (requester_org_id, owner_org_id, beneficiary_id, status, created_at)
+        VALUES (?,?,?,'pending',?)
+    """, (org_id, owner_org_id, beneficiary_id, _dt.now().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    if session.get("role") != "admin":
+        flash("غير مصرّح", "danger")
+        return redirect(url_for("dashboard"))
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    # طلبات واردة — أنا المالك
+    c.execute("""
+        SELECT r.id, r.status, r.created_at,
+               b.full_name, b.id_number,
+               o.name AS requester_name
+        FROM beneficiary_share_requests r
+        JOIN beneficiaries b ON b.id = r.beneficiary_id
+        JOIN organizations o ON o.id = r.requester_org_id
+        WHERE r.owner_org_id = ?
+        ORDER BY r.id DESC
+    """, (org_id,))
+    incoming = c.fetchall()
+    # طلبات صادرة — أنا الطالب
+    c.execute("""
+        SELECT r.id, r.status, r.created_at,
+               b.full_name, b.id_number,
+               o.name AS owner_name
+        FROM beneficiary_share_requests r
+        JOIN beneficiaries b ON b.id = r.beneficiary_id
+        JOIN organizations o ON o.id = r.owner_org_id
+        WHERE r.requester_org_id = ?
+        ORDER BY r.id DESC
+    """, (org_id,))
+    outgoing = c.fetchall()
+    conn.close()
+    return render_template("notifications.html",
+                           incoming=incoming, outgoing=outgoing)
+
+
+@app.route("/notifications/<int:req_id>/approve", methods=["POST"])
+@login_required
+def notification_approve(req_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    c.execute("""
+        SELECT r.*, b.full_name, b.id_number, b.phone, b.address,
+               b.family_size, b.marital_status, b.gender, b.children_count,
+               b.beneficiary_type, b.notes
+        FROM beneficiary_share_requests r
+        JOIN beneficiaries b ON b.id = r.beneficiary_id
+        WHERE r.id=? AND r.owner_org_id=? AND r.status='pending'
+    """, (req_id, org_id))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "msg": "الطلب غير موجود"}), 404
+    # أضف المستفيد للمؤسسة الطالبة
+    from datetime import datetime as _dt
+    now = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    # احسب seq_num التالي للمؤسسة الطالبة
+    c.execute("SELECT COALESCE(MAX(seq_num),0)+1 FROM beneficiaries WHERE org_id=?",
+              (row["requester_org_id"],))
+    next_seq = c.fetchone()[0]
+    c.execute("""
+        INSERT INTO beneficiaries
+            (org_id, seq_num, full_name, id_number, phone, address,
+             family_size, marital_status, gender, children_count,
+             beneficiary_type, notes, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (row["requester_org_id"], next_seq,
+          row["full_name"], row["id_number"], row["phone"], row["address"],
+          row["family_size"], row["marital_status"], row["gender"],
+          row["children_count"], row["beneficiary_type"], row["notes"], now))
+    # حدّث حالة الطلب
+    c.execute("""
+        UPDATE beneficiary_share_requests
+        SET status='approved', resolved_at=?
+        WHERE id=?
+    """, (now, req_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/notifications/<int:req_id>/reject", methods=["POST"])
+@login_required
+def notification_reject(req_id):
+    if session.get("role") != "admin":
+        return jsonify({"ok": False}), 403
+    csrf = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if csrf != session.get("_csrf"):
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    from datetime import datetime as _dt
+    c.execute("""
+        UPDATE beneficiary_share_requests
+        SET status='rejected', resolved_at=?
+        WHERE id=? AND owner_org_id=? AND status='pending'
+    """, (_dt.now().strftime("%Y-%m-%d %H:%M:%S"), req_id, org_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/notifications/unread_count")
+@login_required
+def notifications_unread_count():
+    if session.get("role") != "admin":
+        return jsonify({"count": 0})
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    c.execute("""
+        SELECT COUNT(*) FROM beneficiary_share_requests
+        WHERE owner_org_id=? AND status='pending'
+    """, (org_id,))
+    count = c.fetchone()[0]
+    conn.close()
+    return jsonify({"count": count})
+
+
+# ══════════════════════════════════════════
 # الشبكة — التواصل بين المؤسسات
 # ══════════════════════════════════════════
 

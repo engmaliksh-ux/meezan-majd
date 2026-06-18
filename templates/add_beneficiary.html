@@ -170,10 +170,38 @@
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> {{ t.btn_save_beneficiary }}</button>
+        <button type="button" class="btn btn-primary" onclick="checkBeforeSubmit()">
+          <i class="fas fa-save me-1"></i> {{ t.btn_save_beneficiary }}
+        </button>
         <a href="/beneficiaries" class="btn btn-secondary">{{ t.btn_cancel }}</a>
       </div>
     </form>
+
+<!-- Modal تكرار المستفيد -->
+<div class="modal fade" id="dupModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title text-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          {% if lang=='en' %}Beneficiary Already Registered
+          {% elif lang=='tr' %}Yararlanıcı Zaten Kayıtlı
+          {% else %}المستفيد مسجل مسبقاً{% endif %}
+        </h5>
+      </div>
+      <div class="modal-body" id="dup-modal-body"></div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-success" id="dup-request-btn" onclick="sendShareRequest()">
+          <i class="fas fa-paper-plane me-1"></i>
+          {% if lang=='en' %}Send Request{% elif lang=='tr' %}İstek Gönder{% else %}إرسال طلب{% endif %}
+        </button>
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          {% if lang=='en' %}Cancel{% elif lang=='tr' %}İptal{% else %}إلغاء{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
   </div>
 </div>
 
@@ -232,6 +260,62 @@ function toggleType() {
   const val = document.querySelector('[name=beneficiary_type]:checked')?.value;
   document.getElementById('type-person-lbl').classList.toggle('active', val === 'person');
   document.getElementById('type-camp-lbl').classList.toggle('active', val === 'camp');
+}
+
+// ── كشف التكرار بين المؤسسات ──
+let _dupBeneficiaryId = null;
+
+async function checkBeforeSubmit() {
+  const name   = document.querySelector('[name=full_name]').value.trim();
+  const idNum  = document.querySelector('[name=id_number]').value.trim();
+  if (!name || !idNum) {
+    document.querySelector('form').submit();
+    return;
+  }
+  try {
+    const res = await fetch('/beneficiaries/check_duplicate?name=' +
+      encodeURIComponent(name) + '&id_number=' + encodeURIComponent(idNum));
+    const d = await res.json();
+    if (d.found) {
+      _dupBeneficiaryId = d.beneficiary_id;
+      const msgs = {
+        ar: `هذا المستفيد (<b>${name}</b> — ${idNum}) مسجل بالفعل في مؤسسة <b>${d.org_name}</b>.<br><br>يمكنك إرسال طلب لإضافته لمؤسستك، وستحتاج موافقة تلك المؤسسة.`,
+        tr: `Bu yararlanıcı (<b>${name}</b> — ${idNum}) zaten <b>${d.org_name}</b> kurumunda kayıtlı.<br><br>Kurumunuza eklemek için istek gönderebilirsiniz.`,
+        en: `This beneficiary (<b>${name}</b> — ${idNum}) is already registered in <b>${d.org_name}</b>.<br><br>You can send a request to add them to your organization.`,
+      };
+      document.getElementById('dup-modal-body').innerHTML = msgs["{{ lang }}"] || msgs.ar;
+      const reqBtn = document.getElementById('dup-request-btn');
+      if (d.pending) {
+        reqBtn.disabled = true;
+        reqBtn.innerHTML = '<i class="fas fa-clock me-1"></i>' +
+          ('{{ lang }}'==='ar' ? 'طلب معلق بالفعل' : ('{{ lang }}'==='tr' ? 'Bekleyen istek var' : 'Request already pending'));
+      } else {
+        reqBtn.disabled = false;
+      }
+      new bootstrap.Modal(document.getElementById('dupModal')).show();
+    } else {
+      document.querySelector('form').submit();
+    }
+  } catch(e) {
+    document.querySelector('form').submit();
+  }
+}
+
+async function sendShareRequest() {
+  if (!_dupBeneficiaryId) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', '{{ csrf_token() }}');
+  fd.append('beneficiary_id', _dupBeneficiaryId);
+  try {
+    const res = await fetch('/beneficiaries/request_share', { method:'POST', body: fd });
+    const d   = await res.json();
+    bootstrap.Modal.getInstance(document.getElementById('dupModal')).hide();
+    if (d.ok) {
+      const msg = '{{ lang }}'==='ar' ? 'تم إرسال الطلب بنجاح ✅' :
+                  ('{{ lang }}'==='tr' ? 'İstek gönderildi ✅' : 'Request sent ✅');
+      alert(msg);
+    }
+  } catch(e) {}
 }
 </script>
 {% endblock %}

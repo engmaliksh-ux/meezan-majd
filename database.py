@@ -327,6 +327,22 @@ def migrate_db():
     )
     """)
 
+    # طلبات مشاركة المستفيدين بين المؤسسات
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_share_requests (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        requester_org_id INTEGER NOT NULL,
+        owner_org_id     INTEGER NOT NULL,
+        beneficiary_id   INTEGER NOT NULL,
+        status           TEXT    NOT NULL DEFAULT 'pending',
+        created_at       TEXT    DEFAULT (datetime('now','localtime')),
+        resolved_at      TEXT,
+        FOREIGN KEY (requester_org_id) REFERENCES organizations(id),
+        FOREIGN KEY (owner_org_id)     REFERENCES organizations(id),
+        FOREIGN KEY (beneficiary_id)   REFERENCES beneficiaries(id)
+    )
+    """)
+
     # أعمدة الشات الجديدة (attachment, edited)
     for _col, _def in [("attachment", "TEXT"), ("edited", "INTEGER DEFAULT 0")]:
         try:
