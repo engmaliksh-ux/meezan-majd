@@ -618,7 +618,7 @@ function cpRender(m, scroll){
 
   const editedTag = m.edited ? `<span class="cp-edited-tag"> · ${CP_LANG==='en'?'edited':CP_LANG==='tr'?'düzenlendi':'معدّل'}</span>` : '';
 
-  const trBtn  = !isMine ? `<button class="cpmsg-act" onclick="cpManualTr(${m.id})">🌐</button>` : '';
+  const trBtn  = '';
   const editBtn= isMine  ? `<button class="cpmsg-act" onclick="cpEditStart(${m.id})"><i class="fas fa-pen"></i></button>` : '';
   const delBtn = (isMine || CP_MY_ROLE==='admin') ? `<button class="cpmsg-act" style="color:#e57373" onclick="cpDel(${m.id})"><i class="fas fa-trash"></i></button>` : '';
 
