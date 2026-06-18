@@ -670,7 +670,8 @@ window.cpSend = async function(){
     const r = await fetch('/messages/send', {method:'POST', body:fd});
     const d = await r.json();
     if(d.ok && d.msg){
-      cpLastId = Math.max(cpLastId, d.msg.id);
+      cpLastId       = Math.max(cpLastId, d.msg.id);
+      cpLastRendered = Math.max(cpLastRendered, d.msg.id);
       cpRender(d.msg, true);
     }
   } catch(e){}
