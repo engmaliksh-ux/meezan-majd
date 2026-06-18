@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ partner.name }} – ميزان مجد{% endblock %}
+{% block title %}{{ partner.name }} · {{ t.nav_network }} – ميزان مجد{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex; align-items:center; gap:14px;">
@@ -26,9 +26,9 @@
 
   <div class="nc-bar">
     <textarea id="nc-input" class="nc-textarea" rows="1"
-      placeholder="{% if lang=='en' %}Type a message…{% elif lang=='tr' %}Mesaj yaz…{% else %}اكتب رسالة…{% endif %}"
+      placeholder="{{ t.chat_placeholder }}"
       onkeydown="ncKeydown(event)"></textarea>
-    <button class="btn btn-primary nc-send-btn" onclick="ncSend()">
+    <button class="btn btn-primary nc-send-btn" onclick="ncSend()" title="{{ t.chat_send }}">
       <i class="fas fa-paper-plane"></i>
     </button>
   </div>

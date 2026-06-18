@@ -272,6 +272,15 @@ TRANSLATIONS = {
         # ── تأكيد الحذف ──
         'confirm_delete_program': 'حذف هذا البرنامج؟',
         'confirm_delete_record': 'حذف هذا السجل؟',
+
+        # ── شبكة التواصل ──
+        'nav_network': 'شبكة التواصل',
+        'page_network': 'شبكة التواصل بين المؤسسات',
+        'network_search': 'ابحث عن مؤسسة…',
+        'network_no_results': 'لا توجد مؤسسات بهذا الاسم',
+        'network_empty': 'لا توجد مؤسسات أخرى مسجلة حتى الآن',
+        'chat_placeholder': 'اكتب رسالة…',
+        'chat_send': 'إرسال',
     },
 
     'tr': {
@@ -537,6 +546,15 @@ TRANSLATIONS = {
         # ── Onay mesajları ──
         'confirm_delete_program': 'Bu programı sil?',
         'confirm_delete_record': 'Bu kaydı sil?',
+
+        # ── Kuruluş Ağı ──
+        'nav_network': 'Kuruluş Ağı',
+        'page_network': 'Kuruluşlar Arası İletişim Ağı',
+        'network_search': 'Kuruluş ara…',
+        'network_no_results': 'Bu isimde kuruluş bulunamadı',
+        'network_empty': 'Henüz başka kuruluş kayıtlı değil',
+        'chat_placeholder': 'Mesaj yaz…',
+        'chat_send': 'Gönder',
     },
 
     'en': {
@@ -769,5 +787,14 @@ TRANSLATIONS = {
         'create_account': 'Create Account',
         'confirm_delete_program': 'Delete this program?',
         'confirm_delete_record': 'Delete this record?',
+
+        # ── Organization Network ──
+        'nav_network': 'Organization Network',
+        'page_network': 'Inter-Organization Network',
+        'network_search': 'Search organizations…',
+        'network_no_results': 'No organizations found',
+        'network_empty': 'No other organizations registered yet',
+        'chat_placeholder': 'Type a message…',
+        'chat_send': 'Send',
     }
 }

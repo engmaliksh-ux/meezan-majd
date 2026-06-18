@@ -1,22 +1,18 @@
 {% extends 'base.html' %}
-{% block title %}
-  {% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %} – ميزان مجد
-{% endblock %}
+{% block title %}{{ t.nav_network }} – ميزان مجد{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h2 class="page-title">
     <i class="fas fa-network-wired"></i>
-    {% if lang=='en' %}Organization Network
-    {% elif lang=='tr' %}Kuruluş Ağı
-    {% else %}شبكة التواصل بين المؤسسات{% endif %}
+    {{ t.page_network }}
   </h2>
 </div>
 
 <div class="net-search-bar">
   <i class="fas fa-search"></i>
   <input type="text" id="search-inp" class="net-search-input"
-    placeholder="{% if lang=='en' %}Search organizations…{% elif lang=='tr' %}Kuruluş ara…{% else %}ابحث عن مؤسسة…{% endif %}"
+    placeholder="{{ t.network_search }}"
     oninput="filterOrgs(this.value)">
 </div>
 
@@ -36,14 +32,12 @@
   {% endfor %}
 </div>
 <div id="no-results" style="display:none; text-align:center; color:#888; padding:40px; font-size:.95rem;">
-  {% if lang=='en' %}No organizations found{% elif lang=='tr' %}Kuruluş bulunamadı{% else %}لا توجد مؤسسات بهذا الاسم{% endif %}
+  {{ t.network_no_results }}
 </div>
 {% else %}
 <div style="text-align:center; color:#888; padding:60px; font-size:.95rem;">
   <i class="fas fa-building" style="font-size:3rem; margin-bottom:16px; display:block; color:#ccc;"></i>
-  {% if lang=='en' %}No other organizations registered yet
-  {% elif lang=='tr' %}Henüz başka kuruluş yok
-  {% else %}لا توجد مؤسسات أخرى مسجلة حتى الآن{% endif %}
+  {{ t.network_empty }}
 </div>
 {% endif %}
 {% endblock %}
