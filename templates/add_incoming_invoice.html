@@ -18,16 +18,26 @@
     <form method="POST" action="{{ url_for('add_incoming_invoice') }}" enctype="multipart/form-data">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
-      <div class="row g-3 mb-4">
-        <div class="col-md-5">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
           <label class="form-label fw-bold">المورد <span class="text-danger">*</span></label>
           <input class="form-control" name="supplier" placeholder="اسم المورد أو الشركة" required autofocus>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label fw-bold">تاريخ الفاتورة <span class="text-danger">*</span></label>
           <input type="date" class="form-control" name="invoice_date" value="{{ today_str }}" required>
         </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">رقم الفاتورة <span style="color:#aaa;font-size:.74rem;">(اختياري)</span></label>
+          <input class="form-control" name="purchase_invoice_number" placeholder="مثال: INV-001">
+        </div>
         <div class="col-md-3">
+          <label class="form-label fw-bold">اسم الفاتورة <span style="color:#aaa;font-size:.74rem;">(اختياري)</span></label>
+          <input class="form-control" name="invoice_name" placeholder="مثال: مستلزمات مكتبية">
+        </div>
+      </div>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
           <label class="form-label fw-bold">صورة الفاتورة <span style="color:#aaa;font-size:.74rem;">(اختياري)</span></label>
           <input type="file" class="form-control" name="invoice_image" accept="image/png,image/jpeg,image/webp">
         </div>

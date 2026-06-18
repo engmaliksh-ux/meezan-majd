@@ -1229,8 +1229,10 @@ def add_incoming_invoice():
     c = conn.cursor()
 
     if request.method == "POST":
-        supplier        = request.form.get("supplier", "").strip()
-        invoice_date    = request.form.get("invoice_date", "").strip()
+        supplier                 = request.form.get("supplier", "").strip()
+        invoice_date             = request.form.get("invoice_date", "").strip()
+        purchase_invoice_number  = request.form.get("purchase_invoice_number", "").strip()
+        invoice_name             = request.form.get("invoice_name", "").strip()
         product_names   = request.form.getlist("product_name[]")
         product_units   = request.form.getlist("product_unit[]")
         quantities      = request.form.getlist("quantity[]")
@@ -1260,9 +1262,10 @@ def add_incoming_invoice():
                 img_file.save(os.path.join(app.config["UPLOAD_FOLDER"], invoice_image))
 
             c.execute(
-                "INSERT INTO incoming_invoices (org_id, seq_num, invoice_number, invoice_date, supplier, created_by, invoice_image) VALUES (?,?,?,?,?,?,?)",
+                "INSERT INTO incoming_invoices (org_id, seq_num, invoice_number, invoice_date, supplier, created_by, invoice_image, purchase_invoice_number, invoice_name) VALUES (?,?,?,?,?,?,?,?,?)",
                 (org_id, next_seq, str(next_seq), invoice_date or datetime.now().strftime("%Y-%m-%d"),
-                 supplier, session["user"], invoice_image)
+                 supplier, session["user"], invoice_image,
+                 purchase_invoice_number or None, invoice_name or None)
             )
             invoice_id = c.lastrowid
 

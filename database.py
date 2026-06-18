@@ -268,6 +268,8 @@ def migrate_db():
         ("incoming_invoices",     "is_paid",          "INTEGER DEFAULT 0"),
         ("outgoing_invoices",     "is_closed",        "INTEGER NOT NULL DEFAULT 0"),
         ("workers",               "project_name",     "TEXT"),
+        ("incoming_invoices",     "purchase_invoice_number", "TEXT"),
+        ("incoming_invoices",     "invoice_name",     "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً
