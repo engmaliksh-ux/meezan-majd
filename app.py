@@ -1,12 +1,10 @@
 import os
 import secrets
-import struct
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_connection, init_db, generate_org_code
 from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 from email_service import generate_verification_code, send_org_verification, send_staff_notification
 from datetime import datetime, timedelta
 
@@ -2610,7 +2608,7 @@ def messages_clear():
 # ══════════════════════════════════════════
 # التقارير الذكية
 # ══════════════════════════════════════════
-import io, json as _json
+import io
 
 @app.route("/ai_reports")
 @login_required

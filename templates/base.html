@@ -515,11 +515,12 @@ const CP_CSRF      = "{{ csrf_token() }}";
 const CP_MY_ID     = {{ session.get('user_id', 0) }};
 const CP_MY_ROLE   = "{{ session.get('role','') }}";
 
-let cpState   = 'closed';   // 'closed' | 'open' | 'min'
-let cpLastId  = 0;
-let cpTimer   = null;
-let cpPendingFile = null;
-let cpTrCache = {};
+let cpState        = 'closed';   // 'closed' | 'open' | 'min'
+let cpLastId       = 0;   // آخر ID معروف (للـ badge والـ bg poll)
+let cpLastRendered = 0;   // آخر ID ظهر فعلاً في الـ panel
+let cpTimer        = null;
+let cpPendingFile  = null;
+let cpTrCache      = {};
 
 /* ─── State ─────────────────────────── */
 window.chatOpen = function() {
@@ -530,7 +531,7 @@ window.chatOpen = function() {
   document.getElementById('chat-fab').style.opacity = '1';
   document.getElementById('cp-online-dot').style.display = 'block';
   cpStartPoll();
-  if(document.getElementById('cp-msgs').children.length === 0) cpLoad();
+  cpLoad();  // دائماً أعد التحميل عند الفتح
   setTimeout(()=>{ document.getElementById('cp-inp').focus(); }, 200);
 };
 
@@ -567,11 +568,12 @@ function cpStopPoll(){ if(cpTimer){ clearInterval(cpTimer); cpTimer=null; } }
 
 async function cpPoll(){
   try {
-    const r = await fetch('/messages/poll?last='+cpLastId);
+    const r = await fetch('/messages/poll?last='+cpLastRendered);
     const d = await r.json();
     if(!d.ok || !d.messages?.length) return;
     d.messages.forEach(m => {
-      cpLastId = Math.max(cpLastId, m.id);
+      cpLastId       = Math.max(cpLastId, m.id);
+      cpLastRendered = Math.max(cpLastRendered, m.id);
       cpRender(m, true);
       if(m.sender_id !== CP_MY_ID && m.content) cpQueueTr(m.id, m.content);
     });
@@ -588,7 +590,8 @@ async function cpLoad(){
     box.innerHTML = '';
     cpTrCache = {};
     d.messages.forEach(m => {
-      cpLastId = Math.max(cpLastId, m.id);
+      cpLastId       = Math.max(cpLastId, m.id);
+      cpLastRendered = Math.max(cpLastRendered, m.id);
       cpRender(m, false);
     });
     cpScrollEnd();
