@@ -15,7 +15,7 @@ app = Flask(__name__)
 #    في PythonAnywhere: Web → Environment variables → SECRET_KEY
 #    قيمة عشوائية مثال: python3 -c "import secrets; print(secrets.token_hex(32))"
 # ══════════════════════════════════════════
-app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+app.secret_key = os.environ.get("SECRET_KEY") or "3c23c600bdf76f847bcd15584b92ad49d63764935b05e1a4a06d5c75e9e03aaa"
 
 # ══════════════════════════════════════════
 # 2. إعدادات Session الآمنة
