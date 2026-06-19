@@ -120,25 +120,67 @@
       </div>
     </div>
 
-    <div class="sidebar-user">
-      <div class="user-avatar">
-        {% if session.get('photo') %}
-          <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
-        {% else %}
-          {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
-          {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
-          {% else %}<i class="fas fa-user"></i>{% endif %}
+    <!-- بطاقة المستخدم — قائمة منسدلة -->
+    <div style="position:relative;" id="user-menu-wrap">
+      <button onclick="userMenuToggle()"
+              style="width:100%;background:transparent;border:none;cursor:pointer;
+                     padding:14px 16px;display:flex;align-items:center;gap:12px;
+                     border-bottom:1px solid rgba(255,255,255,.1);transition:background .2s;">
+        <div class="user-avatar">
+          {% if session.get('photo') %}
+            <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
+          {% else %}
+            {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
+            {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
+            {% else %}<i class="fas fa-user"></i>{% endif %}
+          {% endif %}
+        </div>
+        <div class="user-info" style="flex:1;min-width:0;">
+          <span class="user-name">{{ session.get('full_name', session.get('user','')) }}</span>
+          <span class="user-role">
+            {% if session.get('role')=='admin' %}{{ t.role_admin }}
+            {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
+            {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
+            {% elif session.get('role')=='observer' %}{{ t.role_observer }}
+            {% else %}{{ t.role_user }}{% endif %}
+          </span>
+        </div>
+        <i class="fas fa-chevron-down" id="user-menu-chevron"
+           style="color:rgba(255,255,255,.6);font-size:.65rem;transition:transform .25s;flex-shrink:0;"></i>
+      </button>
+      <!-- القائمة المنسدلة -->
+      <div id="user-menu-drop"
+           style="display:none;background:rgba(0,0,0,.22);border-bottom:1px solid rgba(255,255,255,.1);">
+        <a href="/profile"
+           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
+                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.1)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-user-circle" style="width:16px;text-align:center;opacity:.8;"></i>
+          {% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}
+        </a>
+        <a href="/change_password"
+           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
+                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.1)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-key" style="width:16px;text-align:center;opacity:.8;"></i>
+          {{ t.nav_change_password }}
+        </a>
+        {% if session.get('role') == 'admin' %}
+        <a href="/notifications"
+           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
+                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.1)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-bell" style="width:16px;text-align:center;opacity:.8;"></i>
+          {% if lang=='en' %}Notifications{% elif lang=='tr' %}Bildirimler{% else %}الإشعارات{% endif %}
+          <span class="notif-nav-badge" id="notif-nav-badge" style="display:none;margin-right:auto;"></span>
+        </a>
         {% endif %}
-      </div>
-      <div class="user-info">
-        <span class="user-name">{{ session.get('full_name', session.get('user','')) }}</span>
-        <span class="user-role">
-          {% if session.get('role')=='admin' %}{{ t.role_admin }}
-          {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
-          {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
-          {% elif session.get('role')=='observer' %}{{ t.role_observer }}
-          {% else %}{{ t.role_user }}{% endif %}
-        </span>
       </div>
     </div>
 
@@ -181,12 +223,6 @@
         <span>{% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %}</span>
         <span class="net-badge" id="net-nav-badge" style="display:none"></span>
       </a>
-      <a href="/notifications" class="nav-item {% if '/notifications' in request.path %}active{% endif %}">
-        <i class="fas fa-bell nav-icon"></i>
-        <span>{% if lang=='en' %}Notifications{% elif lang=='tr' %}Bildirimler{% else %}الإشعارات{% endif %}</span>
-        <span class="notif-nav-badge" id="notif-nav-badge" style="display:none"></span>
-      </a>
-
       {% endif %}
       {% endif %}
 
@@ -201,22 +237,6 @@
       <span class="nav-section-label">{{ t.nav_section_admin }}</span>
       <a href="/users" class="nav-item {% if '/user' in request.path and '/change' not in request.path %}active{% endif %}">
         <i class="fas fa-users-cog nav-icon"></i><span>{{ t.nav_users }}</span>
-      </a>
-      <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
-        <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
-      </a>
-      <a href="/profile" class="nav-item {% if '/profile' in request.path %}active{% endif %}">
-        <i class="fas fa-user-circle nav-icon"></i>
-        <span>{% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}</span>
-      </a>
-      {% else %}
-      <div class="nav-divider"></div>
-      <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
-        <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
-      </a>
-      <a href="/profile" class="nav-item {% if '/profile' in request.path %}active{% endif %}">
-        <i class="fas fa-user-circle nav-icon"></i>
-        <span>{% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}</span>
       </a>
       {% endif %}
     </nav>
@@ -315,6 +335,24 @@ function setSidebar(open) {
 
 toggleBtn.addEventListener('click', () => setSidebar(!sidebarOpen));
 setSidebar(sidebarOpen);
+
+// ══ قائمة المستخدم المنسدلة ══
+function userMenuToggle() {
+  const drop = document.getElementById('user-menu-drop');
+  const chev = document.getElementById('user-menu-chevron');
+  const open = drop.style.display === 'none';
+  drop.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('user-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const drop = document.getElementById('user-menu-drop');
+    const chev = document.getElementById('user-menu-chevron');
+    if (drop) drop.style.display = 'none';
+    if (chev) chev.style.transform = '';
+  }
+});
 </script>
 
 <style>
