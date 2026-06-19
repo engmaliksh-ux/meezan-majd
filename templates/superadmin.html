@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>500 Internal Server Error</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: monospace; background:#0a0a0a; color:#d4d4d4; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+
+  /* ── صفحة الخطأ المزيفة ── */
+  #fake-error {
+    text-align:center; padding:40px 20px;
+  }
+  #fake-error h1 { font-size:6rem; color:#c0392b; font-weight:900; letter-spacing:-2px; }
+  #fake-error h2 { font-size:1.4rem; color:#888; margin:10px 0 30px; }
+  #fake-error pre {
+    background:#111; border:1px solid #333; border-radius:8px;
+    padding:20px; text-align:left; font-size:.75rem; color:#5a8a5a;
+    max-width:600px; margin:0 auto 30px; line-height:1.8;
+  }
+  #countdown-bar-wrap {
+    max-width:400px; margin:0 auto 10px;
+    background:#1a1a1a; border-radius:4px; height:4px; overflow:hidden;
+  }
+  #countdown-bar { height:100%; background:#c0392b; width:100%; transition:width 1s linear; }
+  #countdown-txt { font-size:.75rem; color:#555; margin-bottom:30px; }
+
+  /* ── صفحة الدخول ── */
+  #login-panel {
+    display:none;
+    background:#111; border:1px solid #1e3a2a; border-radius:16px;
+    padding:44px 40px; width:360px; text-align:center;
+    box-shadow:0 0 40px rgba(26,107,58,.25);
+  }
+  #login-panel .logo { font-size:2.5rem; color:#1a6b3a; margin-bottom:8px; }
+  #login-panel h2 { color:#e0e0e0; font-size:1.1rem; margin-bottom:6px; letter-spacing:1px; }
+  #login-panel p { color:#555; font-size:.75rem; margin-bottom:28px; }
+  #login-panel input {
+    width:100%; padding:11px 14px; background:#1a1a1a; border:1px solid #2a2a2a;
+    border-radius:8px; color:#e0e0e0; font-size:.9rem; margin-bottom:14px; outline:none;
+    transition:border .2s;
+  }
+  #login-panel input:focus { border-color:#1a6b3a; }
+  #login-panel button {
+    width:100%; padding:12px; background:#1a6b3a; color:#fff; border:none;
+    border-radius:8px; font-size:.95rem; font-weight:700; cursor:pointer;
+    transition:background .2s; letter-spacing:.5px;
+  }
+  #login-panel button:hover { background:#145c30; }
+  #err-msg { color:#c0392b; font-size:.8rem; margin-top:12px; min-height:20px; }
+  .lock-msg { color:#c0392b; font-size:.8rem; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<!-- صفحة الخطأ المزيفة -->
+<div id="fake-error">
+  <h1>500</h1>
+  <h2>Internal Server Error</h2>
+  <pre>
+Traceback (most recent call last):
+  File "/var/www/malikmohs_pythonanywhere_com_wsgi.py", line 18, in &lt;module&gt;
+    from app import app as application
+  File "/home/MalikMohs/meezan-majd/app.py", line 247, in &lt;module&gt;
+    db.connect(DATABASE_URI, timeout=30)
+  File "/usr/local/lib/python3.10/sqlite3/dbapi2.py", line 94, in connect
+    return _sqlite3.connect(*args, **kwargs)
+sqlite3.OperationalError: unable to open database file
+  </pre>
+  <div id="countdown-bar-wrap"><div id="countdown-bar"></div></div>
+  <div id="countdown-txt">retrying in <span id="sec">120</span>s...</div>
+  <p style="color:#333;font-size:.7rem;">Apache/2.4.41 (Ubuntu) Server at malikmohs.pythonanywhere.com Port 443</p>
+</div>
+
+<!-- نموذج الدخول -->
+<div id="login-panel">
+  <div class="logo">⚙️</div>
+  <h2>SYSTEM CONTROL</h2>
+  <p>Restricted Access — Authorized Personnel Only</p>
+  {% if error %}<div id="err-msg">{{ error }}</div>{% endif %}
+  {% if locked %}
+  <div class="lock-msg">🔒 Too many attempts. Try again later.</div>
+  {% else %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="text" name="su_user" placeholder="Username" autocomplete="off" required>
+    <input type="password" name="su_pass" placeholder="Password" required>
+    <button type="submit">ENTER</button>
+  </form>
+  {% endif %}
+  <div id="err-msg">{% if error %}{{ error }}{% endif %}</div>
+</div>
+
+<script>
+const DELAY = 120; // ثانية
+let remaining = DELAY;
+const bar   = document.getElementById('countdown-bar');
+const secEl = document.getElementById('sec');
+const showLogin = {{ 'true' if show_login else 'false' }};
+
+if (showLogin) {
+  // قادم من محاولة دخول فاشلة — اعرض نموذج الدخول مباشرة
+  document.getElementById('fake-error').style.display = 'none';
+  document.getElementById('login-panel').style.display = 'block';
+} else {
+  const timer = setInterval(() => {
+    remaining--;
+    secEl.textContent = remaining;
+    bar.style.width = (remaining / DELAY * 100) + '%';
+    if (remaining <= 0) {
+      clearInterval(timer);
+      document.getElementById('fake-error').style.display = 'none';
+      document.getElementById('login-panel').style.display = 'block';
+    }
+  }, 1000);
+}
+</script>
+</body>
+</html>

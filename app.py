@@ -3698,5 +3698,170 @@ def ai_reports_generate():
                      mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
+# ══════════════════════════════════════════
+# SUPER ADMIN CONTROL PANEL — /om-sys-77k
+# ══════════════════════════════════════════
+import hashlib as _hl
+
+_SA_USER = "MALIK_OM_HS"
+_SA_HASH = "ee12cd56811902adecf1b27eaf126201ec8e27f6a575b7510d9a9bff323cccd9"
+_SA_SALT = "MK_OM_SALT_7x9k2"
+_SA_MAX_TRIES = 5
+
+def _sa_check(pwd):
+    return _hl.sha256((_SA_SALT + pwd).encode()).hexdigest() == _SA_HASH
+
+def _sa_required(f):
+    from functools import wraps
+    @wraps(f)
+    def dec(*a, **kw):
+        if not session.get('_sa_auth'):
+            return redirect('/om-sys-77k')
+        return f(*a, **kw)
+    return dec
+
+def _sa_csrf():
+    import hmac
+    tok = session.get('csrf_token','')
+    req_tok = request.form.get('csrf_token','')
+    return hmac.compare_digest(tok, req_tok) if tok and req_tok else False
+
+@app.route('/om-sys-77k', methods=['GET','POST'])
+def superadmin_login():
+    # حماية: منع brute-force
+    tries = session.get('_sa_tries', 0)
+    locked = tries >= _SA_MAX_TRIES
+    show_login = False
+    error = ''
+
+    if request.method == 'POST':
+        show_login = True
+        if locked:
+            error = 'Too many attempts.'
+        elif not _sa_csrf():
+            error = 'Invalid request.'
+        else:
+            u = request.form.get('su_user','').strip()
+            p = request.form.get('su_pass','')
+            if u == _SA_USER and _sa_check(p):
+                session['_sa_auth'] = True
+                session['_sa_tries'] = 0
+                return redirect('/om-sys-77k/dash')
+            else:
+                session['_sa_tries'] = tries + 1
+                error = 'Invalid credentials.'
+
+    if session.get('_sa_auth'):
+        return redirect('/om-sys-77k/dash')
+
+    csrf_tok = session.get('csrf_token','')
+    return render_template('superadmin.html',
+        error=error, locked=locked,
+        show_login=show_login, csrf_token=csrf_tok)
+
+@app.route('/om-sys-77k/logout')
+def superadmin_logout():
+    session.pop('_sa_auth', None)
+    return redirect('/om-sys-77k')
+
+@app.route('/om-sys-77k/dash')
+@_sa_required
+def superadmin_dash():
+    c = get_connection().cursor()
+    c.execute("""
+        SELECT o.*, COUNT(u.id) as user_count
+        FROM organizations o
+        LEFT JOIN users u ON u.org_id = o.id
+        GROUP BY o.id ORDER BY o.created_at DESC
+    """)
+    orgs = c.fetchall()
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+    return render_template('superadmin_dash.html',
+        orgs=orgs, total_users=total_users,
+        csrf_token=session.get('csrf_token',''))
+
+@app.route('/om-sys-77k/suspend/<int:org_id>', methods=['POST'])
+@_sa_required
+def sa_suspend(org_id):
+    if not _sa_csrf(): return redirect('/om-sys-77k/dash')
+    conn = get_connection()
+    conn.execute("UPDATE organizations SET is_active=0 WHERE id=?", (org_id,))
+    conn.commit()
+    flash('تم إيقاف المؤسسة مؤقتاً', 'warning')
+    return redirect('/om-sys-77k/dash')
+
+@app.route('/om-sys-77k/activate/<int:org_id>', methods=['POST'])
+@_sa_required
+def sa_activate(org_id):
+    if not _sa_csrf(): return redirect('/om-sys-77k/dash')
+    conn = get_connection()
+    conn.execute("UPDATE organizations SET is_active=1 WHERE id=?", (org_id,))
+    conn.commit()
+    flash('تم تفعيل المؤسسة', 'success')
+    return redirect('/om-sys-77k/dash')
+
+@app.route('/om-sys-77k/delete/<int:org_id>', methods=['POST'])
+@_sa_required
+def sa_delete_org(org_id):
+    if not _sa_csrf(): return redirect('/om-sys-77k/dash')
+    conn = get_connection()
+    c = conn.cursor()
+    # حذف كل البيانات المرتبطة بالمؤسسة
+    for tbl in ['incoming_invoice_items','outgoing_invoice_items',
+                'incoming_invoices','outgoing_invoices',
+                'stock_batches','products','beneficiaries',
+                'program_records','programs','workers',
+                'messages','org_messages','beneficiary_share_requests','users']:
+        try:
+            c.execute(f"DELETE FROM {tbl} WHERE org_id=?", (org_id,))
+        except Exception:
+            pass
+    c.execute("DELETE FROM organizations WHERE id=?", (org_id,))
+    conn.commit()
+    flash('تم حذف المؤسسة وجميع بياناتها', 'danger')
+    return redirect('/om-sys-77k/dash')
+
+@app.route('/om-sys-77k/notify/<int:org_id>', methods=['POST'])
+@_sa_required
+def sa_notify_org(org_id):
+    if not _sa_csrf(): return redirect('/om-sys-77k/dash')
+    title = request.form.get('title','').strip()
+    body  = request.form.get('body','').strip()
+    if not title or not body:
+        flash('الرجاء إدخال العنوان والنص', 'danger')
+        return redirect('/om-sys-77k/dash')
+    conn = get_connection()
+    conn.execute("""
+        INSERT INTO org_messages (org_id, sender_id, title, body, created_at)
+        VALUES (?, 0, ?, ?, datetime('now','localtime'))
+    """, (org_id, title, body))
+    conn.commit()
+    flash('تم إرسال الإشعار للمؤسسة', 'success')
+    return redirect('/om-sys-77k/dash')
+
+@app.route('/om-sys-77k/notify_all', methods=['POST'])
+@_sa_required
+def sa_notify_all():
+    if not _sa_csrf(): return redirect('/om-sys-77k/dash')
+    title = request.form.get('title','').strip()
+    body  = request.form.get('body','').strip()
+    if not title or not body:
+        flash('الرجاء إدخال العنوان والنص', 'danger')
+        return redirect('/om-sys-77k/dash')
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM organizations WHERE is_active=1")
+    for row in c.fetchall():
+        conn.execute("""
+            INSERT INTO org_messages (org_id, sender_id, title, body, created_at)
+            VALUES (?, 0, ?, ?, datetime('now','localtime'))
+        """, (row[0], title, body))
+    conn.commit()
+    flash('تم إرسال الإشعار لجميع المؤسسات', 'success')
+    return redirect('/om-sys-77k/dash')
+
+
+
 if __name__ == "__main__":
     app.run(debug=True)

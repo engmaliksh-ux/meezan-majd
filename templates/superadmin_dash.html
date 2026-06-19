@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>System Control Panel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6edf3; min-height:100vh; }
+
+.topbar {
+  background:#161b22; border-bottom:1px solid #30363d;
+  padding:12px 28px; display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100;
+}
+.topbar .brand { font-size:1.1rem; font-weight:700; color:#58a6ff; letter-spacing:1px; }
+.topbar .sub   { font-size:.72rem; color:#8b949e; }
+.topbar .logout-btn {
+  background:#21262d; border:1px solid #30363d; color:#f85149;
+  padding:6px 16px; border-radius:6px; cursor:pointer; font-size:.82rem;
+  text-decoration:none; transition:background .2s;
+}
+.topbar .logout-btn:hover { background:#2d1b1b; }
+
+.container { max-width:1100px; margin:0 auto; padding:28px 20px; }
+
+.stats-row { display:flex; gap:16px; margin-bottom:28px; flex-wrap:wrap; }
+.stat-card {
+  flex:1; min-width:160px; background:#161b22; border:1px solid #30363d;
+  border-radius:10px; padding:18px 22px;
+}
+.stat-card .num { font-size:2rem; font-weight:900; color:#58a6ff; }
+.stat-card .lbl { font-size:.78rem; color:#8b949e; margin-top:4px; }
+
+.section-title {
+  font-size:1rem; font-weight:700; color:#8b949e;
+  border-bottom:1px solid #21262d; padding-bottom:10px; margin-bottom:18px;
+  display:flex; align-items:center; gap:8px;
+}
+
+/* بطاقات المؤسسات */
+.org-card {
+  background:#161b22; border:1px solid #30363d; border-radius:10px;
+  padding:18px 22px; margin-bottom:14px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.org-card.suspended { border-color:#f0883e44; background:#1c1610; }
+.org-badge {
+  background:#1f2937; border:1px solid #374151; border-radius:20px;
+  padding:4px 12px; font-size:.7rem; font-weight:700; color:#58a6ff;
+  flex-shrink:0;
+}
+.org-info { flex:1; min-width:180px; }
+.org-name { font-weight:700; font-size:.95rem; color:#e6edf3; }
+.org-meta { font-size:.73rem; color:#8b949e; margin-top:3px; }
+.status-badge {
+  font-size:.68rem; padding:3px 10px; border-radius:20px; font-weight:700;
+}
+.status-badge.active   { background:#1a3a2a; color:#56d364; }
+.status-badge.suspended{ background:#3a1f10; color:#f0883e; }
+
+.org-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.btn {
+  padding:7px 14px; border-radius:6px; border:none; cursor:pointer;
+  font-size:.78rem; font-weight:600; transition:opacity .2s;
+}
+.btn:hover { opacity:.8; }
+.btn-warn { background:#f0883e; color:#000; }
+.btn-success { background:#238636; color:#fff; }
+.btn-danger  { background:#b91c1c; color:#fff; }
+.btn-info    { background:#1f6feb; color:#fff; }
+
+/* الإشعارات */
+.notif-box {
+  background:#161b22; border:1px solid #30363d; border-radius:10px; padding:22px 24px;
+}
+.notif-box select, .notif-box textarea, .notif-box input[type=text] {
+  width:100%; background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+  border-radius:7px; padding:10px 14px; font-size:.88rem; margin-bottom:12px; outline:none;
+  font-family:inherit; resize:vertical;
+}
+.notif-box select:focus, .notif-box textarea:focus { border-color:#58a6ff; }
+.notif-box button { padding:10px 28px; }
+
+/* مودال تأكيد الحذف */
+.overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:999; align-items:center; justify-content:center;
+}
+.overlay.show { display:flex; }
+.modal-box {
+  background:#161b22; border:1px solid #f85149; border-radius:12px;
+  padding:32px; width:360px; text-align:center;
+}
+.modal-box h3 { color:#f85149; margin-bottom:10px; }
+.modal-box p  { color:#8b949e; font-size:.88rem; margin-bottom:24px; }
+.modal-actions { display:flex; gap:12px; justify-content:center; }
+
+.flash-msg {
+  padding:12px 20px; border-radius:8px; margin-bottom:20px; font-size:.88rem;
+}
+.flash-success { background:#1a3a2a; border:1px solid #238636; color:#56d364; }
+.flash-danger  { background:#3a1010; border:1px solid #b91c1c; color:#f85149; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="brand">⚙️ SYSTEM CONTROL PANEL</div>
+    <div class="sub">Meezan Majd — Database Management</div>
+  </div>
+  <a href="/om-sys-77k/logout" class="logout-btn"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+</div>
+
+<div class="container">
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in msgs %}
+  <div class="flash-msg flash-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <!-- إحصائيات سريعة -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num">{{ orgs|length }}</div>
+      <div class="lbl">إجمالي المؤسسات</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ orgs|selectattr('is_active','equalto',1)|list|length }}</div>
+      <div class="lbl">مؤسسات نشطة</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ orgs|selectattr('is_active','equalto',0)|list|length }}</div>
+      <div class="lbl">موقوفة مؤقتاً</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">{{ total_users }}</div>
+      <div class="lbl">إجمالي المستخدمين</div>
+    </div>
+  </div>
+
+  <!-- قائمة المؤسسات -->
+  <div class="section-title"><i class="fas fa-building"></i> المؤسسات</div>
+  {% for org in orgs %}
+  <div class="org-card {% if not org.is_active %}suspended{% endif %}">
+    <span class="org-badge">{{ org.org_code }}</span>
+    <div class="org-info">
+      <div class="org-name">{{ org.name }}</div>
+      <div class="org-meta">
+        {{ org.email }} • {{ org.created_at[:10] if org.created_at else '—' }}
+        • {{ org.user_count }} مستخدم
+      </div>
+    </div>
+    <span class="status-badge {% if org.is_active %}active{% else %}suspended{% endif %}">
+      {% if org.is_active %}● نشط{% else %}⏸ موقوف{% endif %}
+    </span>
+    <div class="org-actions">
+      {% if org.is_active %}
+      <form method="POST" action="/om-sys-77k/suspend/{{ org.id }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-warn" type="submit"><i class="fas fa-pause me-1"></i> إيقاف مؤقت</button>
+      </form>
+      {% else %}
+      <form method="POST" action="/om-sys-77k/activate/{{ org.id }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-success" type="submit"><i class="fas fa-play me-1"></i> تفعيل</button>
+      </form>
+      {% endif %}
+      <button class="btn btn-info"
+              onclick="openNotifModal({{ org.id }}, '{{ org.name }}')">
+        <i class="fas fa-bell me-1"></i> إشعار
+      </button>
+      <button class="btn btn-danger"
+              onclick="openDeleteModal({{ org.id }}, '{{ org.name }}')">
+        <i class="fas fa-trash me-1"></i> حذف
+      </button>
+    </div>
+  </div>
+  {% else %}
+  <p style="color:#8b949e;text-align:center;padding:30px;">لا توجد مؤسسات مسجلة</p>
+  {% endfor %}
+
+  <!-- إرسال إشعار للكل -->
+  <div class="section-title" style="margin-top:36px;"><i class="fas fa-paper-plane"></i> إرسال إشعار لجميع المؤسسات</div>
+  <div class="notif-box">
+    <form method="POST" action="/om-sys-77k/notify_all">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text" name="title" placeholder="عنوان الإشعار" required>
+      <textarea name="body" rows="3" placeholder="نص الإشعار..." required></textarea>
+      <button class="btn btn-info" type="submit"><i class="fas fa-broadcast-tower me-1"></i> إرسال للجميع</button>
+    </form>
+  </div>
+</div>
+
+<!-- مودال الحذف -->
+<div class="overlay" id="delete-overlay">
+  <div class="modal-box">
+    <h3><i class="fas fa-exclamation-triangle"></i> تأكيد الحذف</h3>
+    <p id="delete-msg"></p>
+    <div class="modal-actions">
+      <form method="POST" id="delete-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-danger" type="submit"><i class="fas fa-trash me-1"></i> حذف نهائي</button>
+      </form>
+      <button class="btn" style="background:#21262d;color:#e6edf3;"
+              onclick="document.getElementById('delete-overlay').classList.remove('show')">
+        إلغاء
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- مودال إشعار فردي -->
+<div class="overlay" id="notif-overlay">
+  <div class="modal-box" style="border-color:#1f6feb;">
+    <h3 style="color:#58a6ff;"><i class="fas fa-bell"></i> إشعار لـ <span id="notif-org-name"></span></h3>
+    <form method="POST" id="notif-form" style="text-align:right;margin-top:16px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text" name="title" placeholder="عنوان الإشعار"
+             style="width:100%;background:#0d1117;border:1px solid #30363d;color:#e6edf3;
+                    border-radius:7px;padding:10px 14px;font-size:.88rem;margin-bottom:10px;outline:none;">
+      <textarea name="body" rows="3" placeholder="نص الإشعار..."
+                style="width:100%;background:#0d1117;border:1px solid #30363d;color:#e6edf3;
+                       border-radius:7px;padding:10px 14px;font-size:.88rem;resize:vertical;
+                       font-family:inherit;outline:none;margin-bottom:14px;"></textarea>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="btn btn-info" type="submit"><i class="fas fa-paper-plane me-1"></i> إرسال</button>
+        <button type="button" class="btn" style="background:#21262d;color:#e6edf3;"
+                onclick="document.getElementById('notif-overlay').classList.remove('show')">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openDeleteModal(id, name) {
+  document.getElementById('delete-msg').textContent =
+    'هل أنت متأكد من حذف مؤسسة "' + name + '"؟ سيتم حذف جميع بياناتها نهائياً.';
+  document.getElementById('delete-form').action = '/om-sys-77k/delete/' + id;
+  document.getElementById('delete-overlay').classList.add('show');
+}
+function openNotifModal(id, name) {
+  document.getElementById('notif-org-name').textContent = name;
+  document.getElementById('notif-form').action = '/om-sys-77k/notify/' + id;
+  document.getElementById('notif-overlay').classList.add('show');
+}
+</script>
+</body>
+</html>

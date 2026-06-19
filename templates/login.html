@@ -11,6 +11,20 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="auth-page">
+
+  <!-- أيقونة لوحة التحكم السرية — أعلى اليسار -->
+  <a href="/om-sys-77k"
+     style="position:fixed;top:14px;left:14px;z-index:9999;
+            width:32px;height:32px;border-radius:50%;
+            background:rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;
+            color:rgba(255,255,255,.25);font-size:.85rem;text-decoration:none;
+            transition:all .3s;"
+     onmouseover="this.style.color='rgba(255,255,255,.7)';this.style.background='rgba(0,0,0,.4)'"
+     onmouseout="this.style.color='rgba(255,255,255,.25)';this.style.background='rgba(0,0,0,.18)'"
+     title="">
+    <i class="fas fa-shield-alt"></i>
+  </a>
+
   <div class="auth-card">
 
     <div class="auth-header">
