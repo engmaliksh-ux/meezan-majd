@@ -174,6 +174,44 @@
     </div>
   </aside>
 
+
+  <!-- ══ جرس إشعارات المخزون ══ -->
+  {%% if session.get('role') in ['admin','accountant','observer'] %%}
+  <div id="stock-bell-wrap" style="position:fixed;top:14px;left:14px;z-index:1100;">
+    <button id="stock-bell-btn" onclick="stockBellToggle()"
+            style="background:#fff;border:none;border-radius:50%%;width:42px;height:42px;
+                   box-shadow:0 2px 10px rgba(0,0,0,.15);cursor:pointer;position:relative;
+                   display:flex;align-items:center;justify-content:center;">
+      <i class="fas fa-bell" style="font-size:1.1rem;color:#555;" id="stock-bell-icon"></i>
+      <span id="stock-bell-badge"
+            style="display:none;position:absolute;top:2px;right:2px;background:#e53935;color:#fff;
+                   border-radius:50%%;font-size:.6rem;font-weight:800;min-width:16px;height:16px;
+                   line-height:16px;text-align:center;padding:0 3px;"></span>
+    </button>
+    <div id="stock-bell-drop"
+         style="display:none;position:absolute;top:48px;left:0;width:300px;
+                background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.18);
+                overflow:hidden;z-index:1200;">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:10px 14px;background:#fff8e1;border-bottom:1px solid #ffe082;">
+        <span style="font-weight:700;font-size:.85rem;color:#e65100;">
+          <i class="fas fa-exclamation-triangle me-1"></i> تنبيهات المخزون
+        </span>
+        <button onclick="stockBellClearAll()"
+                style="background:none;border:none;font-size:.72rem;color:#e53935;cursor:pointer;font-weight:700;">
+          مسح الكل
+        </button>
+      </div>
+      <div id="stock-bell-list" style="max-height:320px;overflow-y:auto;"></div>
+      <div id="stock-bell-empty"
+           style="display:none;padding:18px;text-align:center;color:#aaa;font-size:.82rem;">
+        <i class="fas fa-check-circle" style="color:#66bb6a;font-size:1.4rem;display:block;margin-bottom:6px;"></i>
+        لا توجد تنبيهات
+      </div>
+    </div>
+  </div>
+  {%% endif %%}
+
   <!-- المحتوى -->
   <main class="main-content" id="main-content">
     <div class="content-inner">
@@ -944,6 +982,96 @@ setInterval(netBadge, 15000);
 netBadge();
 
 })(); // end IIFE
+
+// ══ جرس إشعارات المخزون ══
+(function(){
+  const DISMISS_KEY = 'stock_dismissed';
+  let allAlerts = [];
+
+  function getDismissed(){
+    try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch(e){ return []; }
+  }
+  function saveDismissed(arr){
+    localStorage.setItem(DISMISS_KEY, JSON.stringify(arr));
+  }
+  function getVisible(){
+    const dis = getDismissed();
+    return allAlerts.filter(a => !dis.includes(a.id));
+  }
+  function renderList(){
+    const vis = getVisible();
+    const list = document.getElementById('stock-bell-list');
+    const empty = document.getElementById('stock-bell-empty');
+    const badge = document.getElementById('stock-bell-badge');
+    const icon  = document.getElementById('stock-bell-icon');
+    if(!list) return;
+    if(vis.length === 0){
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      badge.style.display = 'none';
+      icon.style.color = '#aaa';
+    } else {
+      empty.style.display = 'none';
+      badge.style.display = 'inline-block';
+      badge.textContent = vis.length;
+      icon.style.color = '#e65100';
+      list.innerHTML = vis.map(a => {
+        const isOut = a.qty === 0;
+        const color = isOut ? '#c62828' : '#e65100';
+        const bg    = isOut ? '#ffebee' : '#fff8e1';
+        const qtyTxt = isOut ? 'نافد من المخزن' : ('متبقي ' + parseFloat(a.qty).toFixed(1) + ' ' + a.unit);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f5f5f5;">
+          <div style="width:34px;height:34px;border-radius:50%;background:${bg};flex-shrink:0;
+                      display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-${isOut?'times':'exclamation'}-circle" style="color:${color};font-size:.9rem;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:.82rem;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+            <div style="font-size:.72rem;color:${color};">${qtyTxt}</div>
+          </div>
+          <button onclick="stockBellDismiss(${a.id})"
+                  style="background:none;border:none;color:#bbb;cursor:pointer;font-size:.85rem;padding:2px 6px;flex-shrink:0;"
+                  title="إخفاء">✕</button>
+        </div>`;
+      }).join('');
+    }
+  }
+  async function loadAlerts(){
+    try {
+      const r = await fetch('/api/low_stock');
+      allAlerts = await r.json();
+      renderList();
+    } catch(e){}
+  }
+  window.stockBellToggle = function(){
+    const drop = document.getElementById('stock-bell-drop');
+    if(!drop) return;
+    drop.style.display = drop.style.display === 'none' ? 'block' : 'none';
+  };
+  window.stockBellDismiss = function(id){
+    const dis = getDismissed();
+    if(!dis.includes(id)) dis.push(id);
+    saveDismissed(dis);
+    renderList();
+  };
+  window.stockBellClearAll = function(){
+    saveDismissed(allAlerts.map(a => a.id));
+    renderList();
+    document.getElementById('stock-bell-drop').style.display = 'none';
+  };
+  // إغلاق عند الضغط خارجاً
+  document.addEventListener('click', function(e){
+    const wrap = document.getElementById('stock-bell-wrap');
+    if(wrap && !wrap.contains(e.target)){
+      const drop = document.getElementById('stock-bell-drop');
+      if(drop) drop.style.display = 'none';
+    }
+  });
+  // تحميل عند فتح الصفحة وكل دقيقتين
+  loadAlerts();
+  setInterval(loadAlerts, 120000);
+})();
+
 </script>
 {% endif %}
 

@@ -886,6 +886,33 @@ def dashboard():
 
 
 # ══════════════════════════════════════════
+# تنبيهات المخزون المنخفض (API)
+# ══════════════════════════════════════════
+@app.route("/api/low_stock")
+@login_required
+def api_low_stock():
+    """إرجاع قائمة الأصناف ذات المخزون المنخفض أو النافد بصيغة JSON"""
+    if session.get("role") not in ("admin", "accountant", "observer"):
+        return jsonify([])
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT p.id, p.name, p.unit,
+               COALESCE(SUM(sb.quantity_remaining), 0) AS qty
+        FROM products p
+        LEFT JOIN stock_batches sb ON sb.product_id = p.id AND sb.org_id = p.org_id
+        WHERE p.org_id = ?
+        GROUP BY p.id
+        HAVING qty <= 10
+        ORDER BY qty ASC
+    """, (org_id,))
+    items = [{"id": r["id"], "name": r["name"], "unit": r["unit"] or "", "qty": r["qty"]} for r in c.fetchall()]
+    conn.close()
+    return jsonify(items)
+
+
+# ══════════════════════════════════════════
 # موافقة / رفض الموظفين
 # ══════════════════════════════════════════
 @app.route("/approve_user/<int:id>")
@@ -3672,6 +3699,4 @@ def ai_reports_generate():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
-_ == "__main__":
     app.run(debug=True)
