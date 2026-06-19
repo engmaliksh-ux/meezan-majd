@@ -176,7 +176,7 @@
 
 
   <!-- ══ جرس إشعارات المخزون ══ -->
-  {%% if session.get('role') in ['admin','accountant','observer'] %%}
+  {% if session.get('role') in ['admin','accountant','observer'] %}
   <div id="stock-bell-wrap" style="position:fixed;top:14px;left:14px;z-index:1100;">
     <button id="stock-bell-btn" onclick="stockBellToggle()"
             style="background:#fff;border:none;border-radius:50%%;width:42px;height:42px;
@@ -210,7 +210,7 @@
       </div>
     </div>
   </div>
-  {%% endif %%}
+  {% endif %}
 
   <!-- المحتوى -->
   <main class="main-content" id="main-content">
