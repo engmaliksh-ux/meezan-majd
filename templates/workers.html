@@ -96,7 +96,7 @@
           <th>المكافأة الشهرية</th>
           <th>ملاحظات</th>
           {% if session.get('role') in ['admin','accountant'] %}
-          <th class="no-print">حذف</th>
+          <th class="no-print">إجراءات</th>
           {% endif %}
         </tr>
       </thead>
@@ -122,10 +122,16 @@
           <td style="font-size:.82rem;color:#6c7a72;">{{ w.notes or '—' }}</td>
           {% if session.get('role') in ['admin','accountant'] %}
           <td class="no-print">
-            <a href="{{ url_for('delete_worker', id=w.id) }}" class="btn btn-outline-danger btn-sm"
-               onclick="return confirm('تأكيد حذف العامل؟')">
-              <i class="fas fa-trash"></i>
-            </a>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-outline-primary btn-sm"
+                onclick="openEditWorker({{ w.id }}, '{{ w.full_name|e }}', '{{ w.id_number or '' }}', '{{ w.project_name or '' }}', '{{ w.job_type or '' }}', {{ w.monthly_salary or 0 }}, '{{ w.notes|e if w.notes else '' }}')"
+                title="تعديل"><i class="fas fa-pen"></i>
+              </button>
+              <a href="{{ url_for('delete_worker', id=w.id) }}" class="btn btn-outline-danger btn-sm"
+                 onclick="return confirm('تأكيد حذف العامل؟')" title="حذف">
+                <i class="fas fa-trash"></i>
+              </a>
+            </div>
           </td>
           {% endif %}
         </tr>
@@ -161,8 +167,115 @@
 
 {% endblock %}
 
+<!-- Modal تعديل العامل -->
+{% if session.get('role') in ['admin','accountant'] %}
+<div id="edit-worker-modal" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;max-width:600px;width:95%;
+       box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h5 style="margin:0;color:#1a6b3a;"><i class="fas fa-pen me-2"></i>تعديل بيانات العامل</h5>
+      <button onclick="closeEditWorker()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
+    </div>
+    <form id="edit-worker-form">
+      <input type="hidden" id="ew-id">
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">اسم العامل <span class="text-danger">*</span></label>
+          <input class="form-control" id="ew-name" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">رقم الهوية</label>
+          <input class="form-control" id="ew-idnum" inputmode="numeric" maxlength="9">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <label class="form-label fw-bold">اسم المشروع</label>
+          <input class="form-control" id="ew-project" list="projects-list">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">طبيعة العمل</label>
+          <select class="form-select" id="ew-job">
+            <option value="">-- اختر --</option>
+            <option value="منسق">منسق</option>
+            <option value="مصور">مصور</option>
+            <option value="عامل">عامل</option>
+            <option value="سائق">سائق</option>
+            <option value="مشرف">مشرف</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">المكافأة الشهرية</label>
+          <input type="number" class="form-control" id="ew-salary" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">ملاحظات</label>
+        <input class="form-control" id="ew-notes">
+      </div>
+      <div id="ew-err" style="color:#c62828;font-size:.85rem;margin-bottom:10px;display:none;"></div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-primary" onclick="submitEditWorker()">
+          <i class="fas fa-save me-1"></i> حفظ التعديلات
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="closeEditWorker()">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 {% block scripts %}
 <style>
 @media print { .no-print { display:none !important; } }
 </style>
+
+{% if session.get('role') in ['admin','accountant'] %}
+<script>
+const EW_CSRF = "{{ csrf_token() }}";
+
+function openEditWorker(id, name, idnum, project, job, salary, notes) {
+  document.getElementById('ew-id').value      = id;
+  document.getElementById('ew-name').value    = name;
+  document.getElementById('ew-idnum').value   = idnum;
+  document.getElementById('ew-project').value = project;
+  document.getElementById('ew-job').value     = job;
+  document.getElementById('ew-salary').value  = salary || '';
+  document.getElementById('ew-notes').value   = notes;
+  document.getElementById('ew-err').style.display = 'none';
+  document.getElementById('edit-worker-modal').style.display = 'flex';
+}
+function closeEditWorker() {
+  document.getElementById('edit-worker-modal').style.display = 'none';
+}
+document.getElementById('edit-worker-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditWorker();
+});
+
+async function submitEditWorker() {
+  const id   = document.getElementById('ew-id').value;
+  const name = document.getElementById('ew-name').value.trim();
+  const errEl = document.getElementById('ew-err');
+  if (!name) { errEl.textContent = 'يرجى إدخال اسم العامل'; errEl.style.display='block'; return; }
+
+  const fd = new FormData();
+  fd.append('_csrf_token',   EW_CSRF);
+  fd.append('full_name',     name);
+  fd.append('id_number',     document.getElementById('ew-idnum').value.trim());
+  fd.append('project_name',  document.getElementById('ew-project').value.trim());
+  fd.append('job_type',      document.getElementById('ew-job').value);
+  fd.append('monthly_salary',document.getElementById('ew-salary').value || '0');
+  fd.append('notes',         document.getElementById('ew-notes').value.trim());
+
+  try {
+    const r = await fetch(`/edit_worker/${id}`, { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.ok) { location.reload(); }
+    else { errEl.textContent = 'حدث خطأ، حاول مجدداً'; errEl.style.display='block'; }
+  } catch(e) { errEl.textContent = 'خطأ في الاتصال'; errEl.style.display='block'; }
+}
+</script>
+{% endif %}
 {% endblock %}

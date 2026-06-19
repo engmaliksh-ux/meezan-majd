@@ -140,10 +140,18 @@
       <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
         <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
       </a>
+      <a href="/profile" class="nav-item {% if '/profile' in request.path %}active{% endif %}">
+        <i class="fas fa-user-circle nav-icon"></i>
+        <span>{% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}</span>
+      </a>
       {% else %}
       <div class="nav-divider"></div>
       <a href="/change_password" class="nav-item {% if '/change_password' in request.path %}active{% endif %}">
         <i class="fas fa-key nav-icon"></i><span>{{ t.nav_change_password }}</span>
+      </a>
+      <a href="/profile" class="nav-item {% if '/profile' in request.path %}active{% endif %}">
+        <i class="fas fa-user-circle nav-icon"></i>
+        <span>{% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}</span>
       </a>
       {% endif %}
     </nav>

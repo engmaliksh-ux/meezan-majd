@@ -270,6 +270,7 @@ def migrate_db():
         ("workers",               "project_name",     "TEXT"),
         ("incoming_invoices",     "purchase_invoice_number", "TEXT"),
         ("incoming_invoices",     "invoice_name",     "TEXT"),
+        ("users",                 "phone",            "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً

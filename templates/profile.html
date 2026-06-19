@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}{% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %} – ميزان مجد{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">
+    <i class="fas fa-user-circle"></i>
+    {% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}
+  </h2>
+</div>
+
+<div class="d-flex justify-content-center">
+  <div class="card" style="width:100%;max-width:520px;">
+    <div class="card-header">
+      <i class="fas fa-id-card" style="color:#1a6b3a;"></i>
+      {% if lang=='en' %}Personal Information{% elif lang=='tr' %}Kişisel Bilgiler{% else %}البيانات الشخصية{% endif %}
+    </div>
+    <div class="card-body">
+
+      {% if success %}
+      <div class="alert alert-success text-center" style="border-radius:10px;">
+        <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color:#1a6b3a;"></i>
+        <strong>{% if lang=='en' %}Profile updated successfully{% elif lang=='tr' %}Profil güncellendi{% else %}تم تحديث الملف الشخصي بنجاح{% endif %}</strong>
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+      </div>
+      {% endif %}
+
+      <!-- صورة المستخدم -->
+      <div class="text-center mb-4">
+        <div style="position:relative;display:inline-block;">
+          {% if user.photo %}
+          <img src="{{ url_for('static', filename='uploads/' + user.photo) }}"
+               id="photo-preview"
+               style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+                      border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
+          {% else %}
+          <div id="photo-preview-placeholder"
+               style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#1a6b3a,#2e9e5e);
+                      display:inline-flex;align-items:center;justify-content:center;
+                      border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
+            <i class="fas fa-user" style="font-size:2.2rem;color:#fff;"></i>
+          </div>
+          <img id="photo-preview" style="display:none;width:90px;height:90px;border-radius:50%;
+               object-fit:cover;border:3px solid #1a6b3a;">
+          {% endif %}
+          <label for="photo-inp" style="position:absolute;bottom:0;right:0;
+                 background:#1a6b3a;color:#fff;border-radius:50%;width:26px;height:26px;
+                 display:flex;align-items:center;justify-content:center;cursor:pointer;
+                 box-shadow:0 2px 6px rgba(0,0,0,.2);" title="تغيير الصورة">
+            <i class="fas fa-camera" style="font-size:.65rem;"></i>
+          </label>
+        </div>
+        <div style="margin-top:10px;">
+          <span style="font-size:.8rem;font-weight:700;background:#e8f5ee;color:#1a6b3a;
+                       border-radius:20px;padding:3px 12px;">
+            {% if user.role == 'admin' %}
+              <i class="fas fa-shield-alt me-1"></i>
+              {% if lang=='en' %}Admin{% elif lang=='tr' %}Yönetici{% else %}مدير{% endif %}
+            {% elif user.role == 'accountant' %}
+              <i class="fas fa-file-invoice me-1"></i>
+              {% if lang=='en' %}Accountant{% elif lang=='tr' %}Muhasebeci{% else %}محاسب{% endif %}
+            {% elif user.role == 'data_entry' %}
+              <i class="fas fa-keyboard me-1"></i>
+              {% if lang=='en' %}Data Entry{% elif lang=='tr' %}Veri Girişi{% else %}مدخل بيانات{% endif %}
+            {% elif user.role == 'observer' %}
+              <i class="fas fa-eye me-1"></i>
+              {% if lang=='en' %}Observer{% elif lang=='tr' %}Gözlemci{% else %}مراقب{% endif %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="file" id="photo-inp" name="photo" accept="image/*"
+               style="display:none;" onchange="previewPhoto(this)">
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            {% if lang=='en' %}Full Name{% elif lang=='tr' %}Ad Soyad{% else %}الاسم الكامل{% endif %}
+            <span class="text-danger">*</span>
+          </label>
+          <input type="text" class="form-control" name="full_name"
+                 value="{{ user.full_name }}" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            {% if lang=='en' %}Username{% elif lang=='tr' %}Kullanıcı Adı{% else %}اسم المستخدم{% endif %}
+          </label>
+          <input type="text" class="form-control" value="{{ user.username }}"
+                 disabled style="background:#f5f5f5;color:#888;">
+          <div style="font-size:.75rem;color:#aaa;margin-top:4px;">
+            {% if lang=='en' %}Username cannot be changed{% elif lang=='tr' %}Kullanıcı adı değiştirilemez{% else %}اسم المستخدم لا يمكن تغييره{% endif %}
+          </div>
+        </div>
+
+        {% if user.email %}
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            {% if lang=='en' %}Email{% elif lang=='tr' %}E-posta{% else %}البريد الإلكتروني{% endif %}
+          </label>
+          <input type="text" class="form-control" value="{{ user.email }}"
+                 disabled style="background:#f5f5f5;color:#888;">
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">
+            {% if lang=='en' %}Phone{% elif lang=='tr' %}Telefon{% else %}رقم الهاتف{% endif %}
+          </label>
+          <input type="text" class="form-control" name="phone"
+                 value="{{ user.phone or '' }}"
+                 placeholder="{% if lang=='en' %}Optional{% elif lang=='tr' %}İsteğe bağlı{% else %}اختياري{% endif %}">
+        </div>
+
+        <div class="mb-3" style="font-size:.8rem;color:#aaa;">
+          <i class="fas fa-clock me-1"></i>
+          {% if lang=='en' %}Member since{% elif lang=='tr' %}Üyelik tarihi{% else %}عضو منذ{% endif %}:
+          {{ user.created_at[:10] if user.created_at else '—' }}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="fas fa-save me-2"></i>
+            {% if lang=='en' %}Save Changes{% elif lang=='tr' %}Değişiklikleri Kaydet{% else %}حفظ التغييرات{% endif %}
+          </button>
+          <a href="/change_password" class="btn btn-outline-secondary">
+            <i class="fas fa-key me-1"></i>
+            {% if lang=='en' %}Password{% elif lang=='tr' %}Şifre{% else %}كلمة السر{% endif %}
+          </a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('photo-preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    const placeholder = document.getElementById('photo-preview-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% endblock %}
