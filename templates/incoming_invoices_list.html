@@ -95,7 +95,7 @@
       <!-- أزرار الإجراءات -->
       <div class="no-print d-flex gap-1">
         <button class="btn btn-outline-secondary btn-sm"
-                onclick="printSingleInv('icf-body-{{ inv.id }}', '{{ inv.supplier }}', '{{ inv.display_num }}')"
+                onclick="printSingleInv('icf-print-{{ inv.id }}')"
                 title="طباعة">
           <i class="fas fa-print"></i>
         </button>
@@ -241,10 +241,19 @@
         </div>
       </form>
     </div>
+    {% endif %}
 
-    <!-- الصور الثلاث -->
+    <!-- الصور الثلاث — متاحة دائماً حتى للفواتير المغلقة -->
+    {% if session.get('role') != 'observer' %}
     <div class="icf-section no-print">
-      <div class="icf-section-title"><i class="fas fa-images me-1"></i> المرفقات</div>
+      <div class="icf-section-title">
+        <i class="fas fa-images me-1"></i> المرفقات
+        {% if inv.is_closed %}
+        <span style="font-size:.7rem;color:#856404;background:#fff8e1;border-radius:8px;padding:2px 8px;margin-right:6px;">
+          <i class="fas fa-lock me-1"></i> الفاتورة مغلقة — يمكن رفع الصور فقط
+        </span>
+        {% endif %}
+      </div>
       <div class="row g-3">
         <!-- صورة الفاتورة -->
         <div class="col-md-4">
@@ -308,7 +317,7 @@
       </div>
     </div>
     {% else %}
-    <!-- عرض الصور للمغلقة (للقراءة فقط) -->
+    <!-- مراقب: عرض الصور للقراءة فقط -->
     {% if inv.invoice_image or inv.receipt_image or inv.attachment_image %}
     <div class="icf-section">
       <div class="row g-2">
@@ -341,6 +350,25 @@
     {% endif %}
     {% endif %}
 
+    <!-- ملاحظات الفاتورة -->
+    <div class="icf-section no-print">
+      <div class="icf-section-title"><i class="fas fa-sticky-note me-1"></i> ملاحظات</div>
+      {% if session.get('role') != 'observer' %}
+      <form method="POST" action="/incoming_invoice/{{ inv.id }}/save_notes">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <textarea name="notes" class="form-control form-control-sm mb-2" rows="2"
+                  placeholder="أضف ملاحظة على الفاتورة...">{{ inv.notes or '' }}</textarea>
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-save me-1"></i> حفظ الملاحظة
+        </button>
+      </form>
+      {% else %}
+      <div style="font-size:.85rem;color:#555;background:#f9f9f9;border-radius:6px;padding:8px 12px;min-height:36px;">
+        {{ inv.notes or '<span style="color:#aaa;">لا توجد ملاحظات</span>' }}
+      </div>
+      {% endif %}
+    </div>
+
     <!-- تذييل -->
     <div class="icf-footer">
       <span style="color:#aaa;font-size:.78rem;"><i class="fas fa-clock me-1"></i>{{ inv.created_at or '' }}</span>
@@ -348,6 +376,36 @@
     </div>
   </div><!-- /icf-body -->
 </div><!-- /invoice-card-full -->
+
+<!-- قسم الطباعة المخفي — يُستخدم فقط عند الضغط على طباعة -->
+<div id="icf-print-{{ inv.id }}" style="display:none;"
+     data-supplier="{{ inv.supplier|e }}"
+     data-inv-num="{{ inv.purchase_invoice_number or '' }}"
+     data-inv-name="{{ inv.invoice_name or '' }}"
+     data-date="{{ inv.invoice_date or '' }}"
+     data-total="{{ '%.2f'|format(inv.total) }}"
+     data-img-invoice="{{ url_for('static', filename='uploads/' + inv.invoice_image) if inv.invoice_image else '' }}"
+     data-img-receipt="{{ url_for('static', filename='uploads/' + inv.receipt_image) if inv.receipt_image else '' }}"
+     data-img-attachment="{{ url_for('static', filename='uploads/' + inv.attachment_image) if inv.attachment_image else '' }}">
+  <!-- جدول الأصناف للطباعة -->
+  <table>
+    <thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>التاريخ</th></tr></thead>
+    <tbody>
+      {% for line in inv.lines %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ line.product_name }}</td>
+        <td>{{ line.product_unit }}</td>
+        <td>{{ line.quantity }}</td>
+        <td>{{ "%.2f"|format(line.unit_price) }}</td>
+        <td>{{ "%.2f"|format(line.total_price) }}</td>
+        <td>{{ line.purchase_date or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="5" style="text-align:left;font-weight:bold;">الإجمالي</td><td colspan="2" style="font-weight:bold;">{{ "%.2f"|format(inv.total) }}</td></tr></tfoot>
+  </table>
+</div>
 {% endfor %}
 </div><!-- /invoices-container -->
 
@@ -416,58 +474,4 @@ document.querySelectorAll('.add-row-btn').forEach(btn => {
 const hash = window.location.hash;
 if (hash && hash.startsWith('#inv-')) {
   const el = document.getElementById(hash.replace('#',''));
-  if (el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}), 200);
-}
-
-// ── طباعة فاتورة واحدة ──
-function printSingleInv(bodyId, supplier, num) {
-  const body = document.getElementById(bodyId);
-  if (!body) return;
-  const w = window.open('', '_blank', 'width=900,height=650');
-  w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>فاتورة #${num}</title>
-  <style>body{font-family:Arial,sans-serif;padding:20px;direction:rtl;}
-  table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:6px 8px;text-align:right;font-size:13px;}
-  th{background:#e3f2fd;}.no-print{display:none;}h2{color:#1565c0;}</style></head>
-  <body><h2>فاتورة مشتريات #${num} — ${supplier}</h2>${body.innerHTML}
-  <script>setTimeout(()=>window.print(),300);<\/script></body></html>`);
-  w.document.close();
-}
-</script>
-
-<style>
-/* شريط الفلتر */
-.filter-bar { display:flex;align-items:center;gap:8px; }
-.filter-label { font-size:.82rem;font-weight:700;color:#6c7a72; }
-.filter-select-box { padding:5px 12px;border:2px solid #d0d0d0;border-radius:20px;font-size:.82rem;font-weight:700;cursor:pointer;color:#555;background:#fff;outline:none;transition:border-color .2s; }
-.filter-select-box:focus { border-color:#1565c0; }
-
-/* بطاقة الفاتورة الكاملة */
-.invoice-card-full { border-radius:12px;overflow:hidden;border:2px solid #d0d0d0; }
-.icf-header { display:flex;justify-content:space-between;align-items:center;padding:12px 16px; }
-.icf-open { background:#e3f2fd;border-bottom:2px solid #90caf9; }
-.icf-closed { background:#f5f5f5;border-bottom:2px solid #d0d0d0; }
-.icf-body { background:#fff; }
-.icf-section { padding:14px 16px;border-bottom:1px solid #f0f0f0; }
-.icf-section-title { font-weight:800;font-size:.84rem;color:#1565c0;margin-bottom:10px; }
-.icf-footer { padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:#fafafa; }
-
-/* دائرة رقم الفاتورة */
-.inv-circle { display:flex;align-items:center;justify-content:center;width:38px;height:38px;background:#1565c0;color:#fff;border-radius:50%;font-weight:900;font-size:.95rem;flex-shrink:0; }
-.inv-circle-closed { background:#9e9e9e; }
-
-/* الصور */
-.img-upload-box { border:2px solid #d8e8de;border-radius:10px;padding:12px;text-align:center; }
-.img-paid-box { border-color:#66bb6a;background:#f9fff9; }
-.img-upload-label { font-weight:700;font-size:.78rem;margin-bottom:8px;text-align:right; }
-.img-thumb { width:100%;max-height:110px;object-fit:contain;border-radius:6px;border:1px solid #e0e0e0; }
-.img-thumb-sm { width:100%;max-height:90px;object-fit:contain;border-radius:6px;border:1px solid #e0e0e0; }
-.img-placeholder-sm { padding:16px;color:#aaa;font-size:.75rem; }
-.img-ro-label { font-size:.75rem;font-weight:700;color:#6c7a72;margin-bottom:4px; }
-
-@media print {
-  .no-print { display:none !important; }
-  .invoice-card-full { break-inside:avoid;margin-bottom:16px; }
-  .filter-tab-inv { display:none; }
-}
-</style>
-{% endblock %}
+  if (el) setTimeou

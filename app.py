@@ -22,6 +22,7 @@ app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 # ══════════════════════════════════════════
 app.config["SESSION_COOKIE_HTTPONLY"]  = True   # لا يصل JavaScript للـ cookie
 app.config["SESSION_COOKIE_SAMESITE"]  = "Lax"  # حماية CSRF جزئية
+app.config["SESSION_COOKIE_SECURE"]    = True   # HTTPS فقط
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)  # تنتهي بعد 8 ساعات
 
 UPLOAD_FOLDER = os.path.join("static", "uploads")
@@ -38,7 +39,12 @@ MAX_LOGIN_ATTEMPTS = 5
 BLOCK_MINUTES = 15
 
 def _get_ip():
-    return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+    # نستخدم remote_addr الحقيقي من الـ proxy — لا نثق بـ X-Forwarded-For القابل للتلاعب
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # آخر IP في السلسلة هو الـ proxy الموثوق
+        return forwarded.split(",")[-1].strip()
+    return request.remote_addr or "unknown"
 
 def _is_blocked(ip):
     rec = _login_attempts.get(ip)
@@ -344,8 +350,8 @@ def register_org():
             error = "يرجى تعبئة جميع الحقول الإلزامية"
         elif len(username) < 3:
             error = "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"
-        elif len(password) < 4:
-            error = "كلمة المرور يجب أن تكون 4 أحرف على الأقل"
+        elif len(password) < 8:
+            error = "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
         elif password != password2:
             error = "كلمتا المرور غير متطابقتين"
         elif "@" not in email:
@@ -498,8 +504,8 @@ def register_staff():
             error = "يرجى تعبئة جميع الحقول الإلزامية"
         elif len(username) < 3:
             error = "اسم المستخدم 3 أحرف على الأقل"
-        elif len(password) < 4:
-            error = "كلمة المرور 4 أحرف على الأقل"
+        elif len(password) < 8:
+            error = "كلمة المرور 8 أحرف على الأقل"
         elif password != password2:
             error = "كلمتا المرور غير متطابقتين"
         else:
@@ -605,6 +611,51 @@ def login():
 
 
 # ══════════════════════════════════════════
+# الملف الشخصي
+# ══════════════════════════════════════════
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    user_id = session["user_id"]
+    org_id  = session["org_id"]
+    error   = None
+    success = False
+
+    conn = get_connection()
+    c    = conn.cursor()
+
+    if request.method == "POST":
+        full_name = request.form.get("full_name", "").strip()
+        phone     = request.form.get("phone", "").strip()
+        photo_file = request.files.get("photo")
+
+        if not full_name:
+            error = "الاسم الكامل مطلوب"
+        else:
+            photo_filename = None
+            if photo_file and photo_file.filename and allowed_file(photo_file.filename) and allowed_file_content(photo_file):
+                import uuid as _uuid2
+                ext = photo_file.filename.rsplit(".", 1)[1].lower()
+                photo_filename = f"user_{_uuid2.uuid4().hex}.{ext}"
+                photo_file.save(os.path.join(app.config["UPLOAD_FOLDER"], photo_filename))
+
+            if photo_filename:
+                c.execute("UPDATE users SET full_name=?, phone=?, photo=? WHERE id=? AND org_id=?",
+                          (full_name, phone, photo_filename, user_id, org_id))
+            else:
+                c.execute("UPDATE users SET full_name=?, phone=? WHERE id=? AND org_id=?",
+                          (full_name, phone, user_id, org_id))
+            conn.commit()
+            session["full_name"] = full_name
+            success = True
+
+    c.execute("SELECT full_name, username, role, phone, photo, email, created_at FROM users WHERE id=?", (user_id,))
+    user = dict(c.fetchone())
+    conn.close()
+    return render_template("profile.html", user=user, error=error, success=success)
+
+
+# ══════════════════════════════════════════
 # تغيير كلمة المرور (لكل المستخدمين)
 # ══════════════════════════════════════════
 @app.route("/change_password", methods=["GET", "POST"])
@@ -626,8 +677,8 @@ def change_password():
                 error = "لم يتم العثور على حسابك"
             elif not check_password_hash(user["password"], current):
                 error = "كلمة المرور الحالية غير صحيحة"
-            elif len(new_pass) < 4:
-                error = "كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل"
+            elif len(new_pass) < 8:
+                error = "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل"
             elif new_pass != confirm:
                 error = "كلمتا المرور الجديدتان غير متطابقتين"
             else:
@@ -811,12 +862,27 @@ def dashboard():
             (org_id,)
         )
         pending_users = [dict(r) for r in c.fetchall()]
+
+    # تنبيهات المخزون المنخفض/النافد
+    c.execute("""
+        SELECT p.id, p.name, p.unit,
+               COALESCE(SUM(sb.quantity_remaining), 0) AS qty
+        FROM products p
+        LEFT JOIN stock_batches sb ON sb.product_id = p.id AND sb.org_id = p.org_id
+        WHERE p.org_id = ?
+        GROUP BY p.id
+        HAVING qty <= 10
+        ORDER BY qty ASC
+    """, (org_id,))
+    low_stock = [dict(r) for r in c.fetchall()]
+
     conn.close()
     return render_template("dashboard.html",
         products_count=products_count, total_stock=total_stock,
         beneficiaries_count=beneficiaries_count,
         incoming_count=incoming_count, outgoing_count=outgoing_count,
-        pending_users=pending_users)
+        pending_users=pending_users,
+        low_stock=low_stock)
 
 
 # ══════════════════════════════════════════
@@ -916,8 +982,8 @@ def add_user():
             error = "يرجى اختيار نوع الحساب (محاسب، مدخل بيانات، أو مراقب عام)"
         elif not all([full_name, id_number, username, password]):
             error = "يرجى تعبئة جميع الحقول"
-        elif len(password) < 4:
-            error = "كلمة المرور 4 أحرف على الأقل"
+        elif len(password) < 8:
+            error = "كلمة المرور 8 أحرف على الأقل"
         elif id_number and (not id_number.isdigit() or len(id_number) != 9):
             error = "رقم الهوية يجب أن يكون 9 أرقام"
         else:
@@ -958,8 +1024,8 @@ def edit_user(id):
         new_password = request.form.get("new_password", "").strip()
 
         if new_password:
-            if len(new_password) < 4:
-                flash("كلمة المرور 4 أحرف على الأقل", "danger")
+            if len(new_password) < 8:
+                flash("كلمة المرور 8 أحرف على الأقل", "danger")
                 c.execute("SELECT * FROM users WHERE id=? AND org_id=?", (id, session["org_id"]))
                 user = dict(c.fetchone())
                 conn.close()
@@ -1747,7 +1813,8 @@ def incoming_invoices_list():
 
     c.execute("""
         SELECT id, seq_num, invoice_number, invoice_date, supplier,
-               is_closed, is_paid, invoice_image, receipt_image, attachment_image, created_at
+               is_closed, is_paid, invoice_image, receipt_image, attachment_image, created_at,
+               purchase_invoice_number, invoice_name, notes
         FROM incoming_invoices
         WHERE org_id=?
         ORDER BY COALESCE(seq_num,id) ASC
@@ -1777,6 +1844,32 @@ def incoming_invoices_list():
     conn.close()
     return render_template("incoming_invoices_list.html",
                            invoices=invoices, total_all=total_all, today_str=today_str)
+
+
+@app.route("/incoming_invoice/<int:id>/save_notes", methods=["POST"])
+@invoices_required
+def save_incoming_invoice_notes(id):
+    """حفظ ملاحظات فاتورة الشراء — يعمل للمفتوحة والمغلقة"""
+    if session.get("role") == "observer":
+        flash("ليس لديك صلاحية", "danger")
+        return redirect(url_for("incoming_invoices_list") + f"#inv-{id}")
+    if not validate_csrf():
+        flash("خطأ في التحقق", "danger")
+        return redirect(url_for("incoming_invoices_list") + f"#inv-{id}")
+    org_id = session["org_id"]
+    notes = request.form.get("notes", "").strip()
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    if not c.fetchone():
+        conn.close()
+        flash("الفاتورة غير موجودة", "danger")
+        return redirect(url_for("incoming_invoices_list"))
+    c.execute("UPDATE incoming_invoices SET notes=? WHERE id=? AND org_id=?", (notes, id, org_id))
+    conn.commit()
+    conn.close()
+    flash("✅ تم حفظ الملاحظة", "success")
+    return redirect(url_for("incoming_invoices_list") + f"#inv-{id}")
 
 
 # ══════════════════════════════════════════
@@ -2207,6 +2300,35 @@ def delete_worker(id):
     conn.close()
     flash("تم حذف العامل", "warning")
     return redirect(url_for("workers_list"))
+
+
+@app.route("/edit_worker/<int:id>", methods=["POST"])
+@login_required
+def edit_worker(id):
+    if session.get("role") not in ["admin", "accountant"]:
+        return jsonify({"ok": False, "err": "forbidden"}), 403
+    org_id = session["org_id"]
+    full_name     = request.form.get("full_name", "").strip()
+    id_number     = request.form.get("id_number", "").strip()
+    project_name  = request.form.get("project_name", "").strip()
+    job_type      = request.form.get("job_type", "").strip()
+    monthly_salary= request.form.get("monthly_salary", "0").strip()
+    notes         = request.form.get("notes", "").strip()
+    if not full_name:
+        return jsonify({"ok": False, "err": "name_required"}), 400
+    try:
+        salary = float(monthly_salary)
+    except ValueError:
+        salary = 0.0
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""UPDATE workers
+                 SET full_name=?, id_number=?, project_name=?, job_type=?, monthly_salary=?, notes=?
+                 WHERE id=? AND org_id=?""",
+              (full_name, id_number, project_name, job_type, salary, notes, id, org_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/outgoing_invoice/<int:id>/delete")
@@ -3485,11 +3607,11 @@ def ai_reports_generate():
              "en":["#","Invoice No","Supplier","Date","Total","Status","Payment"]}.get(lang,[])
         rows = data["purchases"]
         _wtbl(tx["h_purchases"], h, rows,
-              lambda r:[r["seq_num"] or "", r["invoice_number"] or "", r["supplier"] or "",
-                        r["invoice_date"] or "", "%.2f" % r["total"],
+              lambda r:[str(r["seq_num"] or ""), r["invoice_number"] or "", r["supplier"] or "",
+                        r["invoice_date"] or "", "%.2f" % r["grand_total"],
                         tx["closed"] if r["is_closed"] else tx["open_"],
                         tx["paid"] if r["is_paid"] else tx["unpaid"]],
-              tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)))
+              tx["total"] + ": " + ("%.2f" % sum(r["grand_total"] for r in rows)))
 
     if "outgoing" in data:
         h = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],
