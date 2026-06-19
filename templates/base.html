@@ -36,9 +36,64 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo"><i class="fas fa-balance-scale"></i></div>
-      <div style="flex:1;">
+      <div style="flex:1;min-width:0;">
         <div class="sidebar-title">{{ t.app_name }}</div>
         <div class="sidebar-org">{{ session.get('org_name','') }}</div>
+        <!-- كود المؤسسة + الجرس -->
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+          <button onclick="copyOrgCode()" title="انقر لنسخ كود المؤسسة"
+                  style="flex:1;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);
+                         border-radius:20px;padding:3px 10px;cursor:pointer;font-size:.72rem;font-weight:700;
+                         display:flex;align-items:center;gap:5px;min-width:0;
+                         box-shadow:0 0 8px rgba(255,255,255,.15);transition:background .2s;">
+            <i class="fas fa-key" style="font-size:.65rem;opacity:.8;flex-shrink:0;"></i>
+            <span id="org-code-text" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ session.get('org_code','') }}</span>
+            <i class="fas fa-copy" style="font-size:.6rem;opacity:.6;flex-shrink:0;margin-right:auto;"></i>
+          </button>
+          {% if session.get('role') in ['admin','accountant','observer'] %}
+          <div id="stock-bell-wrap" style="position:relative;flex-shrink:0;">
+            <button id="stock-bell-btn" onclick="stockBellToggle()"
+                    style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+                           border-radius:50%;width:30px;height:30px;cursor:pointer;position:relative;
+                           display:flex;align-items:center;justify-content:center;">
+              <i class="fas fa-bell" style="font-size:.85rem;color:#fff;" id="stock-bell-icon"></i>
+              <span id="stock-bell-badge"
+                    style="display:none;position:absolute;top:0;right:0;background:#e53935;color:#fff;
+                           border-radius:50%;font-size:.5rem;font-weight:800;min-width:13px;height:13px;
+                           line-height:13px;text-align:center;padding:0 2px;"></span>
+            </button>
+            <!-- القائمة المنسدلة للأسفل -->
+            <div id="stock-bell-drop"
+                 style="display:none;position:absolute;top:36px;left:0;width:290px;
+                        background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.22);
+                        overflow:hidden;z-index:2000;">
+              <div style="display:flex;align-items:center;justify-content:space-between;
+                          padding:10px 14px;background:#fff8e1;border-bottom:1px solid #ffe082;">
+                <span style="font-weight:700;font-size:.82rem;color:#e65100;">
+                  <i class="fas fa-exclamation-triangle me-1"></i> تنبيهات المخزون
+                </span>
+                <button onclick="stockBellClearAll()"
+                        style="background:none;border:none;font-size:.7rem;color:#e53935;cursor:pointer;font-weight:700;">
+                  مسح الكل
+                </button>
+              </div>
+              <div id="stock-bell-list" style="max-height:280px;overflow-y:auto;"></div>
+              <div id="stock-bell-empty"
+                   style="display:none;padding:16px;text-align:center;color:#aaa;font-size:.8rem;">
+                <i class="fas fa-check-circle" style="color:#66bb6a;font-size:1.3rem;display:block;margin-bottom:5px;"></i>
+                لا توجد تنبيهات
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <!-- toast نسخ الكود -->
+      <div id="copy-toast"
+           style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+                  background:#1a6b3a;color:#fff;padding:8px 22px;border-radius:20px;font-size:.82rem;
+                  font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);">
+        <i class="fas fa-check me-1"></i> تم نسخ الكود
       </div>
       <div class="lang-selector-wrap" id="lang-selector-wrap">
         <button class="lang-toggle-btn-top" onclick="toggleLangMenu(event)" title="Language / اللغة / Dil">
@@ -161,62 +216,7 @@
         </div>
         <div class="clock-ampm" id="sb-ampm">--</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:0 4px;">
-        <!-- كود المؤسسة القابل للنسخ -->
-        <button onclick="copyOrgCode()" title="انقر لنسخ كود المؤسسة"
-                style="flex:1;background:linear-gradient(135deg,#1a6b3a,#2e9e5e);color:#fff;
-                       border:none;border-radius:20px;padding:5px 12px;cursor:pointer;
-                       font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:6px;
-                       box-shadow:0 0 10px rgba(46,158,94,.5);transition:box-shadow .3s;">
-          <i class="fas fa-key" style="font-size:.7rem;opacity:.8;"></i>
-          <span id="org-code-text">{{ session.get('org_code','') }}</span>
-          <i class="fas fa-copy" style="font-size:.65rem;opacity:.7;margin-right:auto;"></i>
-        </button>
-        <!-- جرس إشعارات المخزون -->
-        {% if session.get('role') in ['admin','accountant','observer'] %}
-        <div id="stock-bell-wrap" style="position:relative;">
-          <button id="stock-bell-btn" onclick="stockBellToggle()"
-                  style="background:rgba(255,255,255,.15);border:none;border-radius:50%;
-                         width:34px;height:34px;cursor:pointer;position:relative;
-                         display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <i class="fas fa-bell" style="font-size:.95rem;color:#fff;" id="stock-bell-icon"></i>
-            <span id="stock-bell-badge"
-                  style="display:none;position:absolute;top:1px;right:1px;background:#e53935;color:#fff;
-                         border-radius:50%;font-size:.55rem;font-weight:800;min-width:14px;height:14px;
-                         line-height:14px;text-align:center;padding:0 2px;"></span>
-          </button>
-          <!-- القائمة المنسدلة للأعلى -->
-          <div id="stock-bell-drop"
-               style="display:none;position:absolute;bottom:44px;left:0;width:290px;
-                      background:#fff;border-radius:14px;box-shadow:0 -4px 24px rgba(0,0,0,.22);
-                      overflow:hidden;z-index:2000;">
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:10px 14px;background:#fff8e1;border-bottom:1px solid #ffe082;">
-              <span style="font-weight:700;font-size:.82rem;color:#e65100;">
-                <i class="fas fa-exclamation-triangle me-1"></i> تنبيهات المخزون
-              </span>
-              <button onclick="stockBellClearAll()"
-                      style="background:none;border:none;font-size:.7rem;color:#e53935;cursor:pointer;font-weight:700;">
-                مسح الكل
-              </button>
-            </div>
-            <div id="stock-bell-list" style="max-height:280px;overflow-y:auto;"></div>
-            <div id="stock-bell-empty"
-                 style="display:none;padding:16px;text-align:center;color:#aaa;font-size:.8rem;">
-              <i class="fas fa-check-circle" style="color:#66bb6a;font-size:1.3rem;display:block;margin-bottom:5px;"></i>
-              لا توجد تنبيهات
-            </div>
-          </div>
-        </div>
-        {% endif %}
-      </div>
-      <!-- toast نسخ الكود -->
-      <div id="copy-toast"
-           style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-                  background:#1a6b3a;color:#fff;padding:8px 22px;border-radius:20px;font-size:.82rem;
-                  font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);">
-        <i class="fas fa-check me-1"></i> تم نسخ الكود
-      </div>
+
       <a href="/logout" class="logout-btn">
         <i class="fas fa-sign-out-alt"></i><span>{{ t.nav_logout }}</span>
       </a>
