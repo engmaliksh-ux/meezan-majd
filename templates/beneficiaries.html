@@ -1,254 +1,303 @@
 {% extends 'base.html' %}
-{% block title %}{{ t.page_beneficiaries }}{% endblock %}
+{% block title %}المستفيدون – ميزان مجد{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-users"></i> {{ t.page_beneficiaries }}</h2>
+  <h2 class="page-title"><i class="fas fa-users"></i> المستفيدون</h2>
   <div class="d-flex gap-2">
-    <button class="btn btn-outline-secondary btn-sm no-print" onclick="openPrintDialog()">
-      <i class="fas fa-print me-1"></i> طباعة كشف
-    </button>
     {% if session.get('role') != 'observer' %}
-    <a href="/add_beneficiary" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i> {{ t.add_beneficiary_btn }}</a>
+    <a href="/add_beneficiary" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1"></i> إضافة مستفيد</a>
     {% endif %}
   </div>
 </div>
 
-<!-- modal طباعة -->
-<div id="print-dialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-    <div style="font-size:1.1rem;font-weight:800;color:#1a6b3a;margin-bottom:6px;"><i class="fas fa-print me-2"></i> خيارات الطباعة</div>
-    <div style="color:#6c7a72;font-size:.85rem;margin-bottom:20px;">اختر نوع الكشف الذي تريد طباعته</div>
-    <div class="d-flex flex-column gap-3">
-      <button class="btn btn-primary w-100" onclick="doPrint('all')">
-        <i class="fas fa-users me-2"></i> طباعة الكشف كامل — كل المستفيدين
-      </button>
-      <button class="btn btn-warning w-100" onclick="doPrint('camp')">
-        <i class="fas fa-tents me-2"></i> طباعة إدارة المخيمات
-      </button>
-      <button class="btn btn-info w-100" style="color:#fff;" onclick="doPrint('person')">
-        <i class="fas fa-users me-2"></i> طباعة النازحين (أشخاص وأسر)
-      </button>
-    </div>
-    <button class="btn btn-outline-secondary btn-sm mt-4" onclick="closePrintDialog()">إلغاء</button>
+<!-- إحصاء سريع -->
+{% set all_persons = persons|list %}
+{% set total_orphans_count = all_persons | sum(attribute='orphans_count') %}
+<div class="d-flex gap-3 mb-3 flex-wrap">
+  <div style="background:#e8f5ee;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#1a6b3a;">
+    <i class="fas fa-tents me-1"></i>{{ camps|length }} مخيم
   </div>
+  <div style="background:#e3f2fd;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#1565c0;">
+    <i class="fas fa-users me-1"></i>{{ persons|length }} شخص / أسرة
+  </div>
+  {% if total_orphans_count > 0 %}
+  <div style="background:#fde8e8;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#c62828;">
+    <i class="fas fa-child me-1"></i>{{ total_orphans_count }} يتيم
+  </div>
+  {% endif %}
 </div>
 
-<!-- إحصاء الأيتام -->
-{% set total_orphans = beneficiaries | selectattr('has_orphans') | list | length %}
-{% if total_orphans > 0 %}
-<div class="orphans-alert mb-3">
-  <i class="fas fa-child me-2"></i>
-  {% if lang == 'ar' %}
-  يوجد <strong>{{ total_orphans }}</strong> أسرة فيها أيتام من أصل {{ beneficiaries|length }} أسرة
-  — إجمالي الأيتام:
-  <strong>{{ beneficiaries | sum(attribute='orphans_count') }}</strong> يتيم
-  {% else %}
-  <strong>{{ total_orphans }}</strong> families with orphans out of {{ beneficiaries|length }} total
-  — Total orphans: <strong>{{ beneficiaries | sum(attribute='orphans_count') }}</strong>
+<!-- ════════ المخيمات (هرمي) ════════ -->
+{% if camps %}
+<h6 class="section-mini-title"><i class="fas fa-tents me-2" style="color:#856404;"></i>المخيمات وأسرها</h6>
+{% for camp in camps %}
+<div class="camp-card mb-4">
+  <!-- رأس المخيم -->
+  <div class="camp-header" onclick="toggleCamp('camp-{{ loop.index }}')">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="background:#ffe082;border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+        <i class="fas fa-tents" style="color:#856404;"></i>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:1rem;color:#7a5800;">{{ camp.camp_name or camp.full_name }}</div>
+        <div style="font-size:.78rem;color:#aaa;margin-top:2px;">
+          {% if camp.camp_manager_name %}<span class="me-2"><i class="fas fa-user-tie me-1"></i>{{ camp.camp_manager_name }}</span>{% endif %}
+          {% if camp.camp_coordinator_phone %}<span class="me-2"><i class="fas fa-phone me-1"></i>{{ camp.camp_coordinator_phone }}</span>{% endif %}
+          {% if camp.camp_address %}<span><i class="fas fa-map-marker-alt me-1"></i>{{ camp.camp_address }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="background:#fff3cd;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:700;color:#856404;">
+        {{ camp.persons|length }} أسرة
+      </span>
+      {% if camp.camp_family_count %}
+      <span style="background:#e8f5ee;border-radius:8px;padding:4px 10px;font-size:.78rem;color:#1a6b3a;">سعة: {{ camp.camp_family_count }}</span>
+      {% endif %}
+      <i class="fas fa-chevron-down camp-chevron" id="chev-camp-{{ loop.index }}" style="color:#aaa;transition:.2s;"></i>
+    </div>
+  </div>
+
+  <!-- أسر المخيم -->
+  <div id="camp-{{ loop.index }}" class="camp-persons-grid">
+    {% if camp.persons %}
+    {% for p in camp.persons %}
+    {% include '_person_bubble.html' ignore missing %}
+    {{ _person_bubble(p) }}
+    {% endfor %}
+    {% else %}
+    <div style="color:#bbb;font-size:.82rem;padding:16px;text-align:center;grid-column:1/-1;">
+      <i class="fas fa-user-plus me-1"></i>لا توجد أسر مضافة لهذا المخيم بعد
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- ════════ أشخاص بدون مخيم ════════ -->
+{% if unlinked_persons %}
+<h6 class="section-mini-title mt-4"><i class="fas fa-user me-2" style="color:#1565c0;"></i>أشخاص / أسر غير مرتبطة بمخيم</h6>
+<div class="persons-grid mb-4">
+  {% for p in unlinked_persons %}
+  <div class="person-bubble" onclick="openPersonModal({{ p.id }})">
+    <div class="person-avatar">
+      {% if p.personal_photo %}
+      <img src="{{ url_for('static', filename='uploads/' + p.personal_photo) }}" alt="">
+      {% else %}
+      <i class="fas fa-user"></i>
+      {% endif %}
+    </div>
+    <div class="person-bubble-name">{{ p.full_name }}</div>
+    <div class="person-bubble-meta">
+      {% if p.id_number %}<div style="font-size:.7rem;color:#aaa;">{{ p.id_number }}</div>{% endif %}
+      {% if p.has_orphans %}<span class="orphan-badge">يتيم</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not camps and not unlinked_persons %}
+<div class="text-center py-5" style="color:#6c7a72;">
+  <i class="fas fa-users fa-3x mb-3" style="color:#d8e8de;"></i>
+  <p class="fw-bold">لا يوجد مستفيدون مضافون</p>
+  {% if session.get('role') != 'observer' %}
+  <a href="/add_beneficiary" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1"></i> إضافة أول مستفيد</a>
   {% endif %}
 </div>
 {% endif %}
 
-<div class="table-wrapper">
-  <div class="table-header">
-    <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.beneficiaries_list }}</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;" id="count-badge">{{ beneficiaries|length }}</span>
+<!-- ════════ مودال بيانات الشخص ════════ -->
+<div id="person-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:680px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto;">
+    <!-- هيدر المودال -->
+    <div id="modal-header" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:16px;">
+      <div id="modal-photo" style="width:72px;height:72px;border-radius:50%;background:#fff;border:3px solid #1565c0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#bbb;flex-shrink:0;"></div>
+      <div>
+        <div id="modal-name" style="font-weight:900;font-size:1.15rem;color:#1565c0;"></div>
+        <div id="modal-id" style="font-size:.82rem;color:#6c7a72;margin-top:3px;"></div>
+        <div id="modal-type-badge"></div>
+      </div>
+      <button onclick="closePersonModal()" style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
+    </div>
+    <div style="padding:20px 24px;" id="modal-body"></div>
   </div>
-
-  <!-- تبويبات الفلتر حسب النوع -->
-  <div class="px-3 pb-2 pt-1 d-flex gap-2 flex-wrap">
-    <button class="filter-tab active" data-type="all">
-      <i class="fas fa-list me-1"></i> {{ t.filter_all }}
-      <span class="tab-count" id="cnt-all">{{ beneficiaries|length }}</span>
-    </button>
-    <button class="filter-tab" data-type="person">
-      <i class="fas fa-user me-1"></i> {{ t.filter_persons }}
-      <span class="tab-count" id="cnt-person">
-        {%- set pc = namespace(n=0) -%}
-        {%- for b in beneficiaries if b.get('beneficiary_type','person') == 'person' -%}{%- set pc.n = pc.n + 1 -%}{%- endfor -%}
-        {{ pc.n }}
-      </span>
-    </button>
-    <button class="filter-tab" data-type="camp">
-      <i class="fas fa-tents me-1"></i> {{ t.filter_camps }}
-      <span class="tab-count" id="cnt-camp">
-        {%- set cc = namespace(n=0) -%}
-        {%- for b in beneficiaries if b.get('beneficiary_type') == 'camp' -%}{%- set cc.n = cc.n + 1 -%}{%- endfor -%}
-        {{ cc.n }}
-      </span>
-    </button>
-  </div>
-
-  {% if beneficiaries %}
-  <div class="table-responsive">
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>{{ t.col_benef_type }}</th>
-          <th>{{ t.col_full_name }}</th>
-          <th>{{ t.col_gender }}</th>
-          <th>{{ t.col_id_number }}</th>
-          <th>{{ t.col_phone }}</th>
-          <th>{{ t.col_marital_status }}</th>
-          <th>{{ t.col_family_members }}</th>
-          <th>{{ t.col_children }}</th>
-          <th>{{ t.col_orphans }}</th>
-          {% if session.get('role') != 'observer' %}<th>{{ t.col_actions }}</th>{% endif %}
-        </tr>
-      </thead>
-      <tbody id="beneficiaries-tbody">
-        {% for b in beneficiaries %}
-        <tr data-type="{{ b.get('beneficiary_type', 'person') }}">
-          <td><span class="seq-badge">{{ b.seq_num }}</span></td>
-          <td>
-            {% if b.get('beneficiary_type') == 'camp' %}
-              <span class="badge" style="background:#fff3cd;color:#856404;"><i class="fas fa-tents me-1"></i>{{ t.benef_type_camp }}</span>
-            {% else %}
-              <span class="badge" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-user me-1"></i>{{ t.benef_type_person }}</span>
-            {% endif %}
-          </td>
-          <td style="font-weight:700;text-align:right;">
-            {{ b.full_name }}
-            {% if b.get('wife_pregnant') %}
-              <span title="{{ t.wife_pregnant }}" style="margin-right:4px;">🤰</span>
-            {% endif %}
-            {% if b.get('wife_nursing') %}
-              <span title="{{ t.wife_nursing }}" style="margin-right:4px;">🍼</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if b.get('gender','male') == 'female' %}
-              <span class="badge" style="background:#fce4ec;color:#880e4f;">{{ t.gender_female }}</span>
-            {% else %}
-              <span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ t.gender_male }}</span>
-            {% endif %}
-          </td>
-          <td style="font-family:monospace;font-size:.82rem;">{{ b.id_number or '—' }}</td>
-          <td style="font-family:monospace;font-size:.82rem;">{{ b.phone or '—' }}</td>
-          <td>
-            {% if b.marital_status == 'married' %}<span class="badge" style="background:#e3f2fd;color:#1565c0;">{{ t.marital_married }}</span>
-            {% elif b.marital_status == 'single' %}<span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ t.marital_single }}</span>
-            {% elif b.marital_status == 'widowed' %}<span class="badge" style="background:#fde8e8;color:#c62828;">{{ t.marital_widowed }}</span>
-            {% elif b.marital_status == 'divorced' %}<span class="badge" style="background:#fff3cd;color:#856404;">{{ t.marital_divorced }}</span>
-            {% endif %}
-          </td>
-          <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ b.family_size or 1 }}</span></td>
-          <td>{{ b.get('children_count',0) or 0 }}</td>
-          <td>
-            {% if b.get('has_orphans') %}
-              <span class="badge" style="background:#fff3cd;color:#856404;">
-                <i class="fas fa-child me-1"></i>{{ b.get('orphans_count',0) }}
-              </span>
-            {% else %}
-              <span style="color:#aaa;">—</span>
-            {% endif %}
-          </td>
-          {% if session.get('role') != 'observer' %}
-          <td>
-            <a href="/edit_beneficiary/{{ b.id }}" class="btn btn-warning btn-sm me-1">
-              <i class="fas fa-edit"></i>
-            </a>
-            <a href="/delete_beneficiary/{{ b.id }}" class="btn btn-danger btn-sm"
-               onclick="return confirm('{{ t.delete_beneficiary_confirm }}')">
-              <i class="fas fa-trash"></i>
-            </a>
-          </td>
-          {% endif %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="text-center py-5" style="color:#6c7a72;">
-    <i class="fas fa-users fa-3x mb-3" style="color:#d8e8de;"></i>
-    <p class="fw-bold">{{ t.no_beneficiaries }}</p>
-    {% if session.get('role') != 'observer' %}
-    <a href="/add_beneficiary" class="btn btn-primary btn-sm">{{ t.add_first_beneficiary }}</a>
-    {% endif %}
-  </div>
-  {% endif %}
 </div>
 
-<style>
-.seq-badge { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--primary);color:#fff;border-radius:50%;font-weight:800;font-size:.82rem; }
-.orphans-alert { background:#fff8e1;border:2px solid #ffe082;border-radius:10px;padding:12px 18px;font-size:.9rem;color:#856404;font-weight:600; }
-.filter-tab { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border:2px solid #d8e8de;border-radius:20px;background:#fff;font-size:.82rem;font-weight:700;cursor:pointer;color:#6c7a72;transition:all .2s; }
-.filter-tab:hover { border-color:#1a6b3a;color:#1a6b3a; }
-.filter-tab.active { border-color:#1a6b3a;background:#e8f5ee;color:#1a6b3a; }
-.tab-count { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;background:rgba(0,0,0,.08);border-radius:10px;font-size:.75rem;padding:0 5px; }
-.filter-tab.active .tab-count { background:rgba(26,107,58,.15); }
-</style>
+<!-- بيانات JSON للمستفيدين -->
 <script>
-document.querySelectorAll('.filter-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const type = btn.dataset.type;
-    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const rows = document.querySelectorAll('#beneficiaries-tbody tr');
-    let visible = 0;
-    rows.forEach(row => {
-      const show = type === 'all' || row.dataset.type === type ||
-                   (type === 'person' && !row.dataset.type);
-      row.style.display = show ? '' : 'none';
-      if (show) visible++;
+const BENEF_DATA = {
+  {% for p in persons %}
+  {{ p.id }}: {
+    id: {{ p.id }},
+    full_name: {{ p.full_name|tojson }},
+    id_number: {{ (p.id_number or '')|tojson }},
+    phone: {{ (p.phone or '')|tojson }},
+    address: {{ (p.address or '')|tojson }},
+    address2: {{ (p.address2 or '')|tojson }},
+    camp_name: {{ (p.camp_name or '')|tojson }},
+    marital_status: {{ (p.marital_status or '')|tojson }},
+    family_size: {{ p.family_size or 1 }},
+    children_count: {{ p.children_count or 0 }},
+    wife_name: {{ (p.wife_name or '')|tojson }},
+    wife_pregnant: {{ 1 if p.wife_pregnant else 0 }},
+    wife_nursing: {{ 1 if p.wife_nursing else 0 }},
+    has_orphans: {{ 1 if p.has_orphans else 0 }},
+    orphans_count: {{ p.orphans_count or 0 }},
+    guardian_name: {{ (p.guardian_name or '')|tojson }},
+    guardian_id_number: {{ (p.guardian_id_number or '')|tojson }},
+    guardian_whatsapp: {{ (p.guardian_whatsapp or '')|tojson }},
+    personal_photo: {{ (p.personal_photo or '')|tojson }},
+    death_cert_image: {{ (p.death_cert_image or '')|tojson }},
+    guardianship_image: {{ (p.guardianship_image or '')|tojson }},
+    notes: {{ (p.notes or '')|tojson }},
+    family_members: [
+      {% for fm in p.family_members %}
+      {id:{{ fm.id }}, type:{{ fm.member_type|tojson }}, name:{{ fm.full_name|tojson }},
+       birth_date:{{ (fm.birth_date or '')|tojson }}, is_orphan:{{ fm.is_orphan or 0 }},
+       img:{{ (fm.birth_cert_img or '')|tojson }}},
+      {% endfor %}
+    ],
+    edit_url: {{ url_for('edit_beneficiary', id=p.id)|tojson }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+
+function openPersonModal(id) {
+  const p = BENEF_DATA[id];
+  if(!p) return;
+  // صورة
+  const photoEl = document.getElementById('modal-photo');
+  if(p.personal_photo) {
+    photoEl.innerHTML = `<img src="/static/uploads/${p.personal_photo}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    photoEl.innerHTML = '<i class="fas fa-user"></i>';
+  }
+  document.getElementById('modal-name').textContent = p.full_name;
+  document.getElementById('modal-id').textContent = p.id_number ? 'رقم الهوية: ' + p.id_number : '';
+  document.getElementById('modal-type-badge').innerHTML =
+    p.has_orphans ? '<span style="background:#fde8e8;color:#c62828;border-radius:8px;padding:2px 10px;font-size:.74rem;font-weight:700;">يوجد أيتام</span>' : '';
+
+  const ms = {married:'متزوج',single:'أعزب',widowed:'أرمل',divorced:'مطلق'};
+  let body = '';
+
+  // معلومات أساسية
+  body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">`;
+  if(p.phone)      body += info('الجوال', p.phone);
+  if(p.address)    body += info('العنوان', p.address + (p.address2?' / '+p.address2:''));
+  if(p.camp_name)  body += info('المخيم', p.camp_name);
+  if(p.marital_status) body += info('الحالة الاجتماعية', ms[p.marital_status]||p.marital_status);
+  if(p.family_size)    body += info('عدد أفراد الأسرة', p.family_size);
+  if(p.children_count) body += info('عدد الأطفال', p.children_count);
+  body += `</div>`;
+
+  // الزوجة
+  if(p.wife_name) {
+    body += section('الزوجة', '#e91e8c', 'fa-female',
+      `<div>${p.wife_name}</div>` +
+      (p.wife_pregnant ? '<span style="background:#fff3cd;border-radius:6px;padding:2px 8px;font-size:.76rem;margin-left:4px;">حامل</span>' : '') +
+      (p.wife_nursing  ? '<span style="background:#fde8e8;border-radius:6px;padding:2px 8px;font-size:.76rem;">مرضع</span>' : '')
+    );
+  }
+
+  // الوصي
+  if(p.guardian_name || p.guardian_whatsapp) {
+    let gs = '';
+    if(p.guardian_name) gs += info('اسم الوصي', p.guardian_name);
+    if(p.guardian_id_number) gs += info('رقم هويته', p.guardian_id_number);
+    if(p.guardian_whatsapp) gs += info('واتساب', `<a href="https://wa.me/${p.guardian_whatsapp}" target="_blank" style="color:#25d366;"><i class="fab fa-whatsapp me-1"></i>${p.guardian_whatsapp}</a>`);
+    body += section('الوصي / ولي الأمر', '#1a6b3a', 'fa-user-shield',
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${gs}</div>`);
+  }
+
+  // الأطفال من جدول family_members
+  const children = p.family_members.filter(fm=>fm.type==='child');
+  if(children.length) {
+    let ct = '<div style="display:grid;gap:8px;">';
+    children.forEach(ch=>{
+      ct += `<div style="background:#f5f5f5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;">
+        <i class="fas fa-child" style="color:#1565c0;"></i>
+        <div style="flex:1;">
+          <div style="font-weight:700;">${ch.name}</div>
+          ${ch.birth_date?`<div style="font-size:.75rem;color:#888;">${ch.birth_date}</div>`:''}
+          ${ch.is_orphan?'<span style="background:#fde8e8;color:#c62828;border-radius:6px;padding:1px 7px;font-size:.72rem;">يتيم</span>':''}
+        </div>
+        ${ch.img?`<a href="/static/uploads/${ch.img}" target="_blank"><img src="/static/uploads/${ch.img}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;"></a>`:''}
+      </div>`;
     });
-    document.getElementById('count-badge').textContent = visible;
-  });
+    ct += '</div>';
+    body += section('الأبناء', '#1565c0', 'fa-children', ct);
+  } else if(p.has_orphans) {
+    body += section('الأيتام', '#c62828', 'fa-child', `<div style="color:#c62828;font-weight:700;">عدد الأيتام: ${p.orphans_count}</div>`);
+  }
+
+  // الوثائق
+  let docs = '';
+  if(p.death_cert_image) docs += `<a href="/static/uploads/${p.death_cert_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.death_cert_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> شهادة الوفاة</a>`;
+  if(p.guardianship_image) docs += `<a href="/static/uploads/${p.guardianship_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.guardianship_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> الوكالة/الوصاية</a>`;
+  if(docs) body += section('الوثائق', '#e65100', 'fa-file-alt', `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">${docs}</div>`);
+
+  // ملاحظات
+  if(p.notes) body += section('ملاحظات', '#6c7a72', 'fa-sticky-note', `<div style="color:#555;">${p.notes}</div>`);
+
+  // أزرار
+  body += `<div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid #f0f0f0;padding-top:14px;">
+    <a href="${p.edit_url}" class="btn btn-warning btn-sm fw-bold"><i class="fas fa-pen me-1"></i>تعديل</a>
+  </div>`;
+
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('person-modal').style.display = 'flex';
+}
+
+function info(label, val) {
+  return `<div style="background:#f8f8f8;border-radius:8px;padding:8px 12px;">
+    <div style="font-size:.72rem;color:#aaa;margin-bottom:2px;">${label}</div>
+    <div style="font-weight:700;font-size:.86rem;">${val}</div>
+  </div>`;
+}
+function section(title, color, icon, inner) {
+  return `<div style="margin-bottom:14px;">
+    <div style="font-weight:700;font-size:.82rem;color:${color};margin-bottom:8px;">
+      <i class="fas ${icon} me-2"></i>${title}
+    </div>
+    <div style="padding:0 4px;">${inner}</div>
+  </div>`;
+}
+
+function closePersonModal() {
+  document.getElementById('person-modal').style.display = 'none';
+}
+document.getElementById('person-modal').addEventListener('click', e => {
+  if(e.target===document.getElementById('person-modal')) closePersonModal();
 });
 
-// ── طباعة المستفيدين ──
-function openPrintDialog() {
-  const d = document.getElementById('print-dialog');
-  d.style.display = 'flex';
-}
-function closePrintDialog() {
-  document.getElementById('print-dialog').style.display = 'none';
-}
-document.getElementById('print-dialog').addEventListener('click', function(e) {
-  if (e.target === this) closePrintDialog();
-});
-
-function doPrint(filter) {
-  closePrintDialog();
-  const rows = document.querySelectorAll('#beneficiaries-tbody tr');
-  const titles = { all: 'كشف كامل المستفيدين', camp: 'إدارة المخيمات', person: 'كشف النازحين (أشخاص وأسر)' };
-
-  // جمع الصفوف المطلوبة
-  let tableRows = '';
-  rows.forEach(row => {
-    const type = row.dataset.type || 'person';
-    if (filter === 'all' || type === filter) {
-      tableRows += row.outerHTML;
-    }
-  });
-
-  // رأس الجدول
-  const thead = document.querySelector('#beneficiaries-tbody').closest('table').querySelector('thead');
-
-  const w = window.open('', '_blank', 'width=1100,height=750');
-  w.document.write(`
-    <html dir="rtl"><head><meta charset="utf-8"><title>${titles[filter]}</title>
-    <style>
-      body{font-family:Arial,sans-serif;padding:16px;direction:rtl;font-size:12px;}
-      h2{color:#1a6b3a;margin-bottom:4px;}
-      .sub{color:#888;font-size:11px;margin-bottom:14px;}
-      table{width:100%;border-collapse:collapse;}
-      th,td{border:1px solid #ccc;padding:5px 8px;text-align:right;}
-      th{background:#e8f5ee;font-weight:bold;}
-      .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;}
-      tr:nth-child(even){background:#f9f9f9;}
-      .no-print,.btn{display:none;}
-      @media print{button{display:none;}}
-    </style></head><body>
-    <h2>${titles[filter]}</h2>
-    <div class="sub">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}</div>
-    <table>${thead.outerHTML}<tbody>${tableRows}</tbody></table>
-    <script>setTimeout(()=>window.print(),400);<\/script>
-    </body></html>
-  `);
-  w.document.close();
+function toggleCamp(id) {
+  const el = document.getElementById(id);
+  const idx = id.split('-')[1];
+  const chev = document.getElementById('chev-camp-'+idx);
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'grid';
+  if(chev) chev.style.transform = open ? 'rotate(-90deg)' : 'rotate(0)';
 }
 </script>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.camp-card { border:2px solid #ffe082;border-radius:14px;overflow:hidden;background:#fff; }
+.camp-header { background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;flex-wrap:wrap;gap:8px; }
+.camp-header:hover { background:linear-gradient(135deg,#fff3cd,#ffe082); }
+.camp-persons-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px; }
+.persons-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px; }
+.person-bubble { background:#fff;border:2px solid #e3f2fd;border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.person-bubble:hover { border-color:#1565c0;transform:translateY(-2px);box-shadow:0 6px 18px rgba(21,101,192,.15); }
+.person-avatar { width:54px;height:54px;border-radius:50%;background:#e3f2fd;border:2px solid #90caf9;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#90caf9;overflow:hidden; }
+.person-avatar img { width:100%;height:100%;object-fit:cover; }
+.person-bubble-name { font-weight:800;font-size:.8rem;color:#1565c0;line-height:1.3;margin-bottom:4px; }
+.person-bubble-meta { font-size:.7rem;color:#aaa; }
+.orphan-badge { background:#fde8e8;color:#c62828;border-radius:6px;padding:1px 6px;font-size:.68rem;font-weight:700;display:inline-block;margin-top:2px; }
+.section-mini-title { font-weight:800;font-size:.9rem;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px; }
+</style>
 {% endblock %}

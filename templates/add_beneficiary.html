@@ -1,375 +1,332 @@
 {% extends 'base.html' %}
-{% block title %}{{ t.add_beneficiary_title }}{% endblock %}
+{% block title %}إضافة مستفيد – ميزان مجد{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2 class="page-title"><i class="fas fa-user-plus"></i> {{ t.add_beneficiary_title }}</h2>
-  <a href="/beneficiaries" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> {{ t.btn_back }}</a>
+  <h2 class="page-title"><i class="fas fa-user-plus"></i> إضافة مستفيد</h2>
+  <a href="/beneficiaries" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
 </div>
 
-<div class="card" style="max-width:680px;">
-  <div class="card-header"><i class="fas fa-user" style="color:#1a6b3a;"></i> {{ t.beneficiary_data }}</div>
+<div class="card" style="max-width:760px;">
   <div class="card-body">
-    <form method="POST">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <form method="POST" action="/add_beneficiary" enctype="multipart/form-data" novalidate>
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
-      <!-- نوع المستفيد -->
+      <!-- ── نوع المستفيد ── -->
       <div class="mb-4">
-        <label class="form-label fw-bold">{{ t.benef_type_label }} <span class="text-danger">*</span></label>
+        <label class="form-label fw-bold">نوع المستفيد <span class="text-danger">*</span></label>
         <div class="d-flex gap-3 mt-1">
-          <label class="type-opt {% if form_data.get('beneficiary_type','person')=='person' %}active{% endif %}"
-                 id="type-person-lbl">
+          <label class="type-opt active" id="type-person-lbl">
             <input type="radio" name="beneficiary_type" value="person"
                    {% if form_data.get('beneficiary_type','person')=='person' %}checked{% endif %}
                    onchange="toggleType()">
-            <i class="fas fa-user me-2" style="color:#1a6b3a;"></i>
-            {{ t.benef_type_person }}
+            <i class="fas fa-user me-2" style="color:#1a6b3a;"></i> شخص / أسرة
           </label>
-          <label class="type-opt {% if form_data.get('beneficiary_type')=='camp' %}active{% endif %}"
-                 id="type-camp-lbl">
+          <label class="type-opt {% if form_data.get('beneficiary_type')=='camp' %}active{% endif %}" id="type-camp-lbl">
             <input type="radio" name="beneficiary_type" value="camp"
                    {% if form_data.get('beneficiary_type')=='camp' %}checked{% endif %}
                    onchange="toggleType()">
-            <i class="fas fa-tents me-2" style="color:#856404;"></i>
-            {{ t.benef_type_camp }}
+            <i class="fas fa-tents me-2" style="color:#856404;"></i> مخيم
           </label>
         </div>
       </div>
 
+      <!-- ══════════════ حقول مشتركة ══════════════ -->
       <div class="row g-3 mb-3">
         <div class="col-md-8">
-          <label class="form-label">{{ t.form_full_name }} <span class="text-danger">*</span></label>
-          <input class="form-control" name="full_name"
-                 value="{{ form_data.get('full_name','') }}"
-                 placeholder="{{ t.form_full_name_placeholder }}" required>
-          <div style="font-size:.74rem;color:#6c7a72;margin-top:3px;">
-            <i class="fas fa-info-circle me-1"></i>{{ t.form_full_name_hint }}
-          </div>
+          <label class="form-label fw-bold">الاسم الرباعي <span class="text-danger">*</span></label>
+          <input class="form-control" name="full_name" value="{{ form_data.get('full_name','') }}" required placeholder="الاسم الأول والثاني والثالث والرابع">
         </div>
-        <div class="col-md-4">
-          <label class="form-label">{{ t.form_gender }} <span class="text-danger">*</span></label>
+        <div id="gender-col" class="col-md-4">
+          <label class="form-label fw-bold">الجنس</label>
           <select class="form-select" name="gender">
-            <option value="male" {% if form_data.get('gender','male')=='male' %}selected{% endif %}>
-              {{ t.gender_male }}
-            </option>
-            <option value="female" {% if form_data.get('gender')=='female' %}selected{% endif %}>
-              {{ t.gender_female }}
-            </option>
+            <option value="male"   {% if form_data.get('gender','male')=='male'   %}selected{% endif %}>ذكر</option>
+            <option value="female" {% if form_data.get('gender')=='female' %}selected{% endif %}>أنثى</option>
           </select>
         </div>
       </div>
 
-      <div class="row g-3 mb-3">
-        <div class="col-md-6">
-          <label class="form-label">{{ t.form_id_number }} <span class="text-danger">*</span></label>
-          <input class="form-control" name="id_number"
-                 value="{{ form_data.get('id_number','') }}"
-                 placeholder="{{ t.form_id_placeholder }}" maxlength="9" inputmode="numeric" required>
+      <!-- ══════════════ قسم الشخص / الأسرة ══════════════ -->
+      <div id="person-section">
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">رقم الهوية</label>
+            <input class="form-control" name="id_number" value="{{ form_data.get('id_number','') }}"
+                   placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">رقم الجوال</label>
+            <div style="display:flex;">
+              <span style="background:#e8f5ee;border:2px solid #d8e8de;border-left:none;border-radius:8px 0 0 8px;padding:9px 12px;font-weight:800;color:#1a6b3a;">05</span>
+              <input class="form-control" name="phone_suffix" id="phone_suffix"
+                     value="{{ form_data.get('phone','')[2:] if form_data.get('phone','').startswith('05') else '' }}"
+                     placeholder="xxxxxxxx" maxlength="8" inputmode="numeric"
+                     style="border-radius:0 8px 8px 0;border-left:none;">
+              <input type="hidden" name="phone" id="phone_hidden" value="{{ form_data.get('phone','') }}">
+            </div>
+          </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">{{ t.form_phone }}</label>
-          <div style="display:flex;">
-            <span style="background:#e8f5ee;border:2px solid #d8e8de;border-left:none;border-radius:8px 0 0 8px;padding:9px 12px;font-weight:800;color:#1a6b3a;white-space:nowrap;">05</span>
-            <input class="form-control" name="phone_suffix" id="phone_suffix"
-                   value="{{ form_data.get('phone','')[2:] if form_data.get('phone','').startswith('05') else '' }}"
-                   placeholder="xxxxxxxx" maxlength="8" inputmode="numeric"
-                   style="border-radius:0 8px 8px 0;border-left:none;">
-            <input type="hidden" name="phone" id="phone_hidden" value="{{ form_data.get('phone','') }}">
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">العنوان الأول</label>
+            <input class="form-control" name="address" value="{{ form_data.get('address','') }}" placeholder="المنطقة / الحي">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">العنوان الثاني</label>
+            <input class="form-control" name="address2" value="{{ form_data.get('address2','') }}" placeholder="تفاصيل إضافية">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">اسم المخيم (للربط بالمخيم)</label>
+          <input class="form-control" name="camp_name" value="{{ form_data.get('camp_name','') }}" placeholder="اتركه فارغاً إن لم ينتمِ لمخيم">
+        </div>
+
+        <!-- الحالة الاجتماعية وأفراد الأسرة -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">الحالة الاجتماعية</label>
+            <select class="form-select" name="marital_status" id="marital_status">
+              <option value="married"  {% if form_data.get('marital_status','married')=='married'  %}selected{% endif %}>متزوج</option>
+              <option value="single"   {% if form_data.get('marital_status')=='single'   %}selected{% endif %}>أعزب</option>
+              <option value="widowed"  {% if form_data.get('marital_status')=='widowed'  %}selected{% endif %}>أرمل</option>
+              <option value="divorced" {% if form_data.get('marital_status')=='divorced' %}selected{% endif %}>مطلق</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">عدد أفراد الأسرة</label>
+            <input type="number" class="form-control" name="family_size" value="{{ form_data.get('family_size',1) }}" min="1" max="30">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">عدد الأطفال</label>
+            <input type="number" class="form-control" name="children_count" value="{{ form_data.get('children_count',0) }}" min="0">
+          </div>
+        </div>
+
+        <!-- اسم الزوجة -->
+        <div class="mb-3" id="wife-name-row">
+          <label class="form-label fw-bold">اسم الزوجة (رباعي)</label>
+          <input class="form-control" name="wife_name" value="{{ form_data.get('wife_name','') }}" placeholder="الاسم الرباعي للزوجة">
+        </div>
+
+        <!-- أيتام -->
+        <div class="check-section mb-3">
+          <div class="check-section-title"><i class="fas fa-child me-2" style="color:#1565c0;"></i>الأيتام</div>
+          <div class="check-options">
+            <label class="check-opt">
+              <input type="checkbox" name="has_orphans" value="1" id="has_orphans_cb"
+                     {% if form_data.get('has_orphans') %}checked{% endif %} onchange="toggleOrphans()">
+              <i class="fas fa-child me-2" style="color:#1565c0;"></i>
+              <div><div class="check-opt-title">يوجد أيتام في الأسرة</div></div>
+            </label>
+          </div>
+          <div id="orphans-count-box" style="display:{% if form_data.get('has_orphans') %}block{% else %}none{% endif %};padding:12px 14px;">
+            <label class="form-label">عدد الأيتام</label>
+            <input type="number" class="form-control" name="orphans_count" value="{{ form_data.get('orphans_count',0) or 0 }}" min="1" max="20" style="max-width:160px;">
+          </div>
+        </div>
+
+        <!-- حالة الزوجة -->
+        <div class="check-section mb-3">
+          <div class="check-section-title"><i class="fas fa-female me-2" style="color:#e91e8c;"></i>حالة الزوجة</div>
+          <div class="check-options">
+            <label class="check-opt">
+              <input type="checkbox" name="wife_pregnant" value="1" {% if form_data.get('wife_pregnant') %}checked{% endif %}>
+              <i class="fas fa-baby me-2" style="color:#f0a500;"></i>
+              <div><div class="check-opt-title">حامل</div></div>
+            </label>
+            <label class="check-opt">
+              <input type="checkbox" name="wife_nursing" value="1" {% if form_data.get('wife_nursing') %}checked{% endif %}>
+              <i class="fas fa-heart me-2" style="color:#e91e8c;"></i>
+              <div><div class="check-opt-title">مرضع</div></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- صورة شخصية -->
+        <div class="mb-3">
+          <label class="form-label fw-bold"><i class="fas fa-camera me-1" style="color:#1565c0;"></i>صورة شخصية</label>
+          <input type="file" class="form-control" name="personal_photo" accept="image/*">
+        </div>
+
+        <!-- وثائق -->
+        <div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:14px;margin-bottom:16px;">
+          <div style="font-weight:700;color:#e65100;margin-bottom:12px;font-size:.88rem;"><i class="fas fa-file-alt me-2"></i>الوثائق الرسمية</div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">صورة شهادة وفاة الأب / الأم</label>
+              <input type="file" class="form-control" name="death_cert_image" accept="image/*,.pdf">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">صورة الوكالة / الوصاية</label>
+              <input type="file" class="form-control" name="guardianship_image" accept="image/*,.pdf">
+            </div>
+          </div>
+        </div>
+
+        <!-- بيانات ولي الأمر / الوصي -->
+        <div style="background:#e8f5ee;border:1px solid #a5d6a7;border-radius:10px;padding:14px;margin-bottom:16px;">
+          <div style="font-weight:700;color:#1a6b3a;margin-bottom:12px;font-size:.88rem;"><i class="fas fa-user-shield me-2"></i>بيانات الوصي / ولي الأمر</div>
+          <div class="row g-3 mb-2">
+            <div class="col-md-6">
+              <label class="form-label">اسم الوصي (رباعي)</label>
+              <input class="form-control" name="guardian_name" value="{{ form_data.get('guardian_name','') }}" placeholder="الاسم الرباعي">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">رقم هوية الوصي</label>
+              <input class="form-control" name="guardian_id_number" value="{{ form_data.get('guardian_id_number','') }}" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">واتساب ولي الأمر</label>
+            <input class="form-control" name="guardian_whatsapp" value="{{ form_data.get('guardian_whatsapp','') }}" placeholder="05xxxxxxxx" inputmode="numeric">
+          </div>
+        </div>
+
+        <!-- أطفال / أبناء -->
+        <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:14px;margin-bottom:16px;">
+          <div style="font-weight:700;color:#1565c0;margin-bottom:12px;font-size:.88rem;"><i class="fas fa-children me-2"></i>الأبناء (يمكن إضافة أكثر من واحد)</div>
+          <div id="children-list"></div>
+          <button type="button" onclick="addChild()"
+                  style="background:#1565c0;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-weight:700;font-size:.83rem;cursor:pointer;margin-top:4px;">
+            <i class="fas fa-plus me-1"></i>إضافة ابن / ابنة
+          </button>
+        </div>
+
+      </div>
+      <!-- ══ نهاية قسم الشخص ══ -->
+
+      <!-- ══════════════ قسم المخيم ══════════════ -->
+      <div id="camp-section" style="display:none;">
+        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px;margin-bottom:16px;">
+          <div style="font-weight:700;font-size:.85rem;color:#856404;margin-bottom:12px;">
+            <i class="fas fa-tents me-2"></i>بيانات المخيم
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">اسم المخيم <span class="text-danger">*</span></label>
+            <input class="form-control" name="camp_name" value="{{ form_data.get('camp_name','') }}" placeholder="الاسم الرسمي للمخيم">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">اسم مدير المخيم (رباعي)</label>
+              <input class="form-control" name="camp_manager_name" value="{{ form_data.get('camp_manager_name','') }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">اسم المنسق</label>
+              <input class="form-control" name="camp_coordinator" value="{{ form_data.get('camp_coordinator','') }}">
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">رقم تواصل المنسق</label>
+              <input class="form-control" name="camp_coordinator_phone" value="{{ form_data.get('camp_coordinator_phone','') }}" placeholder="05xxxxxxxx" inputmode="numeric">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">عدد الأسر في المخيم</label>
+              <input type="number" class="form-control" name="camp_family_count" min="0" value="{{ form_data.get('camp_family_count','') }}">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">عنوان المخيم</label>
+            <input class="form-control" name="camp_address" value="{{ form_data.get('camp_address','') }}">
           </div>
         </div>
       </div>
 
-      <div class="row g-3 mb-3">
-        <div class="col-md-6">
-          <label class="form-label">{{ t.form_address1 }} <span class="text-danger">*</span></label>
-          <input class="form-control" name="address"
-                 value="{{ form_data.get('address','') }}" placeholder="{{ t.form_address1 }}" required>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">{{ t.form_address2 }}</label>
-          <input class="form-control" name="address2"
-                 value="{{ form_data.get('address2','') }}" placeholder="{{ t.form_address2_placeholder }}">
-        </div>
-      </div>
-
+      <!-- ملاحظات + حفظ -->
       <div class="mb-3">
-        <label class="form-label">{{ t.form_camp }}</label>
-        <input class="form-control" name="camp_name"
-               value="{{ form_data.get('camp_name','') }}" placeholder="{{ t.form_camp }}">
+        <label class="form-label">ملاحظات</label>
+        <textarea class="form-control" name="notes" rows="2">{{ form_data.get('notes','') }}</textarea>
       </div>
-
-      <!-- بيانات المخيم — تظهر فقط عند اختيار نوع "مخيم" -->
-      <div id="camp-extra-section"
-           style="display:{% if form_data.get('beneficiary_type')=='camp' %}block{% else %}none{% endif %};
-                  background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px;margin-bottom:16px;">
-        <div style="font-weight:700;font-size:.85rem;color:#856404;margin-bottom:12px;">
-          <i class="fas fa-tents me-2"></i>بيانات المخيم التفصيلية
-        </div>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label">اسم مدير المخيم (رباعي)</label>
-            <input class="form-control" name="camp_manager_name"
-                   value="{{ form_data.get('camp_manager_name','') }}" placeholder="الاسم الرباعي لمدير المخيم">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">المنسق</label>
-            <input class="form-control" name="camp_coordinator"
-                   value="{{ form_data.get('camp_coordinator','') }}" placeholder="اسم المنسق">
-          </div>
-        </div>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label">رقم تواصل المنسق</label>
-            <input class="form-control" name="camp_coordinator_phone"
-                   value="{{ form_data.get('camp_coordinator_phone','') }}" placeholder="05xxxxxxxx" inputmode="numeric">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">عدد الأسر في المخيم</label>
-            <input type="number" class="form-control" name="camp_family_count" min="0"
-                   value="{{ form_data.get('camp_family_count','') }}" placeholder="0">
-          </div>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">عنوان المخيم</label>
-          <input class="form-control" name="camp_address"
-                 value="{{ form_data.get('camp_address','') }}" placeholder="العنوان التفصيلي للمخيم">
-        </div>
-      </div>
-
-      <div class="row g-3 mb-3">
-        <div class="col-md-4">
-          <label class="form-label">{{ t.form_marital_status }}</label>
-          <select class="form-select" name="marital_status" id="marital_add">
-            <option value="married"  {% if form_data.get('marital_status','married')=='married'  %}selected{% endif %}>{{ t.marital_married }}</option>
-            <option value="single"   {% if form_data.get('marital_status')=='single'   %}selected{% endif %}>{{ t.marital_single }}</option>
-            <option value="widowed"  {% if form_data.get('marital_status')=='widowed'  %}selected{% endif %}>{{ t.marital_widowed }}</option>
-            <option value="divorced" {% if form_data.get('marital_status')=='divorced' %}selected{% endif %}>{{ t.marital_divorced }}</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">{{ t.form_family_size }}</label>
-          <input type="number" class="form-control" name="family_size"
-                 value="{{ form_data.get('family_size','1') }}" min="1" max="30"
-                 id="family_size_add" onchange="checkSingleMember(this, 'marital_add')">
-          <div id="single-warning-add" style="display:none;font-size:.74rem;color:#856404;margin-top:3px;background:#fff3cd;padding:4px 8px;border-radius:6px;">
-            <i class="fas fa-info-circle me-1"></i>{{ t.single_member_warning }}
-          </div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">{{ t.form_children_count }}</label>
-          <input type="number" class="form-control" name="children_count"
-                 value="{{ form_data.get('children_count','0') }}" min="0" max="20">
-        </div>
-      </div>
-
-      <div class="check-section mb-3">
-        <div class="check-section-title"><i class="fas fa-female me-2" style="color:#e91e8c;"></i>{{ t.wife_status_title }}</div>
-        <div class="check-options">
-          <label class="check-opt">
-            <input type="checkbox" name="wife_pregnant" value="1"
-                   {% if form_data.get('wife_pregnant') %}checked{% endif %}>
-            <i class="fas fa-baby me-2" style="color:#f0a500;"></i>
-            <div>
-              <div class="check-opt-title">{{ t.wife_pregnant }}</div>
-              <div class="check-opt-desc">{{ t.wife_pregnant_desc }}</div>
-            </div>
-          </label>
-          <label class="check-opt">
-            <input type="checkbox" name="wife_nursing" value="1"
-                   {% if form_data.get('wife_nursing') %}checked{% endif %}>
-            <i class="fas fa-heart me-2" style="color:#e91e8c;"></i>
-            <div>
-              <div class="check-opt-title">{{ t.wife_nursing }}</div>
-              <div class="check-opt-desc">{{ t.wife_nursing_desc }}</div>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="check-section mb-3" id="orphans-section">
-        <div class="check-section-title"><i class="fas fa-child me-2" style="color:#1565c0;"></i>{{ t.col_orphans }}</div>
-        <div class="check-options">
-          <label class="check-opt" style="flex:1;">
-            <input type="checkbox" name="has_orphans" value="1" id="has_orphans_cb"
-                   {% if form_data.get('has_orphans') %}checked{% endif %}
-                   onchange="toggleOrphans()">
-            <i class="fas fa-child me-2" style="color:#1565c0;"></i>
-            <div>
-              <div class="check-opt-title">{{ t.has_orphans_label }}</div>
-              <div class="check-opt-desc">{{ t.has_orphans_desc }}</div>
-            </div>
-          </label>
-        </div>
-        <div id="orphans-count-box" style="display:{% if form_data.get('has_orphans') %}block{% else %}none{% endif %};padding:12px 0 0 0;">
-          <label class="form-label">{{ t.orphans_count_label }}</label>
-          <input type="number" class="form-control" name="orphans_count"
-                 value="{{ form_data.get('orphans_count','0') }}"
-                 min="1" max="20" style="max-width:160px;">
-        </div>
-      </div>
-
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary" onclick="checkBeforeSubmit()">
-          <i class="fas fa-save me-1"></i> {{ t.btn_save_beneficiary }}
-        </button>
-        <a href="/beneficiaries" class="btn btn-secondary">{{ t.btn_cancel }}</a>
+        <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-1"></i> حفظ</button>
+        <a href="/beneficiaries" class="btn btn-secondary">إلغاء</a>
       </div>
     </form>
-
-<!-- Modal تكرار المستفيد -->
-<div class="modal fade" id="dupModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title text-warning">
-          <i class="fas fa-exclamation-triangle me-2"></i>
-          {% if lang=='en' %}Beneficiary Already Registered
-          {% elif lang=='tr' %}Yararlanıcı Zaten Kayıtlı
-          {% else %}المستفيد مسجل مسبقاً{% endif %}
-        </h5>
-      </div>
-      <div class="modal-body" id="dup-modal-body"></div>
-      <div class="modal-footer border-0">
-        <button class="btn btn-success" id="dup-request-btn" onclick="sendShareRequest()">
-          <i class="fas fa-paper-plane me-1"></i>
-          {% if lang=='en' %}Send Request{% elif lang=='tr' %}İstek Gönder{% else %}إرسال طلب{% endif %}
-        </button>
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
-          {% if lang=='en' %}Cancel{% elif lang=='tr' %}İptal{% else %}إلغاء{% endif %}
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
   </div>
 </div>
 
 <style>
-.check-section { border: 2px solid #d8e8de; border-radius: 10px; overflow: hidden; }
-.check-section-title { background: #e8f5ee; padding: 10px 14px; font-weight: 800; font-size: .88rem; color: #1a6b3a; }
-.check-options { padding: 10px 14px; display: flex; gap: 12px; flex-wrap: wrap; }
-.check-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 2px solid #d8e8de; border-radius: 8px; cursor: pointer; transition: all .2s; flex: 1; min-width: 180px; }
-.check-opt:hover { border-color: #1a6b3a; background: #f9fcfa; }
-.check-opt input[type=checkbox] { width: 18px; height: 18px; accent-color: #1a6b3a; flex-shrink: 0; }
-.check-opt-title { font-weight: 700; font-size: .88rem; }
-.check-opt-desc { font-size: .74rem; color: #6c7a72; }
-/* نوع المستفيد */
+.check-section { border:2px solid #d8e8de;border-radius:10px;overflow:hidden; }
+.check-section-title { background:#e8f5ee;padding:10px 14px;font-weight:800;font-size:.88rem;color:#1a6b3a; }
+.check-options { padding:10px 14px;display:flex;gap:12px;flex-wrap:wrap; }
+.check-opt { display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px solid #d8e8de;border-radius:8px;cursor:pointer;transition:all .2s;flex:1;min-width:160px; }
+.check-opt:hover { border-color:#1a6b3a; }
+.check-opt input[type=checkbox] { width:18px;height:18px;accent-color:#1a6b3a;flex-shrink:0; }
+.check-opt-title { font-weight:700;font-size:.88rem; }
 .type-opt { display:flex;align-items:center;gap:8px;padding:10px 18px;border:2px solid #d8e8de;border-radius:8px;cursor:pointer;font-weight:700;font-size:.9rem;transition:all .2s;flex:1;max-width:200px; }
-.type-opt:hover { border-color:#1a6b3a;background:#f0faf4; }
 .type-opt.active { border-color:#1a6b3a;background:#e8f5ee; }
 .type-opt input[type=radio] { display:none; }
+.child-row { background:#fff;border:1px solid #90caf9;border-radius:8px;padding:12px;margin-bottom:10px;position:relative; }
 </style>
 
 <script>
-function checkSingleMember(input, maritalId) {
-  const val     = parseInt(input.value);
-  const warning = document.getElementById('single-warning-' + (maritalId === 'marital_add' ? 'add' : 'edit'));
-  const marital = document.getElementById(maritalId);
-  if (val === 1) {
-    warning.style.display = 'block';
-    if (marital && marital.value === 'married') {
-      marital.value = 'widowed';
-    }
-  } else {
-    warning.style.display = 'none';
-  }
+// ── تبديل نوع المستفيد ──
+function toggleType() {
+  const val = document.querySelector('[name=beneficiary_type]:checked')?.value || 'person';
+  document.getElementById('type-person-lbl').classList.toggle('active', val==='person');
+  document.getElementById('type-camp-lbl').classList.toggle('active', val==='camp');
+  document.getElementById('person-section').style.display = val==='person' ? 'block' : 'none';
+  document.getElementById('camp-section').style.display   = val==='camp'   ? 'block' : 'none';
+  document.getElementById('gender-col').style.display     = val==='person' ? '' : 'none';
 }
+toggleType();
 
+// ── رقم الجوال ──
 const suffix = document.getElementById('phone_suffix');
 const hidden = document.getElementById('phone_hidden');
-if (suffix) {
-  suffix.addEventListener('input', () => {
-    const val = suffix.value.replace(/\D/g,'').slice(0,8);
-    suffix.value = val;
-    hidden.value = val ? '05' + val : '';
-  });
-}
-
-function toggleOrphans() {
-  const cb  = document.getElementById('has_orphans_cb');
-  const box = document.getElementById('orphans-count-box');
-  box.style.display = cb.checked ? 'block' : 'none';
-}
-
-document.querySelector('[name=id_number]').addEventListener('input', function(){
-  this.value = this.value.replace(/\D/g,'').slice(0,9);
+if(suffix) suffix.addEventListener('input', () => {
+  const v = suffix.value.replace(/\D/g,'').slice(0,8);
+  suffix.value = v;
+  hidden.value = v ? '05'+v : '';
 });
 
-function toggleType() {
-  const val = document.querySelector('[name=beneficiary_type]:checked')?.value;
-  document.getElementById('type-person-lbl').classList.toggle('active', val === 'person');
-  document.getElementById('type-camp-lbl').classList.toggle('active', val === 'camp');
-  const sec = document.getElementById('camp-extra-section');
-  if(sec) sec.style.display = val === 'camp' ? 'block' : 'none';
+// ── أيتام ──
+function toggleOrphans() {
+  const cb = document.getElementById('has_orphans_cb');
+  document.getElementById('orphans-count-box').style.display = cb.checked ? 'block' : 'none';
 }
 
-// ── كشف التكرار بين المؤسسات ──
-let _dupBeneficiaryId = null;
-
-function _doSubmit() {
-  document.querySelector('form').submit();
+// ── إضافة طفل ──
+let childIdx = 0;
+function addChild() {
+  childIdx++;
+  const div = document.createElement('div');
+  div.className = 'child-row';
+  div.id = 'child-row-' + childIdx;
+  div.innerHTML = `
+    <button type="button" onclick="document.getElementById('child-row-${childIdx}').remove()"
+            style="position:absolute;top:8px;left:8px;background:none;border:none;color:#dc3545;font-size:1rem;cursor:pointer;">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="row g-2">
+      <div class="col-md-5">
+        <label style="font-size:.8rem;font-weight:700;">الاسم الرباعي</label>
+        <input class="form-control form-control-sm" name="child_name[]" placeholder="الاسم الرباعي" required>
+      </div>
+      <div class="col-md-3">
+        <label style="font-size:.8rem;font-weight:700;">تاريخ الميلاد</label>
+        <input type="date" class="form-control form-control-sm" name="child_birth_date[]">
+      </div>
+      <div class="col-md-2">
+        <label style="font-size:.8rem;font-weight:700;">يتيم؟</label>
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="child_is_orphan[]" value="${childIdx}">
+          <label class="form-check-label" style="font-size:.8rem;">نعم</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label style="font-size:.8rem;font-weight:700;">شهادة ميلاد</label>
+        <input type="file" class="form-control form-control-sm" name="child_birth_cert[]" accept="image/*">
+      </div>
+    </div>`;
+  document.getElementById('children-list').appendChild(div);
 }
 
-async function checkBeforeSubmit() {
-  try {
-    const nameEl  = document.querySelector('[name=full_name]');
-    const idNumEl = document.querySelector('[name=id_number]');
-    const name    = nameEl  ? nameEl.value.trim()  : '';
-    const idNum   = idNumEl ? idNumEl.value.trim() : '';
-
-    if (!name || !idNum) { _doSubmit(); return; }
-
-    let d;
-    try {
-      const res = await fetch('/beneficiaries/check_duplicate?name=' +
-        encodeURIComponent(name) + '&id_number=' + encodeURIComponent(idNum));
-      if (!res.ok) { _doSubmit(); return; }
-      d = await res.json();
-    } catch(fetchErr) { _doSubmit(); return; }
-
-    if (!d || !d.found) { _doSubmit(); return; }
-
-    // وُجد تكرار
-    _dupBeneficiaryId = d.beneficiary_id;
-    const msgs = {
-      ar: `هذا المستفيد (<b>${name}</b> — ${idNum}) مسجل بالفعل في مؤسسة <b>${d.org_name}</b>.<br><br>يمكنك إرسال طلب لإضافته لمؤسستك، وستحتاج موافقة تلك المؤسسة.`,
-      tr: `Bu yararlanıcı (<b>${name}</b> — ${idNum}) zaten <b>${d.org_name}</b> kurumunda kayıtlı.<br><br>Kurumunuza eklemek için istek gönderebilirsiniz.`,
-      en: `This beneficiary (<b>${name}</b> — ${idNum}) is already registered in <b>${d.org_name}</b>.<br><br>You can send a request to add them to your organization.`,
-    };
-    const bodyEl = document.getElementById('dup-modal-body');
-    if (bodyEl) bodyEl.innerHTML = msgs["{{ lang }}"] || msgs.ar;
-    const reqBtn = document.getElementById('dup-request-btn');
-    if (reqBtn) {
-      if (d.pending) {
-        reqBtn.disabled = true;
-        reqBtn.innerHTML = '<i class="fas fa-clock me-1"></i>' +
-          ('{{ lang }}'==='ar' ? 'طلب معلق بالفعل' : ('{{ lang }}'==='tr' ? 'Bekleyen istek var' : 'Request already pending'));
-      } else {
-        reqBtn.disabled = false;
-      }
-    }
-    const modalEl = document.getElementById('dupModal');
-    if (modalEl) new bootstrap.Modal(modalEl).show();
-
-  } catch(e) {
-    _doSubmit();
-  }
-}
-
-async function sendShareRequest() {
-  if (!_dupBeneficiaryId) return;
-  const fd = new FormData();
-  fd.append('_csrf_token', '{{ csrf_token() }}');
-  fd.append('beneficiary_id', _dupBeneficiaryId);
-  try {
-    const res = await fetch('/beneficiaries/request_share', { method:'POST', body: fd });
-    const d   = await res.json();
-    bootstrap.Modal.getInstance(document.getElementById('dupModal')).hide();
-    if (d.ok) {
-      const msg = '{{ lang }}'==='ar' ? 'تم إرسال الطلب بنجاح ✅' :
-                  ('{{ lang }}'==='tr' ? 'İstek gönderildi ✅' : 'Request sent ✅');
-      alert(msg);
-    }
-  } catch(e) {}
-}
+// ── رقم هوية - أرقام فقط ──
+document.querySelector('[name=id_number]')?.addEventListener('input', function(){
+  this.value = this.value.replace(/\D/g,'').slice(0,9);
+});
 </script>
 {% endblock %}

@@ -1310,7 +1310,9 @@ BENEF_KEYS = ["id", "org_id", "seq_num", "full_name", "gender", "phone",
               "marital_status", "children_count", "wife_pregnant", "wife_nursing",
               "has_orphans", "orphans_count", "notes", "created_at", "beneficiary_type",
               "camp_manager_name", "camp_coordinator", "camp_coordinator_phone",
-              "camp_address", "camp_family_count"]
+              "camp_address", "camp_family_count",
+              "wife_name", "personal_photo", "death_cert_image",
+              "guardianship_image", "guardian_whatsapp", "guardian_name", "guardian_id_number"]
 
 
 @app.route("/beneficiaries")
@@ -1321,30 +1323,57 @@ def beneficiaries():
     c = conn.cursor()
     c.execute("SELECT * FROM beneficiaries WHERE org_id=? ORDER BY id ASC", (org_id,))
     rows = c.fetchall()
+
+    # جلب أفراد الأسرة لكل المستفيدين
+    c.execute("SELECT * FROM beneficiary_family_members WHERE org_id=? ORDER BY member_type, id", (org_id,))
+    fam_rows = c.fetchall()
     conn.close()
+
+    # بناء قاموس أفراد الأسرة مرتبة بـ beneficiary_id
+    family_map = {}
+    for fr in fam_rows:
+        bid = fr["beneficiary_id"]
+        if bid not in family_map:
+            family_map[bid] = []
+        family_map[bid].append(dict(fr))
 
     data = []
     for i, row in enumerate(rows, 1):
         d = row_to_dict(row, BENEF_KEYS)
         d["seq_num"] = i
-        d.setdefault("address2", "")
-        d.setdefault("camp_name", "")
-        d.setdefault("camp_manager_name", "")
-        d.setdefault("camp_coordinator", "")
-        d.setdefault("camp_coordinator_phone", "")
-        d.setdefault("camp_address", "")
-        d.setdefault("camp_family_count", "")
-        d.setdefault("marital_status", "married")
-        d.setdefault("gender", "male")
-        d.setdefault("children_count", 0)
-        d.setdefault("wife_pregnant", 0)
-        d.setdefault("wife_nursing", 0)
-        d.setdefault("has_orphans", 0)
-        d.setdefault("orphans_count", 0)
-        d.setdefault("beneficiary_type", "person")
+        for k, v in [("address2",""), ("camp_name",""), ("camp_manager_name",""),
+                     ("camp_coordinator",""), ("camp_coordinator_phone",""),
+                     ("camp_address",""), ("camp_family_count",""),
+                     ("marital_status","married"), ("gender","male"),
+                     ("children_count",0), ("wife_pregnant",0), ("wife_nursing",0),
+                     ("has_orphans",0), ("orphans_count",0), ("beneficiary_type","person"),
+                     ("wife_name",""), ("personal_photo",""), ("death_cert_image",""),
+                     ("guardianship_image",""), ("guardian_whatsapp",""),
+                     ("guardian_name",""), ("guardian_id_number","")]:
+            d.setdefault(k, v)
+        d["family_members"] = family_map.get(d["id"], [])
         data.append(d)
 
-    return render_template("beneficiaries.html", beneficiaries=data)
+    # بناء الهيكل الهرمي: مخيمات → أشخاص تحتها
+    camps = [d for d in data if d.get("beneficiary_type") == "camp"]
+    persons = [d for d in data if d.get("beneficiary_type") != "camp"]
+
+    # ربط الأشخاص بمخيماتهم
+    camp_names = {c["camp_name"].strip().lower(): c for c in camps if c["camp_name"]}
+    linked_ids = set()
+    for camp in camps:
+        camp_key = camp["camp_name"].strip().lower() if camp["camp_name"] else ""
+        camp["persons"] = []
+        for p in persons:
+            if p.get("camp_name","").strip().lower() == camp_key and camp_key:
+                camp["persons"].append(p)
+                linked_ids.add(p["id"])
+
+    unlinked = [p for p in persons if p["id"] not in linked_ids]
+
+    return render_template("beneficiaries.html",
+                           beneficiaries=data, camps=camps,
+                           unlinked_persons=unlinked, persons=persons)
 
 
 @app.route("/add_beneficiary", methods=["GET", "POST"])
@@ -1406,18 +1435,65 @@ def add_beneficiary():
                 return redirect(url_for("add_beneficiary"))
         c.execute("SELECT COUNT(*) FROM beneficiaries WHERE org_id=?", (session["org_id"],))
         next_seq = c.fetchone()[0] + 1
+        # حقول شخص جديدة
+        wife_name           = request.form.get("wife_name", "").strip()
+        guardian_name       = request.form.get("guardian_name", "").strip()
+        guardian_id_number  = request.form.get("guardian_id_number", "").strip()
+        guardian_whatsapp   = request.form.get("guardian_whatsapp", "").strip()
+
+        def save_upload(field, prefix):
+            f2 = request.files.get(field)
+            if f2 and f2.filename:
+                ext = f2.filename.rsplit(".", 1)[-1].lower()
+                fname = f"{prefix}_{session['org_id']}_{next_seq}.{ext}"
+                f2.save(os.path.join(app.config["UPLOAD_FOLDER"], fname))
+                return fname
+            return None
+
+        personal_photo      = save_upload("personal_photo", "bphoto")
+        death_cert_image    = save_upload("death_cert_image", "bdeath")
+        guardianship_image  = save_upload("guardianship_image", "bguard")
+
         c.execute(
             """INSERT INTO beneficiaries
                (org_id, seq_num, full_name, gender, phone, address, address2, camp_name,
                 id_number, family_size, marital_status, children_count,
                 wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
-                camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
+                wife_name, personal_photo, death_cert_image, guardianship_image,
+                guardian_whatsapp, guardian_name, guardian_id_number)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (session["org_id"], next_seq, full_name, gender, phone, address, address2,
              camp_name, id_number, family_size, marital_status, children_count,
              wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
-             camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count)
+             camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
+             wife_name, personal_photo, death_cert_image, guardianship_image,
+             guardian_whatsapp, guardian_name, guardian_id_number)
         )
+        new_benef_id = c.lastrowid
+
+        # حفظ أفراد الأسرة (أطفال)
+        child_names  = request.form.getlist("child_name[]")
+        child_dates  = request.form.getlist("child_birth_date[]")
+        child_orphan = request.form.getlist("child_is_orphan[]")
+        child_files  = request.files.getlist("child_birth_cert[]")
+        for idx, cname in enumerate(child_names):
+            cname = cname.strip()
+            if not cname:
+                continue
+            cdate   = child_dates[idx] if idx < len(child_dates) else ""
+            corphan = 1 if str(idx) in child_orphan or (idx < len(child_orphan) and child_orphan[idx]) else 0
+            cimg    = None
+            if idx < len(child_files) and child_files[idx].filename:
+                ext2 = child_files[idx].filename.rsplit(".", 1)[-1].lower()
+                fn2  = f"child_{session['org_id']}_{new_benef_id}_{idx}.{ext2}"
+                child_files[idx].save(os.path.join(app.config["UPLOAD_FOLDER"], fn2))
+                cimg = fn2
+            c.execute(
+                "INSERT INTO beneficiary_family_members (beneficiary_id, org_id, member_type, full_name, birth_date, is_orphan, birth_cert_img) VALUES (?,?,?,?,?,?,?)",
+                (new_benef_id, session["org_id"], "child", cname, cdate or None, corphan, cimg)
+            )
+
         conn.commit()
         conn.close()
         flash("✅ تمت إضافة المستفيد بنجاح", "success")
@@ -1425,6 +1501,46 @@ def add_beneficiary():
 
     return render_template("add_beneficiary.html", form_data={})
 
+
+
+# ══════════════════════════════════════════
+# أفراد أسرة المستفيد
+# ══════════════════════════════════════════
+@app.route("/beneficiary/<int:bid>/family/add", methods=["POST"])
+@data_entry_required
+def family_member_add(bid):
+    if not validate_csrf(): return redirect(url_for("beneficiaries"))
+    org_id = session["org_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id FROM beneficiaries WHERE id=? AND org_id=?", (bid, org_id))
+    if not c.fetchone():
+        conn.close(); return redirect(url_for("beneficiaries"))
+    mtype     = request.form.get("member_type","child")
+    full_name = request.form.get("full_name","").strip()
+    birth_date= request.form.get("birth_date","").strip()
+    is_orphan = 1 if request.form.get("is_orphan") else 0
+    cimg = None
+    f2 = request.files.get("birth_cert_img")
+    if f2 and f2.filename:
+        ext = f2.filename.rsplit(".",1)[-1].lower()
+        fn  = f"fam_{org_id}_{bid}_{mtype[:1]}.{ext}"
+        f2.save(os.path.join(app.config["UPLOAD_FOLDER"], fn)); cimg = fn
+    if full_name:
+        c.execute("INSERT INTO beneficiary_family_members (beneficiary_id,org_id,member_type,full_name,birth_date,is_orphan,birth_cert_img) VALUES (?,?,?,?,?,?,?)",
+                  (bid, org_id, mtype, full_name, birth_date or None, is_orphan, cimg))
+        conn.commit()
+    conn.close()
+    return redirect(url_for("beneficiaries"))
+
+@app.route("/beneficiary/family/<int:fid>/delete", methods=["POST"])
+@data_entry_required
+def family_member_delete(fid):
+    if not validate_csrf(): return redirect(url_for("beneficiaries"))
+    org_id = session["org_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("DELETE FROM beneficiary_family_members WHERE id=? AND org_id=?", (fid, org_id))
+    conn.commit(); conn.close()
+    return redirect(url_for("beneficiaries"))
 
 @app.route("/edit_beneficiary/<int:id>", methods=["GET", "POST"])
 @data_entry_required

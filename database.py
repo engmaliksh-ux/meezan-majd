@@ -206,7 +206,40 @@ def init_db():
     )
     """)
 
+
+    # أفراد الأسرة (زوجة + أطفال)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_family_members (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        org_id         INTEGER NOT NULL,
+        member_type    TEXT    NOT NULL DEFAULT 'child',  -- wife | child
+        full_name      TEXT    NOT NULL,
+        birth_date     TEXT,
+        is_orphan      INTEGER DEFAULT 0,
+        birth_cert_img TEXT,
+        created_at     TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+
     conn.commit()
+
+    # جدول أفراد الأسرة
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_family_members (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        org_id         INTEGER NOT NULL,
+        member_type    TEXT    NOT NULL DEFAULT 'child',
+        full_name      TEXT    NOT NULL,
+        birth_date     TEXT,
+        is_orphan      INTEGER DEFAULT 0,
+        birth_cert_img TEXT,
+        created_at     TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
+
     conn.close()
     migrate_db()
 
