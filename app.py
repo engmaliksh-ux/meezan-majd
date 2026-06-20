@@ -3860,6 +3860,29 @@ def sa_notify_all():
 
 
 
+
+@app.route("/sys_notifications/<int:nid>/delete", methods=["POST"])
+@login_required
+def sys_notif_delete(nid):
+    if not validate_csrf(): return redirect("/sys_notifications")
+    org_id = session["org_id"]
+    conn = get_connection()
+    conn.execute("DELETE FROM sys_notifications WHERE id=? AND (org_id=? OR org_id IS NULL)", (nid, org_id))
+    conn.commit()
+    conn.close()
+    return redirect("/sys_notifications")
+
+@app.route("/sys_notifications/clear_all", methods=["POST"])
+@login_required
+def sys_notif_clear_all():
+    if not validate_csrf(): return redirect("/sys_notifications")
+    org_id = session["org_id"]
+    conn = get_connection()
+    conn.execute("DELETE FROM sys_notifications WHERE org_id=? OR org_id IS NULL", (org_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/sys_notifications")
+
 @app.route("/sys_notifications")
 @login_required
 def sys_notifications_page():
