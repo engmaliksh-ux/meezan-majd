@@ -1501,28 +1501,6 @@ def add_beneficiary():
             )
 
         conn.commit()
-
-        # ── فحص التكرار وإرسال إشعار تلقائي للمؤسسة الأخرى ──
-        if beneficiary_type == 'person' and id_number:
-            from datetime import datetime as _dt
-            c.execute("""
-                SELECT b.id, b.org_id FROM beneficiaries b
-                WHERE b.org_id != ? AND TRIM(LOWER(b.full_name))=TRIM(LOWER(?))
-                  AND TRIM(b.id_number)=TRIM(?) LIMIT 1
-            """, (org_id, full_name, id_number))
-            dup = c.fetchone()
-            if dup:
-                c.execute("""SELECT id FROM beneficiary_share_requests
-                             WHERE requester_org_id=? AND beneficiary_id=? AND status='pending'
-                          """, (org_id, dup["id"]))
-                if not c.fetchone():
-                    c.execute("""INSERT INTO beneficiary_share_requests
-                                 (requester_org_id, owner_org_id, beneficiary_id, status, created_at)
-                                 VALUES (?,?,?,'pending',?)""",
-                              (org_id, dup["org_id"], dup["id"],
-                               _dt.now().strftime("%Y-%m-%d %H:%M:%S")))
-                    conn.commit()
-
         conn.close()
         flash("✅ تمت إضافة المستفيد بنجاح", "success")
         return redirect(url_for("beneficiaries"))
