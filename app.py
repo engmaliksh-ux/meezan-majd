@@ -118,6 +118,7 @@ def check_session_timeout():
     session["_last_active"] = datetime.now().isoformat()
 
 init_db()
+from database import migrate_db; migrate_db()
 
 # ══════════════════════════════════════════
 # Language support — AR / TR

@@ -271,6 +271,8 @@ def migrate_db():
         ("incoming_invoices",     "purchase_invoice_number", "TEXT"),
         ("incoming_invoices",     "invoice_name",     "TEXT"),
         ("users",                 "phone",            "TEXT"),
+        ("incoming_invoices",     "notes",            "TEXT"),
+        ("outgoing_invoices",     "notes",            "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً
