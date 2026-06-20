@@ -1,6 +1,22 @@
 {% extends 'base.html' %}
 {% block title %}المستفيدون – ميزان مجد{% endblock %}
 {% block content %}
+{% macro person_bubble(p) %}
+<div class="person-bubble" onclick="openPersonModal({{ p.id }})">
+  <div class="person-avatar">
+    {% if p.personal_photo %}
+    <img src="{{ url_for('static', filename='uploads/' + p.personal_photo) }}" alt="">
+    {% else %}<i class="fas fa-user"></i>{% endif %}
+  </div>
+  <div class="person-bubble-name">{{ p.full_name }}</div>
+  <div class="person-bubble-meta">
+    {% if p.id_number %}<div style="font-size:.7rem;color:#aaa;">{{ p.id_number }}</div>{% endif %}
+    {% if p.has_orphans %}<span class="orphan-badge">أيتام</span>{% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-users"></i> المستفيدون</h2>
   <div class="d-flex gap-2">
@@ -62,8 +78,7 @@
   <div id="camp-{{ loop.index }}" class="camp-persons-grid">
     {% if camp.persons %}
     {% for p in camp.persons %}
-    {% include '_person_bubble.html' ignore missing %}
-    {{ _person_bubble(p) }}
+    {{ person_bubble(p) }}
     {% endfor %}
     {% else %}
     <div style="color:#bbb;font-size:.82rem;padding:16px;text-align:center;grid-column:1/-1;">
@@ -80,20 +95,7 @@
 <h6 class="section-mini-title mt-4"><i class="fas fa-user me-2" style="color:#1565c0;"></i>أشخاص / أسر غير مرتبطة بمخيم</h6>
 <div class="persons-grid mb-4">
   {% for p in unlinked_persons %}
-  <div class="person-bubble" onclick="openPersonModal({{ p.id }})">
-    <div class="person-avatar">
-      {% if p.personal_photo %}
-      <img src="{{ url_for('static', filename='uploads/' + p.personal_photo) }}" alt="">
-      {% else %}
-      <i class="fas fa-user"></i>
-      {% endif %}
-    </div>
-    <div class="person-bubble-name">{{ p.full_name }}</div>
-    <div class="person-bubble-meta">
-      {% if p.id_number %}<div style="font-size:.7rem;color:#aaa;">{{ p.id_number }}</div>{% endif %}
-      {% if p.has_orphans %}<span class="orphan-badge">يتيم</span>{% endif %}
-    </div>
-  </div>
+  {{ person_bubble(p) }}
   {% endfor %}
 </div>
 {% endif %}

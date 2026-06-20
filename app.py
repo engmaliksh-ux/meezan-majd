@@ -1385,7 +1385,12 @@ def add_beneficiary():
         phone          = request.form.get("phone", "").strip()
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
-        camp_name             = request.form.get("camp_name", "").strip()
+        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
+        # للمخيم: camp_name هو اسم المخيم نفسه، للشخص: linked_camp هو اسم المخيم المرتبط
+        if beneficiary_type == 'camp':
+            camp_name = request.form.get("camp_name", "").strip()
+        else:
+            camp_name = request.form.get("linked_camp", "").strip()
         camp_manager_name     = request.form.get("camp_manager_name", "").strip()
         camp_coordinator      = request.form.get("camp_coordinator", "").strip()
         camp_coordinator_phone= request.form.get("camp_coordinator_phone", "").strip()
@@ -1400,11 +1405,12 @@ def add_beneficiary():
         has_orphans    = 1 if request.form.get("has_orphans") else 0
         orphans_count    = request.form.get("orphans_count", "0").strip()
         notes            = request.form.get("notes", "").strip()
-        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
 
         errors = []
-        if len(full_name.split()) < 2:
-            errors.append("الاسم يجب أن يكون رباعياً (4 كلمات على الأقل)")
+        if beneficiary_type == 'person' and len(full_name.split()) < 2:
+            errors.append("الاسم يجب أن يكون رباعياً (كلمتان على الأقل)")
+        elif beneficiary_type == 'camp' and not full_name.strip():
+            errors.append("يرجى إدخال اسم المخيم")
         if id_number and (not id_number.isdigit() or len(id_number) != 9):
             errors.append("رقم الهوية يجب أن يكون 9 أرقام فقط")
         if phone and (not phone.isdigit() or len(phone) != 10 or not phone.startswith("05")):
@@ -1555,7 +1561,12 @@ def edit_beneficiary(id):
         phone          = request.form.get("phone", "").strip()
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
-        camp_name             = request.form.get("camp_name", "").strip()
+        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
+        # للمخيم: camp_name هو اسم المخيم نفسه، للشخص: linked_camp هو اسم المخيم المرتبط
+        if beneficiary_type == 'camp':
+            camp_name = request.form.get("camp_name", "").strip()
+        else:
+            camp_name = request.form.get("linked_camp", "").strip()
         camp_manager_name     = request.form.get("camp_manager_name", "").strip()
         camp_coordinator      = request.form.get("camp_coordinator", "").strip()
         camp_coordinator_phone= request.form.get("camp_coordinator_phone", "").strip()
@@ -1570,11 +1581,12 @@ def edit_beneficiary(id):
         has_orphans    = 1 if request.form.get("has_orphans") else 0
         orphans_count    = request.form.get("orphans_count", "0").strip()
         notes            = request.form.get("notes", "").strip()
-        beneficiary_type = request.form.get("beneficiary_type", "person").strip()
 
         errors = []
-        if len(full_name.split()) < 2:
-            errors.append("الاسم يجب أن يكون رباعياً (4 كلمات على الأقل)")
+        if beneficiary_type == 'person' and len(full_name.split()) < 2:
+            errors.append("الاسم يجب أن يكون رباعياً (كلمتان على الأقل)")
+        elif beneficiary_type == 'camp' and not full_name.strip():
+            errors.append("يرجى إدخال اسم المخيم")
         if id_number and (not id_number.isdigit() or len(id_number) != 9):
             errors.append("رقم الهوية يجب أن يكون 9 أرقام فقط")
         if phone and (not phone.isdigit() or len(phone) != 10 or not phone.startswith("05")):
