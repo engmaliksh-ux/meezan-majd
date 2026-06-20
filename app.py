@@ -1505,7 +1505,8 @@ def add_beneficiary():
         flash("✅ تمت إضافة المستفيد بنجاح", "success")
         return redirect(url_for("beneficiaries"))
 
-    return render_template("add_beneficiary.html", form_data={})
+    prefill_camp = request.args.get("linked_camp", "")
+    return render_template("add_beneficiary.html", form_data={}, prefill_camp=prefill_camp)
 
 
 

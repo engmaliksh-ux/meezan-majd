@@ -63,7 +63,21 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
+      {% if session.get('role') != 'observer' %}
+      <a href="/add_beneficiary?linked_camp={{ (camp.camp_name or camp.full_name)|urlencode }}"
+         class="btn-camp-action btn-camp-add" title="إضافة أسرة للمخيم">
+        <i class="fas fa-user-plus"></i>
+      </a>
+      <button onclick="openCampEdit({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }},{{ (camp.camp_manager_name or '')|tojson }},{{ (camp.camp_coordinator or '')|tojson }},{{ (camp.camp_coordinator_phone or '')|tojson }},{{ (camp.camp_family_count or '')|tojson }},{{ (camp.camp_address or '')|tojson }},{{ (camp.notes or '')|tojson }})"
+         class="btn-camp-action btn-camp-edit" title="تعديل بيانات المخيم">
+        <i class="fas fa-pen"></i>
+      </button>
+      <button onclick="deleteCamp({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }})"
+         class="btn-camp-action btn-camp-del" title="حذف المخيم">
+        <i class="fas fa-trash"></i>
+      </button>
+      {% endif %}
       <span style="background:#fff3cd;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:700;color:#856404;">
         {{ camp.persons|length }} أسرة
       </span>
@@ -110,10 +124,58 @@
 </div>
 {% endif %}
 
+<!-- ════════ مودال تعديل المخيم ════════ -->
+<div id="camp-edit-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:540px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#fff8e1,#ffe082);padding:18px 22px;display:flex;align-items:center;gap:12px;">
+      <i class="fas fa-tents" style="color:#856404;font-size:1.3rem;"></i>
+      <div style="font-weight:900;font-size:1rem;color:#7a5800;">تعديل بيانات المخيم</div>
+      <button onclick="closeCampEdit()" style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
+    </div>
+    <form id="camp-edit-form" method="POST" style="padding:20px 22px;">
+      {{ csrf_token()|safe }}
+      <input type="hidden" name="beneficiary_type" value="camp">
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">اسم المخيم <span class="text-danger">*</span></label>
+          <input type="text" name="full_name" id="ce-name" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">مدير المخيم</label>
+          <input type="text" name="camp_manager_name" id="ce-manager" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">المنسق</label>
+          <input type="text" name="camp_coordinator" id="ce-coordinator" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">جوال المنسق</label>
+          <input type="text" name="camp_coordinator_phone" id="ce-coord-phone" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">سعة المخيم (عدد الأسر)</label>
+          <input type="number" name="camp_family_count" id="ce-family-count" class="form-control" min="0">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">الموقع / العنوان</label>
+          <input type="text" name="camp_address" id="ce-address" class="form-control">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">ملاحظات</label>
+          <textarea name="notes" id="ce-notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-warning fw-bold"><i class="fas fa-save me-1"></i>حفظ التعديلات</button>
+        <button type="button" onclick="closeCampEdit()" class="btn btn-light">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ════════ مودال بيانات الشخص ════════ -->
 <div id="person-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
   <div style="background:#fff;border-radius:16px;max-width:680px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto;">
-    <!-- هيدر المودال -->
     <div id="modal-header" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:16px;">
       <div id="modal-photo" style="width:72px;height:72px;border-radius:50%;background:#fff;border:3px solid #1565c0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#bbb;flex-shrink:0;"></div>
       <div>
@@ -121,7 +183,7 @@
         <div id="modal-id" style="font-size:.82rem;color:#6c7a72;margin-top:3px;"></div>
         <div id="modal-type-badge"></div>
       </div>
-      <button onclick="closePersonModal()" style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
+      <button onclick="closePersonModal()" style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
     </div>
     <div style="padding:20px 24px;" id="modal-body"></div>
   </div>
@@ -169,7 +231,6 @@ const BENEF_DATA = {
 function openPersonModal(id) {
   const p = BENEF_DATA[id];
   if(!p) return;
-  // صورة
   const photoEl = document.getElementById('modal-photo');
   if(p.personal_photo) {
     photoEl.innerHTML = `<img src="/static/uploads/${p.personal_photo}" style="width:100%;height:100%;object-fit:cover;">`;
@@ -184,7 +245,6 @@ function openPersonModal(id) {
   const ms = {married:'متزوج',single:'أعزب',widowed:'أرمل',divorced:'مطلق'};
   let body = '';
 
-  // معلومات أساسية
   body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">`;
   if(p.phone)      body += info('الجوال', p.phone);
   if(p.address)    body += info('العنوان', p.address + (p.address2?' / '+p.address2:''));
@@ -194,7 +254,6 @@ function openPersonModal(id) {
   if(p.children_count) body += info('عدد الأطفال', p.children_count);
   body += `</div>`;
 
-  // الزوجة
   if(p.wife_name) {
     body += section('الزوجة', '#e91e8c', 'fa-female',
       `<div>${p.wife_name}</div>` +
@@ -203,7 +262,6 @@ function openPersonModal(id) {
     );
   }
 
-  // الوصي
   if(p.guardian_name || p.guardian_whatsapp) {
     let gs = '';
     if(p.guardian_name) gs += info('اسم الوصي', p.guardian_name);
@@ -213,7 +271,6 @@ function openPersonModal(id) {
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${gs}</div>`);
   }
 
-  // الأطفال من جدول family_members
   const children = p.family_members.filter(fm=>fm.type==='child');
   if(children.length) {
     let ct = '<div style="display:grid;gap:8px;">';
@@ -234,16 +291,13 @@ function openPersonModal(id) {
     body += section('الأيتام', '#c62828', 'fa-child', `<div style="color:#c62828;font-weight:700;">عدد الأيتام: ${p.orphans_count}</div>`);
   }
 
-  // الوثائق
   let docs = '';
   if(p.death_cert_image) docs += `<a href="/static/uploads/${p.death_cert_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.death_cert_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> شهادة الوفاة</a>`;
   if(p.guardianship_image) docs += `<a href="/static/uploads/${p.guardianship_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.guardianship_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> الوكالة/الوصاية</a>`;
   if(docs) body += section('الوثائق', '#e65100', 'fa-file-alt', `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">${docs}</div>`);
 
-  // ملاحظات
   if(p.notes) body += section('ملاحظات', '#6c7a72', 'fa-sticky-note', `<div style="color:#555;">${p.notes}</div>`);
 
-  // أزرار
   body += `<div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid #f0f0f0;padding-top:14px;">
     <a href="${p.edit_url}" class="btn btn-warning btn-sm fw-bold"><i class="fas fa-pen me-1"></i>تعديل</a>
   </div>`;
@@ -274,6 +328,30 @@ document.getElementById('person-modal').addEventListener('click', e => {
   if(e.target===document.getElementById('person-modal')) closePersonModal();
 });
 
+function openCampEdit(id, name, manager, coordinator, coordPhone, familyCount, address, notes) {
+  document.getElementById('camp-edit-form').action = '/edit_beneficiary/' + id;
+  document.getElementById('ce-name').value         = name        || '';
+  document.getElementById('ce-manager').value      = manager     || '';
+  document.getElementById('ce-coordinator').value  = coordinator || '';
+  document.getElementById('ce-coord-phone').value  = coordPhone  || '';
+  document.getElementById('ce-family-count').value = familyCount || '';
+  document.getElementById('ce-address').value      = address     || '';
+  document.getElementById('ce-notes').value        = notes       || '';
+  document.getElementById('camp-edit-modal').style.display = 'flex';
+}
+function closeCampEdit() {
+  document.getElementById('camp-edit-modal').style.display = 'none';
+}
+document.getElementById('camp-edit-modal').addEventListener('click', e => {
+  if(e.target === document.getElementById('camp-edit-modal')) closeCampEdit();
+});
+
+function deleteCamp(id, name) {
+  if(confirm('حذف المخيم "' + name + '" ؟\nسجل المخيم سيُحذف، بيانات الأسر تبقى كما هي.')) {
+    window.location.href = '/delete_beneficiary/' + id;
+  }
+}
+
 function toggleCamp(id) {
   const el = document.getElementById(id);
   const idx = id.split('-')[1];
@@ -301,5 +379,12 @@ function toggleCamp(id) {
 .person-bubble-meta { font-size:.7rem;color:#aaa; }
 .orphan-badge { background:#fde8e8;color:#c62828;border-radius:6px;padding:1px 6px;font-size:.68rem;font-weight:700;display:inline-block;margin-top:2px; }
 .section-mini-title { font-weight:800;font-size:.9rem;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px; }
+.btn-camp-action { border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.82rem;transition:all .15s; }
+.btn-camp-add { background:#e8f5ee;color:#1a6b3a;text-decoration:none; }
+.btn-camp-add:hover { background:#1a6b3a;color:#fff; }
+.btn-camp-edit { background:#fff3cd;color:#856404; }
+.btn-camp-edit:hover { background:#856404;color:#fff; }
+.btn-camp-del { background:#fde8e8;color:#c62828; }
+.btn-camp-del:hover { background:#c62828;color:#fff; }
 </style>
 {% endblock %}

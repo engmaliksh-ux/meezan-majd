@@ -80,7 +80,7 @@
 
         <div class="mb-3">
           <label class="form-label fw-bold">اسم المخيم (للربط بالمخيم)</label>
-          <input class="form-control" name="linked_camp" value="{{ form_data.get('linked_camp','') }}" placeholder="اتركه فارغاً إن لم ينتمِ لمخيم">
+          <input class="form-control" name="linked_camp" value="{{ form_data.get('linked_camp', prefill_camp|default('')) }}" placeholder="اتركه فارغاً إن لم ينتمِ لمخيم">
         </div>
 
         <!-- الحالة الاجتماعية وأفراد الأسرة -->
