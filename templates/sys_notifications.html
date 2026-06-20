@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}إشعارات النظام{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-satellite-dish"></i> إشعارات النظام</h2>
+</div>
+
+{% if notifs %}
+{% for n in notifs %}
+<div style="background:{% if n.is_read %}#f8f9fa{% else %}#fff8e1{% endif %};
+            border:1px solid {% if n.is_read %}#dee2e6{% else %}#ffc107{% endif %};
+            border-radius:12px;padding:18px 22px;margin-bottom:12px;
+            border-right:4px solid {% if n.is_read %}#adb5bd{% else %}#f0a500{% endif %};">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <span style="font-weight:700;font-size:.95rem;color:#1a1a1a;">
+      {% if not n.is_read %}<span style="display:inline-block;width:8px;height:8px;background:#f0a500;border-radius:50%;margin-left:6px;"></span>{% endif %}
+      {{ n.title }}
+    </span>
+    <span style="font-size:.75rem;color:#6c757d;">{{ n.created_at[:16] if n.created_at else '' }}</span>
+  </div>
+  <p style="color:#444;font-size:.88rem;margin:0;">{{ n.body }}</p>
+</div>
+{% endfor %}
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:#aaa;">
+  <i class="fas fa-bell-slash" style="font-size:2.5rem;margin-bottom:12px;display:block;"></i>
+  لا توجد إشعارات
+</div>
+{% endif %}
+{% endblock %}

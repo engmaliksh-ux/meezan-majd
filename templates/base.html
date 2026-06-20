@@ -181,6 +181,18 @@
           <span class="notif-nav-badge" id="notif-nav-badge" style="display:none;margin-right:auto;"></span>
         </a>
         {% endif %}
+        <a href="/sys_notifications"
+           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
+                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.1)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-satellite-dish" style="width:16px;text-align:center;opacity:.8;"></i>
+          {% if lang=='en' %}System Alerts{% elif lang=='tr' %}Sistem Bildirimleri{% else %}إشعارات النظام{% endif %}
+          <span id="sys-notif-badge"
+                style="display:none;background:#e53935;color:#fff;border-radius:20px;
+                       font-size:.6rem;font-weight:800;padding:1px 7px;margin-right:auto;"></span>
+        </a>
       </div>
     </div>
 
@@ -1181,6 +1193,25 @@ netBadge();
   setInterval(loadAlerts, 120000);
 })();
 
+
+// ══ بادج إشعارات النظام ══
+async function loadSysNotifCount(){
+  try {
+    const r = await fetch('/api/sys_notif_count');
+    const d = await r.json();
+    const badge = document.getElementById('sys-notif-badge');
+    if(badge){
+      if(d.count > 0){
+        badge.textContent = d.count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch(e){}
+}
+loadSysNotifCount();
+setInterval(loadSysNotifCount, 60000);
 
 // ══ نسخ كود المؤسسة ══
 window.copyOrgCode = function(){

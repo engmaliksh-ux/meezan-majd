@@ -363,6 +363,19 @@ def migrate_db():
             pass
     conn.commit()
 
+    # جدول إشعارات النظام (من لوحة التحكم الإدارية)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS sys_notifications (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id     INTEGER,
+        title      TEXT NOT NULL,
+        body       TEXT NOT NULL,
+        is_read    INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
+
     # ترقيم تسلسلي للفواتير القديمة التي لم يُعيَّن لها seq_num
     fix_invoice_seq_nums(conn)
 

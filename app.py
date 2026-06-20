@@ -3829,9 +3829,9 @@ def sa_notify_org(org_id):
         return redirect('/om-sys-77k/dash')
     conn = get_connection()
     conn.execute("""
-        INSERT INTO org_messages (from_org_id, to_org_id, sender_id, sender_name, content, created_at)
-        VALUES (0, ?, 0, 'System Admin', ?, datetime('now','localtime'))
-    """, (org_id, title + ': ' + body))
+        INSERT INTO sys_notifications (org_id, title, body, created_at)
+        VALUES (?, ?, ?, datetime('now','localtime'))
+    """, (org_id, title, body))
     conn.commit()
     flash('تم إرسال الإشعار للمؤسسة', 'success')
     return redirect('/om-sys-77k/dash')
@@ -3850,13 +3850,42 @@ def sa_notify_all():
     c.execute("SELECT id FROM organizations WHERE is_active=1")
     for row in c.fetchall():
         conn.execute("""
-            INSERT INTO org_messages (from_org_id, to_org_id, sender_id, sender_name, content, created_at)
-            VALUES (0, ?, 0, 'System Admin', ?, datetime('now','localtime'))
-        """, (row[0], title + ': ' + body))
+            INSERT INTO sys_notifications (org_id, title, body, created_at)
+            VALUES (?, ?, ?, datetime('now','localtime'))
+        """, (row[0], title, body))
     conn.commit()
     flash('تم إرسال الإشعار لجميع المؤسسات', 'success')
     return redirect('/om-sys-77k/dash')
 
+
+
+
+@app.route("/sys_notifications")
+@login_required
+def sys_notifications_page():
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, title, body, is_read, created_at
+        FROM sys_notifications
+        WHERE org_id=? OR org_id IS NULL
+        ORDER BY created_at DESC
+    """, (org_id,))
+    notifs = [dict(r) for r in c.fetchall()]
+    # علّم كلها مقروءة
+    conn.execute("UPDATE sys_notifications SET is_read=1 WHERE (org_id=? OR org_id IS NULL) AND is_read=0", (org_id,))
+    conn.commit()
+    conn.close()
+    return render_template("sys_notifications.html", notifs=notifs)
+
+@app.route("/api/sys_notif_count")
+@login_required
+def api_sys_notif_count():
+    org_id = session["org_id"]
+    c = get_connection().cursor()
+    c.execute("SELECT COUNT(*) FROM sys_notifications WHERE (org_id=? OR org_id IS NULL) AND is_read=0", (org_id,))
+    return jsonify({"count": c.fetchone()[0]})
 
 
 if __name__ == "__main__":
