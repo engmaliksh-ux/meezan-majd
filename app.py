@@ -893,7 +893,7 @@ def dashboard():
 @app.route("/api/dashboard_search")
 @login_required
 def dashboard_search():
-    if session.get("role") not in ("admin", "accountant", "observer"):
+    if not session.get("role"):
         return jsonify({"error": "غير مصرح"})
     org_id = session["org_id"]
     q      = request.args.get("q", "").strip()
