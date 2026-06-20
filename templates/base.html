@@ -1194,24 +1194,63 @@ netBadge();
 })();
 
 
-// ══ بادج إشعارات النظام ══
+// ══ بادج إشعارات النظام + popup ══
+let _prevSysCount = parseInt(localStorage.getItem('_sys_notif_count') || '0');
+
 async function loadSysNotifCount(){
   try {
     const r = await fetch('/api/sys_notif_count');
     const d = await r.json();
+    const cnt = d.count || 0;
     const badge = document.getElementById('sys-notif-badge');
     if(badge){
-      if(d.count > 0){
-        badge.textContent = d.count;
-        badge.style.display = 'inline-block';
-      } else {
-        badge.style.display = 'none';
-      }
+      badge.textContent = cnt;
+      badge.style.display = cnt > 0 ? 'inline-block' : 'none';
     }
+    // إظهار popup إذا وصل إشعار جديد
+    if(cnt > _prevSysCount){
+      showSysNotifPopup();
+    }
+    _prevSysCount = cnt;
+    localStorage.setItem('_sys_notif_count', cnt);
   } catch(e){}
 }
+
+function showSysNotifPopup(){
+  let pop = document.getElementById('sys-notif-popup');
+  if(!pop){
+    pop = document.createElement('div');
+    pop.id = 'sys-notif-popup';
+    pop.style.cssText = `
+      position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+      background:#1a6b3a;color:#fff;padding:14px 28px;
+      border-radius:24px;font-size:.88rem;font-weight:700;
+      box-shadow:0 4px 20px rgba(0,0,0,.35);z-index:99999;
+      display:flex;align-items:center;gap:10px;
+      animation:slideUp .4s ease;
+    `;
+    pop.innerHTML = '<i class="fas fa-satellite-dish"></i> لديك إشعار جديد من الإدارة';
+    document.body.appendChild(pop);
+
+    // أضف keyframe إذا ما موجود
+    if(!document.getElementById('sys-pop-style')){
+      const st = document.createElement('style');
+      st.id = 'sys-pop-style';
+      st.textContent = '@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+      document.head.appendChild(st);
+    }
+  }
+  pop.style.display = 'flex';
+  clearTimeout(pop._timer);
+  pop._timer = setTimeout(() => {
+    pop.style.transition = 'opacity .5s';
+    pop.style.opacity = '0';
+    setTimeout(() => { pop.style.display = 'none'; pop.style.opacity = '1'; }, 500);
+  }, 10000);
+}
+
 loadSysNotifCount();
-setInterval(loadSysNotifCount, 60000);
+setInterval(loadSysNotifCount, 30000);
 
 // ══ نسخ كود المؤسسة ══
 window.copyOrgCode = function(){
