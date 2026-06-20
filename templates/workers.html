@@ -142,7 +142,7 @@
         <tr>
           <td colspan="4" class="text-end fw-bold" style="color:#1565c0;">إجمالي المكافآت الشهرية</td>
           <td class="fw-bold" style="color:#1a6b3a;">
-            {{ "%.2f"|format(workers | sum(attribute='monthly_salary', default=0)) }}
+            {{ "%.2f"|format(workers | sum(attribute='monthly_salary')) }}
           </td>
           <td colspan="2"></td>
           {% if session.get('role') in ['admin','accountant'] %}<td></td>{% endif %}
