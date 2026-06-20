@@ -150,6 +150,10 @@
             {% else %}{{ t.role_user }}{% endif %}
           </span>
         </div>
+        <span id="user-menu-notif-badge"
+              style="display:none;background:#e53935;color:#fff;border-radius:10px;
+                     font-size:.6rem;font-weight:800;min-width:16px;height:16px;
+                     line-height:16px;text-align:center;padding:0 4px;flex-shrink:0;"></span>
         <i class="fas fa-chevron-down" id="user-menu-chevron"
            style="color:rgba(255,255,255,.6);font-size:.65rem;transition:transform .25s;flex-shrink:0;"></i>
       </button>
@@ -1216,6 +1220,12 @@ async function loadSysNotifCount(){
     // نقطة زرقاء على الجرس
     const dot = document.getElementById('sys-bell-dot');
     if(dot) dot.style.display = cnt > 0 ? 'block' : 'none';
+    // بادج أحمر عند اسم المستخدم في الشريط الجانبي
+    const ubadge = document.getElementById('user-menu-notif-badge');
+    if(ubadge){
+      ubadge.textContent = cnt;
+      ubadge.style.display = cnt > 0 ? 'inline-block' : 'none';
+    }
     // إظهار popup إذا وصل إشعار جديد
     if(cnt > _prevSysCount){
       showSysNotifPopup();
