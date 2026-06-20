@@ -3722,10 +3722,7 @@ def _sa_required(f):
     return dec
 
 def _sa_csrf():
-    import hmac
-    tok = session.get('csrf_token','')
-    req_tok = request.form.get('csrf_token','')
-    return hmac.compare_digest(tok, req_tok) if tok and req_tok else False
+    return validate_csrf()
 
 @app.route('/om-sys-77k', methods=['GET','POST'])
 def superadmin_login():
@@ -3755,10 +3752,9 @@ def superadmin_login():
     if session.get('_sa_auth'):
         return redirect('/om-sys-77k/dash')
 
-    csrf_tok = session.get('csrf_token','')
     return render_template('superadmin.html',
         error=error, locked=locked,
-        show_login=show_login, csrf_token=csrf_tok)
+        show_login=show_login)
 
 @app.route('/om-sys-77k/logout')
 def superadmin_logout():
@@ -3779,8 +3775,7 @@ def superadmin_dash():
     c.execute("SELECT COUNT(*) FROM users")
     total_users = c.fetchone()[0]
     return render_template('superadmin_dash.html',
-        orgs=orgs, total_users=total_users,
-        csrf_token=session.get('csrf_token',''))
+        orgs=orgs, total_users=total_users)
 
 @app.route('/om-sys-77k/suspend/<int:org_id>', methods=['POST'])
 @_sa_required
@@ -3834,9 +3829,9 @@ def sa_notify_org(org_id):
         return redirect('/om-sys-77k/dash')
     conn = get_connection()
     conn.execute("""
-        INSERT INTO org_messages (org_id, sender_id, title, body, created_at)
-        VALUES (?, 0, ?, ?, datetime('now','localtime'))
-    """, (org_id, title, body))
+        INSERT INTO org_messages (from_org_id, to_org_id, sender_id, sender_name, content, created_at)
+        VALUES (0, ?, 0, 'System Admin', ?, datetime('now','localtime'))
+    """, (org_id, title + ': ' + body))
     conn.commit()
     flash('تم إرسال الإشعار للمؤسسة', 'success')
     return redirect('/om-sys-77k/dash')
@@ -3855,9 +3850,9 @@ def sa_notify_all():
     c.execute("SELECT id FROM organizations WHERE is_active=1")
     for row in c.fetchall():
         conn.execute("""
-            INSERT INTO org_messages (org_id, sender_id, title, body, created_at)
-            VALUES (?, 0, ?, ?, datetime('now','localtime'))
-        """, (row[0], title, body))
+            INSERT INTO org_messages (from_org_id, to_org_id, sender_id, sender_name, content, created_at)
+            VALUES (0, ?, 0, 'System Admin', ?, datetime('now','localtime'))
+        """, (row[0], title + ': ' + body))
     conn.commit()
     flash('تم إرسال الإشعار لجميع المؤسسات', 'success')
     return redirect('/om-sys-77k/dash')

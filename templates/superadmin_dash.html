@@ -160,12 +160,12 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
     <div class="org-actions">
       {% if org.is_active %}
       <form method="POST" action="/om-sys-77k/suspend/{{ org.id }}" style="display:inline">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-warn" type="submit"><i class="fas fa-pause me-1"></i> إيقاف مؤقت</button>
       </form>
       {% else %}
       <form method="POST" action="/om-sys-77k/activate/{{ org.id }}" style="display:inline">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-success" type="submit"><i class="fas fa-play me-1"></i> تفعيل</button>
       </form>
       {% endif %}
@@ -187,7 +187,7 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
   <div class="section-title" style="margin-top:36px;"><i class="fas fa-paper-plane"></i> إرسال إشعار لجميع المؤسسات</div>
   <div class="notif-box">
     <form method="POST" action="/om-sys-77k/notify_all">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="text" name="title" placeholder="عنوان الإشعار" required>
       <textarea name="body" rows="3" placeholder="نص الإشعار..." required></textarea>
       <button class="btn btn-info" type="submit"><i class="fas fa-broadcast-tower me-1"></i> إرسال للجميع</button>
@@ -202,7 +202,7 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
     <p id="delete-msg"></p>
     <div class="modal-actions">
       <form method="POST" id="delete-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger" type="submit"><i class="fas fa-trash me-1"></i> حذف نهائي</button>
       </form>
       <button class="btn" style="background:#21262d;color:#e6edf3;"
@@ -218,7 +218,7 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
   <div class="modal-box" style="border-color:#1f6feb;">
     <h3 style="color:#58a6ff;"><i class="fas fa-bell"></i> إشعار لـ <span id="notif-org-name"></span></h3>
     <form method="POST" id="notif-form" style="text-align:right;margin-top:16px;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="text" name="title" placeholder="عنوان الإشعار"
              style="width:100%;background:#0d1117;border:1px solid #30363d;color:#e6edf3;
                     border-radius:7px;padding:10px 14px;font-size:.88rem;margin-bottom:10px;outline:none;">

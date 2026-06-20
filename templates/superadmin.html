@@ -83,7 +83,7 @@ sqlite3.OperationalError: unable to open database file
   <div class="lock-msg">🔒 Too many attempts. Try again later.</div>
   {% else %}
   <form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <input type="text" name="su_user" placeholder="Username" autocomplete="off" required>
     <input type="password" name="su_pass" placeholder="Password" required>
     <button type="submit">ENTER</button>
