@@ -886,6 +886,133 @@ def dashboard():
         low_stock=low_stock)
 
 
+
+# ══════════════════════════════════════════
+# بحث لوحة التحكم (صنف / مشروع)
+# ══════════════════════════════════════════
+@app.route("/api/dashboard_search")
+@login_required
+def dashboard_search():
+    if session.get("role") not in ("admin", "accountant", "observer"):
+        return jsonify({"error": "غير مصرح"})
+    org_id = session["org_id"]
+    q      = request.args.get("q", "").strip()
+    stype  = request.args.get("type", "product")  # product | project
+    if not q:
+        return jsonify({"results": []})
+
+    conn = get_connection()
+    c    = conn.cursor()
+    out  = {}
+
+    if stype == "product":
+        # ── بحث الصنف ──
+        c.execute(
+            "SELECT id, name, unit FROM products WHERE org_id=? AND name LIKE ? ORDER BY name LIMIT 10",
+            (org_id, f"%{q}%")
+        )
+        products = [dict(r) for r in c.fetchall()]
+        items = []
+        for p in products:
+            pid = p["id"]
+            # المخزون الحالي
+            c.execute("SELECT COALESCE(SUM(quantity_remaining),0) FROM stock_batches WHERE org_id=? AND product_id=?", (org_id, pid))
+            stock = c.fetchone()[0]
+            # إجمالي المشتريات
+            c.execute("""
+                SELECT COALESCE(SUM(ii.quantity),0) AS total_in,
+                       COUNT(DISTINCT ii.invoice_id) AS inv_count
+                FROM incoming_invoice_items ii
+                JOIN incoming_invoices inv ON inv.id=ii.invoice_id AND inv.org_id=?
+                WHERE ii.product_id=?
+            """, (org_id, pid))
+            r = c.fetchone()
+            total_in = r["total_in"]; inv_count = r["inv_count"]
+            # إجمالي الصرف
+            c.execute("""
+                SELECT COALESCE(SUM(oi.quantity),0) AS total_out,
+                       COUNT(DISTINCT oi.invoice_id) AS out_count
+                FROM outgoing_invoice_items oi
+                JOIN outgoing_invoices outv ON outv.id=oi.invoice_id AND outv.org_id=?
+                WHERE oi.product_id=?
+            """, (org_id, pid))
+            r2 = c.fetchone()
+            total_out = r2["total_out"]; out_count = r2["out_count"]
+            # آخر 5 حركات إدخال
+            c.execute("""
+                SELECT inv.supplier, inv.invoice_date, ii.quantity, ii.unit_price, ii.total_price
+                FROM incoming_invoice_items ii
+                JOIN incoming_invoices inv ON inv.id=ii.invoice_id AND inv.org_id=?
+                WHERE ii.product_id=?
+                ORDER BY inv.invoice_date DESC, inv.id DESC LIMIT 5
+            """, (org_id, pid))
+            in_rows = [dict(r) for r in c.fetchall()]
+            # آخر 5 حركات صرف
+            c.execute("""
+                SELECT outv.beneficiary, outv.invoice_date, oi.quantity, oi.unit_price,
+                       prog.name AS project_name
+                FROM outgoing_invoice_items oi
+                JOIN outgoing_invoices outv ON outv.id=oi.invoice_id AND outv.org_id=?
+                LEFT JOIN programs prog ON prog.id=outv.program_id
+                WHERE oi.product_id=?
+                ORDER BY outv.invoice_date DESC, outv.id DESC LIMIT 5
+            """, (org_id, pid))
+            out_rows = [dict(r) for r in c.fetchall()]
+            items.append({
+                "name": p["name"], "unit": p["unit"] or "",
+                "stock": stock, "total_in": total_in, "inv_count": inv_count,
+                "total_out": total_out, "out_count": out_count,
+                "in_rows": in_rows, "out_rows": out_rows
+            })
+        out = {"type": "product", "items": items}
+
+    elif stype == "project":
+        # ── بحث المشروع ──
+        c.execute(
+            "SELECT id, name, is_active FROM programs WHERE org_id=? AND name LIKE ? ORDER BY name LIMIT 10",
+            (org_id, f"%{q}%")
+        )
+        programs = [dict(r) for r in c.fetchall()]
+        items = []
+        for prog in programs:
+            pid = prog["id"]
+            # فواتير الصرف المرتبطة بالمشروع
+            c.execute("""
+                SELECT outv.invoice_date, outv.beneficiary, outv.grand_total, outv.notes
+                FROM outgoing_invoices outv
+                WHERE outv.org_id=? AND outv.program_id=?
+                ORDER BY outv.invoice_date DESC LIMIT 10
+            """, (org_id, pid))
+            inv_rows = [dict(r) for r in c.fetchall()]
+            # إجمالي الصرف
+            c.execute("""
+                SELECT COALESCE(SUM(grand_total),0) AS total, COUNT(*) AS cnt
+                FROM outgoing_invoices WHERE org_id=? AND program_id=?
+            """, (org_id, pid))
+            r = c.fetchone()
+            total_dist = r["total"]; dist_count = r["cnt"]
+            # سجلات البرنامج (program_records)
+            c.execute("""
+                SELECT pr.benefit_date, b.full_name, pr.benefit_type, pr.quantity, pr.notes
+                FROM program_records pr
+                JOIN beneficiaries b ON b.id=pr.beneficiary_id
+                WHERE pr.org_id=? AND pr.program_id=?
+                ORDER BY pr.benefit_date DESC LIMIT 10
+            """, (org_id, pid))
+            prog_rows = [dict(r) for r in c.fetchall()]
+            c.execute("SELECT COUNT(*) FROM program_records WHERE org_id=? AND program_id=?", (org_id, pid))
+            prog_count = c.fetchone()[0]
+            items.append({
+                "name": prog["name"], "is_active": prog["is_active"],
+                "total_dist": total_dist, "dist_count": dist_count,
+                "inv_rows": inv_rows,
+                "prog_count": prog_count, "prog_rows": prog_rows
+            })
+        out = {"type": "project", "items": items}
+
+    conn.close()
+    return jsonify(out)
+
 # ══════════════════════════════════════════
 # تنبيهات المخزون المنخفض (API)
 # ══════════════════════════════════════════

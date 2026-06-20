@@ -134,4 +134,143 @@
   {% endif %}
 </div>
 
+
+<!-- search section start -->
+{% if session.get('role') in ['admin','accountant','observer'] %}
+<div style="margin-top:32px;">
+  <h6 class="section-mini-title"><i class="fas fa-search me-2" style="color:#1565c0;"></i>&#1576;&#1581;&#1579; &#1587;&#1585;&#1610;&#1593; &#1593;&#1606; &#1589;&#1606;&#1601; &#1571;&#1608; &#1605;&#1588;&#1585;&#1608;&#1593;</h6>
+  <div style="background:#fff;border:2px solid #e3f2fd;border-radius:14px;padding:18px 20px;max-width:700px;">
+    <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+      <div class="d-flex" style="border:2px solid #d8e8de;border-radius:8px;overflow:hidden;flex-shrink:0;">
+        <button id="btn-type-product" onclick="setSearchType('product')"
+                style="padding:7px 16px;border:none;font-weight:700;font-size:.83rem;background:#1a6b3a;color:#fff;cursor:pointer;">
+          <i class="fas fa-box me-1"></i>&#1589;&#1606;&#1601;
+        </button>
+        <button id="btn-type-project" onclick="setSearchType('project')"
+                style="padding:7px 16px;border:none;font-weight:700;font-size:.83rem;background:#f5f5f5;color:#6c7a72;cursor:pointer;">
+          <i class="fas fa-folder me-1"></i>&#1605;&#1588;&#1585;&#1608;&#1593;
+        </button>
+      </div>
+      <input id="dash-search-input" type="text"
+             style="flex:1;min-width:200px;padding:8px 14px;border:2px solid #d8e8de;border-radius:8px;font-size:.9rem;outline:none;"
+             placeholder="&#1575;&#1603;&#1578;&#1576; &#1575;&#1587;&#1605; &#1575;&#1604;&#1589;&#1606;&#1601;..."
+             oninput="onSearchInput()" onkeydown="if(event.key==='Enter') doSearch()">
+      <button onclick="doSearch()"
+              style="padding:8px 20px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.88rem;">
+        <i class="fas fa-search me-1"></i>&#1576;&#1581;&#1579;
+      </button>
+    </div>
+    <div style="font-size:.75rem;color:#aaa;">&#1575;&#1576;&#1581;&#1579; &#1593;&#1606; &#1589;&#1606;&#1601; &#1604;&#1593;&#1585;&#1590; &#1575;&#1604;&#1605;&#1582;&#1586;&#1608;&#1606; &#1608;&#1575;&#1604;&#1581;&#1585;&#1603;&#1575;&#1578;&#1548; &#1571;&#1608; &#1593;&#1606; &#1605;&#1588;&#1585;&#1608;&#1593; &#1604;&#1593;&#1585;&#1590; &#1575;&#1604;&#1578;&#1608;&#1586;&#1610;&#1593;&#1575;&#1578;.</div>
+  </div>
+  <div id="dash-search-results" style="margin-top:16px;display:none;max-width:900px;"></div>
+</div>
+{% endif %}
+<!-- search section end -->
+
 {% endblock %}
+
+{% block scripts %}
+<script>
+let _sType = 'product';
+function setSearchType(t) {
+  _sType = t;
+  document.getElementById('btn-type-product').style.background = t==='product'?'#1a6b3a':'#f5f5f5';
+  document.getElementById('btn-type-product').style.color      = t==='product'?'#fff':'#6c7a72';
+  document.getElementById('btn-type-project').style.background = t==='project'?'#1565c0':'#f5f5f5';
+  document.getElementById('btn-type-project').style.color      = t==='project'?'#fff':'#6c7a72';
+  document.getElementById('dash-search-input').placeholder = t==='product'?'\u0627\u0643\u062a\u0628 \u0627\u0633\u0645 \u0627\u0644\u0635\u0646\u0641...':'\u0627\u0643\u062a\u0628 \u0627\u0633\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639...';
+  document.getElementById('dash-search-results').style.display='none';
+}
+let _stimer=null;
+function onSearchInput(){ clearTimeout(_stimer); _stimer=setTimeout(doSearch,600); }
+async function doSearch(){
+  const q=document.getElementById('dash-search-input').value.trim();
+  const el=document.getElementById('dash-search-results');
+  if(!q){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML='<div style="color:#aaa;padding:14px;text-align:center;"><i class=\"fas fa-spinner fa-spin me-2\"></i>\u062c\u0627\u0631\u064a \u0627\u0644\u0628\u062d\u062b...</div>';
+  try{
+    const r=await fetch('/api/dashboard_search?q='+encodeURIComponent(q)+'&type='+_sType);
+    const d=await r.json();
+    renderSR(d);
+  }catch(e){ el.innerHTML='<div style=\"color:#c62828;padding:14px;\">\u062d\u062f\u062b \u062e\u0637\u0623.</div>'; }
+}
+function fmt(n){return(+n||0).toFixed(2);}
+function renderSR(data){
+  const el=document.getElementById('dash-search-results');
+  if(!data.items||!data.items.length){
+    el.innerHTML='<div style=\"padding:18px;text-align:center;color:#aaa;background:#fff;border-radius:12px;border:2px dashed #e0e0e0;\"><i class=\"fas fa-search\" style=\"font-size:1.4rem;display:block;margin-bottom:6px;\"></i>\u0644\u0627 \u062a\u0648\u062c\u062f \u0646\u062a\u0627\u0626\u062c</div>';
+    return;
+  }
+  let h='';
+  if(data.type==='product'){
+    data.items.forEach(it=>{
+      const sc=it.stock<=0?'#c62828':it.stock<=10?'#e65100':'#1a6b3a';
+      h+=`<div style="background:#fff;border:2px solid #e3f2fd;border-radius:12px;margin-bottom:14px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="font-weight:800;font-size:1rem;color:#1565c0;"><i class="fas fa-box me-2"></i>${it.name} <span style="font-weight:400;font-size:.78rem;color:#6c7a72;">${it.unit}</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:.79rem;">
+            <span style="background:#fff;border-radius:8px;padding:3px 10px;font-weight:700;color:${sc};"><i class="fas fa-cubes me-1"></i>${fmt(it.stock)}</span>
+            <span style="background:#e8f5ee;border-radius:8px;padding:3px 10px;font-weight:700;color:#1a6b3a;"><i class="fas fa-arrow-down me-1"></i>${fmt(it.total_in)} (${it.inv_count})</span>
+            <span style="background:#fde8e8;border-radius:8px;padding:3px 10px;font-weight:700;color:#c62828;"><i class="fas fa-arrow-up me-1"></i>${fmt(it.total_out)} (${it.out_count})</span>
+          </div>
+        </div><div class="row g-0" style="border-top:1px solid #e3f2fd;">`;
+      if(it.in_rows.length){
+        h+=`<div class="col-md-6" style="border-left:1px solid #e3f2fd;">
+          <div style="padding:7px 14px;background:#f8fffe;font-weight:700;font-size:.76rem;color:#1a6b3a;border-bottom:1px solid #e3f2fd;"><i class="fas fa-arrow-down me-1"></i>&#1570;&#1582;&#1585; &#1575;&#1604;&#1573;&#1583;&#1582;&#1575;&#1604;&#1575;&#1578;</div>
+          <table style="width:100%;border-collapse:collapse;font-size:.76rem;"><thead><tr style="background:#f0f8f0;">
+            <th style="padding:5px 10px;">&#1575;&#1604;&#1605;&#1608;&#1585;&#1583;</th><th style="padding:5px 10px;">&#1575;&#1604;&#1578;&#1575;&#1585;&#1610;&#1582;</th><th style="padding:5px 10px;">&#1603;&#1605;&#1610;&#1577;</th><th style="padding:5px 10px;">&#1587;&#1593;&#1585;</th>
+          </tr></thead><tbody>`;
+        it.in_rows.forEach(r=>{ h+=`<tr style="border-top:1px solid #f0f0f0;"><td style="padding:5px 10px;">${r.supplier||'&#8212;'}</td><td style="padding:5px 10px;color:#888;">${r.invoice_date||'&#8212;'}</td><td style="padding:5px 10px;font-weight:700;">${fmt(r.quantity)}</td><td style="padding:5px 10px;color:#1a6b3a;">${fmt(r.unit_price)}</td></tr>`; });
+        h+=`</tbody></table></div>`;
+      }
+      if(it.out_rows.length){
+        h+=`<div class="col-md-6">
+          <div style="padding:7px 14px;background:#fff8f8;font-weight:700;font-size:.76rem;color:#c62828;border-bottom:1px solid #fde8e8;"><i class="fas fa-arrow-up me-1"></i>&#1570;&#1582;&#1585; &#1575;&#1604;&#1589;&#1585;&#1601;</div>
+          <table style="width:100%;border-collapse:collapse;font-size:.76rem;"><thead><tr style="background:#fff0f0;">
+            <th style="padding:5px 10px;">&#1575;&#1604;&#1605;&#1587;&#1578;&#1601;&#1610;&#1583;</th><th style="padding:5px 10px;">&#1575;&#1604;&#1605;&#1588;&#1585;&#1608;&#1593;</th><th style="padding:5px 10px;">&#1575;&#1604;&#1578;&#1575;&#1585;&#1610;&#1582;</th><th style="padding:5px 10px;">&#1603;&#1605;&#1610;&#1577;</th>
+          </tr></thead><tbody>`;
+        it.out_rows.forEach(r=>{ h+=`<tr style="border-top:1px solid #f0f0f0;"><td style="padding:5px 10px;">${r.beneficiary||'&#8212;'}</td><td style="padding:5px 10px;color:#1565c0;">${r.project_name||'&#8212;'}</td><td style="padding:5px 10px;color:#888;">${r.invoice_date||'&#8212;'}</td><td style="padding:5px 10px;font-weight:700;color:#c62828;">${fmt(r.quantity)}</td></tr>`; });
+        h+=`</tbody></table></div>`;
+      }
+      if(!it.in_rows.length&&!it.out_rows.length) h+=`<div class="col-12" style="padding:14px;color:#aaa;text-align:center;font-size:.82rem;">&#1604;&#1575; &#1578;&#1608;&#1580;&#1583; &#1581;&#1585;&#1603;&#1575;&#1578; &#1605;&#1587;&#1580;&#1604;&#1577;</div>`;
+      h+=`</div></div>`;
+    });
+  } else {
+    data.items.forEach(it=>{
+      h+=`<div style="background:#fff;border:2px solid #e8f5ee;border-radius:12px;margin-bottom:14px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#e8f5ee,#c8e6c9);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="font-weight:800;font-size:1rem;color:#1a6b3a;"><i class="fas fa-folder-open me-2"></i>${it.name}${!it.is_active?' <span style=\"font-size:.7rem;background:#f5f5f5;color:#888;padding:2px 8px;border-radius:10px;\">&#1605;&#1578;&#1608;&#1602;&#1601;</span>':''}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:.79rem;">
+            <span style="background:#fff;border-radius:8px;padding:3px 10px;font-weight:700;color:#1565c0;"><i class="fas fa-file-invoice me-1"></i>${it.dist_count} &#1601;&#1575;&#1578;&#1608;&#1585;&#1577;</span>
+            <span style="background:#fff3cd;border-radius:8px;padding:3px 10px;font-weight:700;color:#856404;"><i class="fas fa-coins me-1"></i>${fmt(it.total_dist)}</span>
+            <span style="background:#f3e5f5;border-radius:8px;padding:3px 10px;font-weight:700;color:#6a1b9a;"><i class="fas fa-users me-1"></i>${it.prog_count} &#1587;&#1580;&#1604;</span>
+          </div>
+        </div>`;
+      if(it.inv_rows.length){
+        h+=`<div style="border-top:1px solid #e8f5ee;">
+          <div style="padding:7px 14px;background:#f8fffe;font-weight:700;font-size:.76rem;color:#1a6b3a;border-bottom:1px solid #e8f5ee;"><i class="fas fa-file-invoice me-1"></i>&#1601;&#1608;&#1575;&#1578;&#1610;&#1585; &#1575;&#1604;&#1589;&#1585;&#1601;</div>
+          <table style="width:100%;border-collapse:collapse;font-size:.78rem;"><thead><tr style="background:#f0f8f0;">
+            <th style="padding:6px 14px;">&#1575;&#1604;&#1578;&#1575;&#1585;&#1610;&#1582;</th><th style="padding:6px 14px;">&#1575;&#1604;&#1605;&#1587;&#1578;&#1601;&#1610;&#1583;</th><th style="padding:6px 14px;">&#1575;&#1604;&#1573;&#1580;&#1605;&#1575;&#1604;&#1610;</th><th style="padding:6px 14px;">&#1605;&#1604;&#1575;&#1581;&#1592;&#1575;&#1578;</th>
+          </tr></thead><tbody>`;
+        it.inv_rows.forEach(r=>{ h+=`<tr style="border-top:1px solid #f0f0f0;"><td style="padding:6px 14px;color:#888;">${r.invoice_date||'&#8212;'}</td><td style="padding:6px 14px;font-weight:700;">${r.beneficiary||'&#8212;'}</td><td style="padding:6px 14px;color:#1a6b3a;font-weight:700;">${fmt(r.grand_total)}</td><td style="padding:6px 14px;color:#6c7a72;font-size:.76rem;">${r.notes||'&#8212;'}</td></tr>`; });
+        h+=`</tbody></table></div>`;
+      }
+      if(it.prog_rows.length){
+        h+=`<div style="border-top:1px solid #e8f5ee;">
+          <div style="padding:7px 14px;background:#f8f0ff;font-weight:700;font-size:.76rem;color:#6a1b9a;border-bottom:1px solid #ede7f6;"><i class="fas fa-users me-1"></i>&#1587;&#1580;&#1604;&#1575;&#1578; &#1575;&#1604;&#1575;&#1587;&#1578;&#1601;&#1575;&#1583;&#1577;</div>
+          <table style="width:100%;border-collapse:collapse;font-size:.78rem;"><thead><tr style="background:#f5f0ff;">
+            <th style="padding:6px 14px;">&#1575;&#1604;&#1578;&#1575;&#1585;&#1610;&#1582;</th><th style="padding:6px 14px;">&#1575;&#1604;&#1605;&#1587;&#1578;&#1601;&#1610;&#1583;</th><th style="padding:6px 14px;">&#1606;&#1608;&#1593; &#1575;&#1604;&#1575;&#1587;&#1578;&#1601;&#1575;&#1583;&#1577;</th><th style="padding:6px 14px;">&#1575;&#1604;&#1603;&#1605;&#1610;&#1577;</th>
+          </tr></thead><tbody>`;
+        it.prog_rows.forEach(r=>{ h+=`<tr style="border-top:1px solid #f0f0f0;"><td style="padding:6px 14px;color:#888;">${r.benefit_date||'&#8212;'}</td><td style="padding:6px 14px;font-weight:700;">${r.full_name||'&#8212;'}</td><td style="padding:6px 14px;">${r.benefit_type||'&#8212;'}</td><td style="padding:6px 14px;">${r.quantity||'&#8212;'}</td></tr>`; });
+        h+=`</tbody></table></div>`;
+      }
+      if(!it.inv_rows.length&&!it.prog_rows.length) h+=`<div style="padding:14px;color:#aaa;text-align:center;font-size:.82rem;">&#1604;&#1575; &#1578;&#1608;&#1580;&#1583; &#1576;&#1610;&#1575;&#1606;&#1575;&#1578; &#1604;&#1607;&#1584;&#1575; &#1575;&#1604;&#1605;&#1588;&#1585;&#1608;&#1593;</div>`;
+      h+=`</div>`;
+    });
+  }
+  el.innerHTML=h;
+}
+</script>
+{% endblock %}
+
