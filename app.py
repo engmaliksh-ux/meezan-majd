@@ -1268,6 +1268,15 @@ def add_beneficiary():
 
         conn = get_connection()
         c = conn.cursor()
+        # فحص تكرار رقم الهوية داخل نفس المؤسسة
+        if id_number:
+            c.execute("SELECT id, full_name FROM beneficiaries WHERE org_id=? AND TRIM(id_number)=TRIM(?)",
+                      (session["org_id"], id_number))
+            dup = c.fetchone()
+            if dup:
+                conn.close()
+                flash(f"⚠️ رقم الهوية {id_number} مسجل مسبقاً للمستفيد: {dup['full_name']}", "danger")
+                return redirect(url_for("add_beneficiary"))
         c.execute("SELECT COUNT(*) FROM beneficiaries WHERE org_id=?", (session["org_id"],))
         next_seq = c.fetchone()[0] + 1
         c.execute(
