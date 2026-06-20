@@ -18,6 +18,199 @@
   </div>
 </div>
 
+<!-- ══ بطاقة المصروفات التشغيلية الثابتة ══ -->
+<div id="expense-card" style="border:2px solid #f0a500;border-radius:14px;overflow:hidden;margin-bottom:22px;">
+
+  <!-- هيدر ثابت -->
+  <div style="background:linear-gradient(135deg,#fff8e1,#ffe082);padding:12px 18px;
+              display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="background:#f0a500;color:#fff;border-radius:8px;padding:5px 12px;
+                   font-weight:900;font-size:.85rem;">
+        <i class="fas fa-thumbtack me-1"></i>ثابت
+      </span>
+      <span style="font-weight:800;font-size:1rem;color:#7a5800;">
+        <i class="fas fa-wallet me-1"></i>بند المصروفات التشغيلية
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span style="font-size:.85rem;color:#7a5800;">
+        الاجمالي: <strong>{{ "%.2f"|format(expense_total) }}</strong>
+      </span>
+      {% if session.get('role') in ['admin','accountant','data_entry'] %}
+      <button onclick="document.getElementById('exp-add-form').style.display=
+                        document.getElementById('exp-add-form').style.display==='none'?'block':'none'"
+              class="btn btn-sm no-print"
+              style="background:#f0a500;color:#fff;border:none;border-radius:8px;font-weight:700;">
+        <i class="fas fa-plus me-1"></i>اضافة بند
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- فورم الاضافة -->
+  {% if session.get('role') in ['admin','accountant','data_entry'] %}
+  <div id="exp-add-form" style="display:none;background:#fffde7;padding:14px 18px;border-bottom:1px solid #ffe082;">
+    <form method="POST" action="/expenses/add" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-bold" style="font-size:.8rem;">الصنف <span class="text-danger">*</span></label>
+          <input class="form-control form-control-sm" name="category" list="exp-cat-list" placeholder="مواصلات..." required>
+          <datalist id="exp-cat-list">
+            <option value="مواصلات">
+            <option value="اجار توكتوك">
+            <option value="مشتريات تشغيلية">
+            <option value="اجار عامل خارج العمل">
+            <option value="ايجار مكان">
+            <option value="فاتورة كهرباء">
+            <option value="فاتورة ماء">
+            <option value="صيانة">
+            <option value="اخرى">
+          </datalist>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold" style="font-size:.8rem;">التاريخ</label>
+          <input type="date" class="form-control form-control-sm" name="expense_date" value="{{ today_str }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold" style="font-size:.8rem;">المبلغ</label>
+          <input type="number" class="form-control form-control-sm" name="amount" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold" style="font-size:.8rem;">ملاحظة</label>
+          <input class="form-control form-control-sm" name="notes" placeholder="اختياري">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold" style="font-size:.8rem;">صورة اثبات</label>
+          <input type="file" class="form-control form-control-sm" name="proof_image" accept="image/*">
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-sm w-100"
+                  style="background:#f0a500;color:#fff;border:none;font-weight:700;">
+            <i class="fas fa-save"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- جدول البنود -->
+  {% if expense_items %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+      <thead style="background:#fff3cd;">
+        <tr>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">#</th>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">الصنف</th>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">التاريخ</th>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">المبلغ</th>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">ملاحظة</th>
+          <th style="padding:8px 12px;text-align:right;color:#7a5800;">اثبات</th>
+          {% if session.get('role') in ['admin','accountant'] %}
+          <th style="padding:8px 12px;" class="no-print"></th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expense_items %}
+        <tr style="border-top:1px solid #ffe082;background:{% if loop.index is odd %}#fffde7{% else %}#fff{% endif %};">
+          <td style="padding:7px 12px;color:#aaa;font-size:.75rem;">{{ loop.index }}</td>
+          <td style="padding:7px 12px;font-weight:700;">{{ e.category }}</td>
+          <td style="padding:7px 12px;color:#6c757d;white-space:nowrap;">{{ e.expense_date or "&#8212;" }}</td>
+          <td style="padding:7px 12px;font-weight:700;color:#c62828;">{{ "%.2f"|format(e.amount or 0) }}</td>
+          <td style="padding:7px 12px;color:#555;font-size:.8rem;">{{ e.notes or "&#8212;" }}</td>
+          <td style="padding:7px 12px;">
+            {% if e.proof_image %}
+            <a href="{{ url_for('static', filename='uploads/' + e.proof_image) }}" target="_blank">
+              <img src="{{ url_for('static', filename='uploads/' + e.proof_image) }}"
+                   style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #ffe082;">
+            </a>
+            {% else %}
+            <span style="color:#ccc;font-size:.75rem;">لا يوجد</span>
+            {% endif %}
+          </td>
+          {% if session.get('role') in ['admin','accountant'] %}
+          <td style="padding:7px 12px;" class="no-print">
+            <div style="display:flex;gap:5px;">
+              <button onclick="openExpEdit({{ e.id }},'{{ e.category|e }}','{{ e.expense_date or '' }}',{{ e.amount or 0 }},'{{ e.notes|e if e.notes else '' }}')"
+                      style="background:none;border:1px solid #f0a500;border-radius:6px;color:#f0a500;padding:3px 8px;cursor:pointer;font-size:.78rem;" title="تعديل">
+                <i class="fas fa-pen"></i>
+              </button>
+              <form method="POST" action="/expenses/delete/{{ e.id }}" onsubmit="return confirm('حذف هذا البند؟')" style="display:inline;">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="background:none;border:1px solid #dc3545;border-radius:6px;color:#dc3545;padding:3px 8px;cursor:pointer;font-size:.78rem;" title="حذف">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot style="background:#fff3cd;">
+        <tr>
+          <td colspan="3" style="padding:8px 12px;font-weight:800;color:#7a5800;text-align:left;">الاجمالي</td>
+          <td style="padding:8px 12px;font-weight:900;color:#c62828;">{{ "%.2f"|format(expense_total) }}</td>
+          <td colspan="{% if session.get('role') in ['admin','accountant'] %}3{% else %}2{% endif %}"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:20px;text-align:center;color:#bbb;font-size:.85rem;">
+    <i class="fas fa-wallet" style="font-size:1.5rem;display:block;margin-bottom:6px;color:#ffe082;"></i>
+    لا توجد مصروفات مسجلة
+  </div>
+  {% endif %}
+</div>
+<!-- ══ نهاية بطاقة المصروفات ══ -->
+
+<!-- Modal تعديل بند -->
+{% if session.get('role') in ['admin','accountant'] %}
+<div id="exp-edit-modal" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:26px;max-width:540px;width:95%;
+       box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <h5 style="margin:0;color:#7a5800;"><i class="fas fa-pen me-2"></i>تعديل بند المصروف</h5>
+      <button onclick="closeExpEdit()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">x</button>
+    </div>
+    <form id="exp-edit-form" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">الصنف</label>
+          <input class="form-control" id="ee-cat" name="category" list="exp-cat-list" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">التاريخ</label>
+          <input type="date" class="form-control" id="ee-date" name="expense_date">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">المبلغ</label>
+          <input type="number" class="form-control" id="ee-amount" name="amount" step="0.01" min="0">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">ملاحظة</label>
+          <input class="form-control" id="ee-notes" name="notes">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">استبدال صورة الاثبات (اختياري)</label>
+          <input type="file" class="form-control" name="proof_image" accept="image/*">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;">
+        <button type="submit" class="btn btn-warning fw-bold"><i class="fas fa-save me-1"></i>حفظ</button>
+        <button type="button" class="btn btn-secondary" onclick="closeExpEdit()">الغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 {% if invoices %}
 <!-- إجمالي + فلتر -->
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">

@@ -381,6 +381,21 @@ def migrate_db():
     """)
     conn.commit()
 
+    # جدول بنود المصروفات التشغيلية
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS expense_items (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id       INTEGER NOT NULL,
+        category     TEXT    NOT NULL,
+        expense_date TEXT,
+        amount       REAL    NOT NULL DEFAULT 0,
+        notes        TEXT,
+        proof_image  TEXT,
+        created_at   TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
+
     # ترقيم تسلسلي للفواتير القديمة التي لم يُعيَّن لها seq_num
     fix_invoice_seq_nums(conn)
 

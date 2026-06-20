@@ -1899,9 +1899,16 @@ def incoming_invoices_list():
         invoices.append(inv_d)
 
     today_str = datetime.now().strftime("%Y-%m-%d")
+    # بنود المصروفات التشغيلية
+    c.execute("""
+        SELECT * FROM expense_items WHERE org_id=? ORDER BY expense_date DESC, id DESC
+    """, (org_id,))
+    expense_items = [dict(r) for r in c.fetchall()]
+    expense_total = sum(e['amount'] or 0 for e in expense_items)
     conn.close()
     return render_template("incoming_invoices_list.html",
-                           invoices=invoices, total_all=total_all, today_str=today_str)
+                           invoices=invoices, total_all=total_all, today_str=today_str,
+                           expense_items=expense_items, expense_total=expense_total)
 
 
 @app.route("/incoming_invoice/<int:id>/save_notes", methods=["POST"])
@@ -2294,6 +2301,113 @@ def outgoing_invoices_list():
     conn.close()
     return render_template("outgoing_invoices_list.html",
                            invoices=invoices, total_all=total_all, today_str=today_str)
+
+
+# ══════════════════════════════════════════
+# بند المصروفات التشغيلية
+# ══════════════════════════════════════════
+import os as _os
+
+@app.route("/expenses/add", methods=["POST"])
+@login_required
+def expense_add():
+    if session.get("role") not in ("admin", "accountant", "data_entry"):
+        return redirect(url_for("incoming_invoices_list"))
+    if not validate_csrf():
+        return redirect(url_for("incoming_invoices_list"))
+    org_id       = session["org_id"]
+    category     = request.form.get("category", "").strip()
+    expense_date = request.form.get("expense_date", "").strip()
+    amount       = request.form.get("amount", "0").strip()
+    notes        = request.form.get("notes", "").strip()
+    if not category:
+        flash("يرجى إدخال الصنف", "danger")
+        return redirect(url_for("incoming_invoices_list"))
+    try:
+        amount = float(amount)
+    except ValueError:
+        amount = 0.0
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute(
+        "INSERT INTO expense_items (org_id, category, expense_date, amount, notes) VALUES (?,?,?,?,?)",
+        (org_id, category, expense_date or None, amount, notes)
+    )
+    new_id = c.lastrowid
+    # رفع صورة الإثبات إن وجدت
+    file = request.files.get("proof_image")
+    if file and file.filename:
+        ext  = file.filename.rsplit(".", 1)[-1].lower()
+        fname = f"exp_{org_id}_{new_id}.{ext}"
+        file.save(_os.path.join(app.config["UPLOAD_FOLDER"], fname))
+        c.execute("UPDATE expense_items SET proof_image=? WHERE id=?", (fname, new_id))
+    conn.commit()
+    conn.close()
+    flash("✅ تم إضافة البند", "success")
+    return redirect(url_for("incoming_invoices_list") + "#expense-card")
+
+
+@app.route("/expenses/edit/<int:eid>", methods=["POST"])
+@login_required
+def expense_edit(eid):
+    if session.get("role") not in ("admin", "accountant"):
+        return redirect(url_for("incoming_invoices_list"))
+    if not validate_csrf():
+        return redirect(url_for("incoming_invoices_list"))
+    org_id       = session["org_id"]
+    category     = request.form.get("category", "").strip()
+    expense_date = request.form.get("expense_date", "").strip()
+    amount       = request.form.get("amount", "0").strip()
+    notes        = request.form.get("notes", "").strip()
+    try:
+        amount = float(amount)
+    except ValueError:
+        amount = 0.0
+    conn = get_connection()
+    c    = conn.cursor()
+    # رفع صورة جديدة إن وجدت
+    file = request.files.get("proof_image")
+    if file and file.filename:
+        ext   = file.filename.rsplit(".", 1)[-1].lower()
+        fname = f"exp_{org_id}_{eid}.{ext}"
+        file.save(_os.path.join(app.config["UPLOAD_FOLDER"], fname))
+        c.execute(
+            "UPDATE expense_items SET category=?,expense_date=?,amount=?,notes=?,proof_image=? WHERE id=? AND org_id=?",
+            (category, expense_date or None, amount, notes, fname, eid, org_id)
+        )
+    else:
+        c.execute(
+            "UPDATE expense_items SET category=?,expense_date=?,amount=?,notes=? WHERE id=? AND org_id=?",
+            (category, expense_date or None, amount, notes, eid, org_id)
+        )
+    conn.commit()
+    conn.close()
+    flash("✅ تم تعديل البند", "success")
+    return redirect(url_for("incoming_invoices_list") + "#expense-card")
+
+
+@app.route("/expenses/delete/<int:eid>", methods=["POST"])
+@login_required
+def expense_delete(eid):
+    if session.get("role") not in ("admin", "accountant"):
+        return redirect(url_for("incoming_invoices_list"))
+    if not validate_csrf():
+        return redirect(url_for("incoming_invoices_list"))
+    org_id = session["org_id"]
+    conn   = get_connection()
+    c      = conn.cursor()
+    c.execute("SELECT proof_image FROM expense_items WHERE id=? AND org_id=?", (eid, org_id))
+    row = c.fetchone()
+    if row and row["proof_image"]:
+        try:
+            _os.remove(_os.path.join(app.config["UPLOAD_FOLDER"], row["proof_image"]))
+        except Exception:
+            pass
+    c.execute("DELETE FROM expense_items WHERE id=? AND org_id=?", (eid, org_id))
+    conn.commit()
+    conn.close()
+    flash("تم حذف البند", "warning")
+    return redirect(url_for("incoming_invoices_list") + "#expense-card")
 
 
 # ══════════════════════════════════════════
