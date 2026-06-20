@@ -94,6 +94,7 @@
           <th>المشروع</th>
           <th>طبيعة العمل</th>
           <th>المكافأة الشهرية</th>
+          <th>إجمالي المكافآت</th>
           <th>ملاحظات</th>
           {% if session.get('role') in ['admin','accountant'] %}
           <th class="no-print">إجراءات</th>
@@ -104,7 +105,11 @@
         {% for w in workers %}
         <tr>
           <td style="color:#aaa;font-size:.8rem;">{{ loop.index }}</td>
-          <td class="fw-bold">{{ w.full_name }}</td>
+          <td>
+            <span class="worker-name-link" onclick="openWorkerModal({{ loop.index0 }})">
+              {{ w.full_name }}
+            </span>
+          </td>
           <td style="font-family:monospace;font-size:.82rem;">{{ w.id_number or '—' }}</td>
           <td>
             {% if w.project_name %}
@@ -118,6 +123,9 @@
           </td>
           <td class="fw-bold" style="color:#1a6b3a;">
             {% if w.monthly_salary %}{{ "%.2f"|format(w.monthly_salary) }}{% else %}—{% endif %}
+          </td>
+          <td class="fw-bold" style="color:#e65100;">
+            {% if w.total_bonuses %}{{ "%.2f"|format(w.total_bonuses) }}{% else %}—{% endif %}
           </td>
           <td style="font-size:.82rem;color:#6c7a72;">{{ w.notes or '—' }}</td>
           {% if session.get('role') in ['admin','accountant'] %}
@@ -137,18 +145,19 @@
         </tr>
         {% endfor %}
       </tbody>
-      {% if workers %}
       <tfoot style="background:#f8f8f8;">
         <tr>
           <td colspan="4" class="text-end fw-bold" style="color:#1565c0;">إجمالي المكافآت الشهرية</td>
           <td class="fw-bold" style="color:#1a6b3a;">
             {{ "%.2f"|format(workers | sum(attribute='monthly_salary')) }}
           </td>
-          <td colspan="2"></td>
+          <td class="fw-bold" style="color:#e65100;">
+            {{ "%.2f"|format(workers | sum(attribute='total_bonuses')) }}
+          </td>
+          <td colspan="1"></td>
           {% if session.get('role') in ['admin','accountant'] %}<td></td>{% endif %}
         </tr>
       </tfoot>
-      {% endif %}
     </table>
   </div>
 </div>
@@ -169,13 +178,13 @@
 
 <!-- Modal تعديل العامل -->
 {% if session.get('role') in ['admin','accountant'] %}
-<div id="edit-worker-modal" style="display:none;position:fixed;inset:0;z-index:9999;
+<div id="edit-worker-modal" style="display:none;position:fixed;inset:0;z-index:10000;
      background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;padding:28px;max-width:600px;width:95%;
        box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <h5 style="margin:0;color:#1a6b3a;"><i class="fas fa-pen me-2"></i>تعديل بيانات العامل</h5>
-      <button onclick="closeEditWorker()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">✕</button>
+      <button onclick="closeEditWorker()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
     </div>
     <form id="edit-worker-form">
       <input type="hidden" id="ew-id">
@@ -227,9 +236,190 @@
 </div>
 {% endif %}
 
+<!-- Modal بيانات العامل -->
+<div id="worker-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:16px;max-width:660px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <!-- هيدر -->
+    <div id="wm-header" style="background:linear-gradient(135deg,#e8f5ee,#c8e6c9);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:14px;">
+      <div style="background:#fff;border-radius:50%;width:54px;height:54px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#1a6b3a;border:2px solid #1a6b3a;flex-shrink:0;">
+        <i class="fas fa-hard-hat"></i>
+      </div>
+      <div style="flex:1;">
+        <div id="wm-name" style="font-weight:900;font-size:1.1rem;color:#1a6b3a;"></div>
+        <div id="wm-meta" style="font-size:.8rem;color:#6c7a72;margin-top:3px;"></div>
+      </div>
+      <button onclick="closeWorkerModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <!-- البيانات الأساسية -->
+      <div id="wm-info" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;"></div>
+
+      <!-- المكافآت -->
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:800;font-size:.88rem;color:#e65100;margin-bottom:10px;">
+          <i class="fas fa-gift me-2"></i>سجل المكافآت
+          <span id="wm-bonus-total" style="background:#fff3e0;border-radius:8px;padding:2px 10px;font-size:.8rem;margin-right:8px;"></span>
+        </div>
+        <div id="wm-bonus-list" style="margin-bottom:12px;"></div>
+
+        <!-- إضافة مكافأة (أدمن/محاسب) -->
+        {% if session.get('role') in ['admin','accountant'] %}
+        <div id="wm-add-bonus" style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:.82rem;color:#856404;margin-bottom:8px;"><i class="fas fa-plus me-1"></i>إضافة مكافأة</div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <input type="date" id="bonus-date" class="form-control form-control-sm" placeholder="التاريخ">
+            </div>
+            <div class="col-md-3">
+              <input type="number" id="bonus-amount" class="form-control form-control-sm" placeholder="المبلغ" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <input type="text" id="bonus-notes" class="form-control form-control-sm" placeholder="ملاحظة">
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-warning btn-sm w-100 fw-bold" onclick="addBonus()">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- أزرار التعديل والحذف -->
+      {% if session.get('role') in ['admin','accountant'] %}
+      <div style="display:flex;gap:10px;border-top:1px solid #f0f0f0;padding-top:14px;margin-top:4px;">
+        <button id="wm-edit-btn" class="btn btn-warning btn-sm fw-bold" onclick="openEditFromModal()">
+          <i class="fas fa-pen me-1"></i>تعديل البيانات
+        </button>
+        <button id="wm-del-btn" class="btn btn-danger btn-sm fw-bold" onclick="deleteFromModal()">
+          <i class="fas fa-trash me-1"></i>حذف العامل
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- بيانات العاملين JSON -->
+<script>
+const WORKERS_DATA = {{ workers | tojson }};
+const WM_CSRF = "{{ csrf_token() }}";
+let _wmIdx = null;
+
+function wInfo(label, val) {
+  return `<div style="background:#f8f8f8;border-radius:8px;padding:8px 12px;">
+    <div style="font-size:.7rem;color:#aaa;margin-bottom:2px;">${label}</div>
+    <div style="font-weight:700;font-size:.86rem;">${val||'—'}</div>
+  </div>`;
+}
+
+function renderBonusList(bonuses) {
+  const list = document.getElementById('wm-bonus-list');
+  const total = document.getElementById('wm-bonus-total');
+  if(!bonuses || !bonuses.length) {
+    list.innerHTML = '<div style="color:#bbb;font-size:.82rem;text-align:center;padding:10px;">لا توجد مكافآت مسجلة</div>';
+    total.textContent = '';
+    return;
+  }
+  const sum = bonuses.reduce((s,b)=>s+b.amount,0);
+  total.textContent = 'الإجمالي: ' + sum.toFixed(2);
+  list.innerHTML = bonuses.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;background:#fff8f0;border:1px solid #ffe0b2;border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+      <div style="color:#e65100;font-size:.8rem;font-weight:700;min-width:90px;">${b.bonus_date}</div>
+      <div style="flex:1;font-weight:800;color:#333;">${b.amount.toFixed(2)}</div>
+      <div style="font-size:.78rem;color:#888;flex:1;">${b.notes||''}</div>
+      <button onclick="deleteBonus(${b.id})" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:.85rem;" title="حذف">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>`).join('');
+}
+
+function openWorkerModal(idx) {
+  _wmIdx = idx;
+  const w = WORKERS_DATA[idx];
+  document.getElementById('wm-name').textContent = w.full_name;
+  document.getElementById('wm-meta').textContent =
+    [w.job_type, w.project_name].filter(Boolean).join(' — ');
+  let info = '';
+  if(w.id_number)      info += wInfo('رقم الهوية', w.id_number);
+  if(w.monthly_salary) info += wInfo('المكافأة الشهرية', w.monthly_salary.toFixed(2));
+  if(w.project_name)   info += wInfo('المشروع', w.project_name);
+  if(w.job_type)       info += wInfo('طبيعة العمل', w.job_type);
+  if(w.notes)          info += wInfo('ملاحظات', w.notes);
+  document.getElementById('wm-info').innerHTML = info;
+  renderBonusList(w.bonuses || []);
+  document.getElementById('worker-modal').style.display = 'flex';
+}
+
+function closeWorkerModal() {
+  document.getElementById('worker-modal').style.display = 'none';
+}
+document.getElementById('worker-modal').addEventListener('click', e => {
+  if(e.target===document.getElementById('worker-modal')) closeWorkerModal();
+});
+
+async function addBonus() {
+  if(_wmIdx === null) return;
+  const w      = WORKERS_DATA[_wmIdx];
+  const date   = document.getElementById('bonus-date').value;
+  const amount = document.getElementById('bonus-amount').value;
+  const notes  = document.getElementById('bonus-notes').value;
+  if(!date || !amount) { alert('يرجى إدخال التاريخ والمبلغ'); return; }
+  const fd = new FormData();
+  fd.append('_csrf_token', WM_CSRF);
+  fd.append('bonus_date', date);
+  fd.append('amount', amount);
+  fd.append('notes', notes);
+  const r = await fetch(`/worker/${w.id}/bonus/add`, {method:'POST', body:fd});
+  const d = await r.json();
+  if(d.ok) {
+    w.bonuses = w.bonuses || [];
+    w.bonuses.unshift({id:d.id, amount:parseFloat(amount), bonus_date:date, notes});
+    w.total_bonuses = (w.total_bonuses||0) + parseFloat(amount);
+    renderBonusList(w.bonuses);
+    document.getElementById('bonus-date').value='';
+    document.getElementById('bonus-amount').value='';
+    document.getElementById('bonus-notes').value='';
+  }
+}
+
+async function deleteBonus(bid) {
+  if(!confirm('حذف هذه المكافأة؟')) return;
+  const fd = new FormData();
+  fd.append('_csrf_token', WM_CSRF);
+  const r = await fetch(`/worker/bonus/${bid}/delete`, {method:'POST', body:fd});
+  const d = await r.json();
+  if(d.ok && _wmIdx !== null) {
+    const w = WORKERS_DATA[_wmIdx];
+    const b = w.bonuses.find(x=>x.id===bid);
+    if(b) w.total_bonuses = (w.total_bonuses||0) - b.amount;
+    w.bonuses = (w.bonuses||[]).filter(x=>x.id!==bid);
+    renderBonusList(w.bonuses);
+  }
+}
+
+function openEditFromModal() {
+  if(_wmIdx === null) return;
+  const w = WORKERS_DATA[_wmIdx];
+  closeWorkerModal();
+  openEditWorker(w.id, w.full_name, w.id_number||'', w.project_name||'', w.job_type||'', w.monthly_salary||0, w.notes||'');
+}
+
+function deleteFromModal() {
+  if(_wmIdx === null) return;
+  const w = WORKERS_DATA[_wmIdx];
+  if(confirm('حذف العامل "' + w.full_name + '" نهائياً؟')) {
+    window.location.href = `/delete_worker/${w.id}`;
+  }
+}
+</script>
+
 {% block scripts %}
 <style>
 @media print { .no-print { display:none !important; } }
+.worker-name-link { font-weight:800;color:#1a6b3a;cursor:pointer;text-decoration:underline dotted; }
+.worker-name-link:hover { color:#0d4f27; }
 </style>
 
 {% if session.get('role') in ['admin','accountant'] %}
@@ -259,7 +449,6 @@ async function submitEditWorker() {
   const name = document.getElementById('ew-name').value.trim();
   const errEl = document.getElementById('ew-err');
   if (!name) { errEl.textContent = 'يرجى إدخال اسم العامل'; errEl.style.display='block'; return; }
-
   const fd = new FormData();
   fd.append('_csrf_token',   EW_CSRF);
   fd.append('full_name',     name);
@@ -268,7 +457,6 @@ async function submitEditWorker() {
   fd.append('job_type',      document.getElementById('ew-job').value);
   fd.append('monthly_salary',document.getElementById('ew-salary').value || '0');
   fd.append('notes',         document.getElementById('ew-notes').value.trim());
-
   try {
     const r = await fetch(`/edit_worker/${id}`, { method:'POST', body:fd });
     const d = await r.json();

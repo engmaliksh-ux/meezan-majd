@@ -455,6 +455,20 @@ def migrate_db():
     """)
     conn.commit()
 
+    # جدول مكافآت العاملين
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS worker_bonuses (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        worker_id   INTEGER NOT NULL,
+        org_id      INTEGER NOT NULL,
+        amount      REAL    NOT NULL DEFAULT 0,
+        bonus_date  TEXT    NOT NULL,
+        notes       TEXT,
+        created_at  TEXT
+    )
+    """)
+    conn.commit()
+
     conn.close()
 
 

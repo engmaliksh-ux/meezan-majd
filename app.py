@@ -2679,6 +2679,10 @@ def workers_list():
     workers = [dict(r) for r in c.fetchall()]
     for w in workers:
         w['monthly_salary'] = w.get('monthly_salary') or 0
+        c.execute("SELECT * FROM worker_bonuses WHERE worker_id=? AND org_id=? ORDER BY bonus_date DESC",
+                  (w['id'], org_id))
+        w['bonuses'] = [dict(b) for b in c.fetchall()]
+        w['total_bonuses'] = sum(b['amount'] for b in w['bonuses'])
     c.execute("SELECT name FROM programs WHERE org_id=? AND is_active=1 ORDER BY name", (org_id,))
     programs = [r["name"] for r in c.fetchall()]
     conn.close()
@@ -2756,6 +2760,55 @@ def edit_worker(id):
                  SET full_name=?, id_number=?, project_name=?, job_type=?, monthly_salary=?, notes=?
                  WHERE id=? AND org_id=?""",
               (full_name, id_number, project_name, job_type, salary, notes, id, org_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/worker/<int:wid>/bonus/add", methods=["POST"])
+@login_required
+def add_worker_bonus(wid):
+    if session.get("role") not in ["admin", "accountant"]:
+        return jsonify({"ok": False}), 403
+    if not validate_csrf():
+        return jsonify({"ok": False}), 403
+    org_id     = session["org_id"]
+    amount     = request.form.get("amount", "0").strip()
+    bonus_date = request.form.get("bonus_date", "").strip()
+    notes      = request.form.get("notes", "").strip()
+    if not bonus_date:
+        return jsonify({"ok": False, "err": "date_required"}), 400
+    try:
+        amount = float(amount)
+    except ValueError:
+        amount = 0.0
+    from datetime import datetime as _dt
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT id FROM workers WHERE id=? AND org_id=?", (wid, org_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({"ok": False}), 404
+    c.execute(
+        "INSERT INTO worker_bonuses (worker_id, org_id, amount, bonus_date, notes, created_at) VALUES (?,?,?,?,?,?)",
+        (wid, org_id, amount, bonus_date, notes, _dt.now().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    new_id = c.lastrowid
+    conn.close()
+    return jsonify({"ok": True, "id": new_id, "amount": amount, "date": bonus_date, "notes": notes})
+
+
+@app.route("/worker/bonus/<int:bid>/delete", methods=["POST"])
+@login_required
+def delete_worker_bonus(bid):
+    if session.get("role") not in ["admin", "accountant"]:
+        return jsonify({"ok": False}), 403
+    if not validate_csrf():
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    conn = get_connection()
+    conn.execute("DELETE FROM worker_bonuses WHERE id=? AND org_id=?", (bid, org_id))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
