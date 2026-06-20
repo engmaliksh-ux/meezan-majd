@@ -54,10 +54,15 @@
                    display:flex;align-items:center;justify-content:center;
                    box-shadow:0 2px 8px rgba(26,107,58,.2);">
       <i class="fas fa-bell" style="font-size:.95rem;color:#1a6b3a;" id="stock-bell-icon"></i>
+      <!-- بادج تنبيهات المخزون (أعلى يمين) -->
       <span id="stock-bell-badge"
-            style="display:none;position:absolute;top:0;right:0;background:#e53935;color:#fff;
+            style="display:none;position:absolute;top:-2px;right:-2px;background:#e53935;color:#fff;
                    border-radius:50%;font-size:.5rem;font-weight:800;min-width:14px;height:14px;
-                   line-height:14px;text-align:center;padding:0 2px;"></span>
+                   line-height:14px;text-align:center;padding:0 2px;z-index:2;"></span>
+      <!-- نقطة إشعارات النظام (أسفل يمين) -->
+      <span id="sys-bell-dot"
+            style="display:none;position:absolute;bottom:-2px;right:-2px;background:#1565c0;
+                   border-radius:50%;width:10px;height:10px;border:2px solid #fff;z-index:2;"></span>
     </button>
     <div id="stock-bell-drop"
          style="display:none;position:absolute;top:40px;left:0;width:290px;
@@ -1202,11 +1207,15 @@ async function loadSysNotifCount(){
     const r = await fetch('/api/sys_notif_count');
     const d = await r.json();
     const cnt = d.count || 0;
+    // بادج في القائمة الجانبية
     const badge = document.getElementById('sys-notif-badge');
     if(badge){
       badge.textContent = cnt;
       badge.style.display = cnt > 0 ? 'inline-block' : 'none';
     }
+    // نقطة زرقاء على الجرس
+    const dot = document.getElementById('sys-bell-dot');
+    if(dot) dot.style.display = cnt > 0 ? 'block' : 'none';
     // إظهار popup إذا وصل إشعار جديد
     if(cnt > _prevSysCount){
       showSysNotifPopup();
