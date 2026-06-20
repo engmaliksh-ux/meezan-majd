@@ -19,13 +19,6 @@
     padding:20px; text-align:left; font-size:.75rem; color:#5a8a5a;
     max-width:600px; margin:0 auto 30px; line-height:1.8;
   }
-  #countdown-bar-wrap {
-    max-width:400px; margin:0 auto 10px;
-    background:#1a1a1a; border-radius:4px; height:4px; overflow:hidden;
-  }
-  #countdown-bar { height:100%; background:#c0392b; width:100%; transition:width 1s linear; }
-  #countdown-txt { font-size:.75rem; color:#555; margin-bottom:30px; }
-
   /* ── صفحة الدخول ── */
   #login-panel {
     display:none;
@@ -54,23 +47,27 @@
 </head>
 <body>
 
-<!-- صفحة الخطأ المزيفة -->
+<!-- صفحة الخطأ المزيفة — بدون عداد ظاهر، بيانات مختلفة تماماً -->
 <div id="fake-error">
   <h1>500</h1>
   <h2>Internal Server Error</h2>
   <pre>
 Traceback (most recent call last):
-  File "/var/www/malikmohs_pythonanywhere_com_wsgi.py", line 18, in &lt;module&gt;
-    from app import app as application
-  File "/home/MalikMohs/meezan-majd/app.py", line 247, in &lt;module&gt;
-    db.connect(DATABASE_URI, timeout=30)
-  File "/usr/local/lib/python3.10/sqlite3/dbapi2.py", line 94, in connect
-    return _sqlite3.connect(*args, **kwargs)
-sqlite3.OperationalError: unable to open database file
+  File "/var/www/wsgi_handler.py", line 31, in &lt;application&gt;
+    return handler(environ, start_response)
+  File "/usr/lib/python3.10/wsgiref/handlers.py", line 137, in run
+    self.result = application(self.environ, self.start_response)
+  File "/opt/django_projects/ngo_portal/core/wsgi.py", line 22, in &lt;module&gt;
+    application = get_wsgi_application()
+  File "/usr/local/lib/python3.10/django/core/handlers/wsgi.py", line 78, in __init__
+    self.load_middleware()
+  File "/opt/django_projects/ngo_portal/core/settings.py", line 114, in DATABASES
+    ENGINE: django.db.backends.postgresql
+psycopg2.OperationalError: could not connect to server: Connection refused
+    Is the server running on host "db-internal" (10.0.3.14) and accepting
+    TCP/IP connections on port 5432?
   </pre>
-  <div id="countdown-bar-wrap"><div id="countdown-bar"></div></div>
-  <div id="countdown-txt">retrying in <span id="sec">120</span>s...</div>
-  <p style="color:#333;font-size:.7rem;">Apache/2.4.41 (Ubuntu) Server at malikmohs.pythonanywhere.com Port 443</p>
+  <p style="color:#2a2a2a;font-size:.7rem;">nginx/1.22.1 — Server at portal.ngo-systems.net Port 8443</p>
 </div>
 
 <!-- نموذج الدخول -->
@@ -93,27 +90,17 @@ sqlite3.OperationalError: unable to open database file
 </div>
 
 <script>
-const DELAY = 120; // ثانية
-let remaining = DELAY;
-const bar   = document.getElementById('countdown-bar');
-const secEl = document.getElementById('sec');
 const showLogin = {{ 'true' if show_login else 'false' }};
 
 if (showLogin) {
-  // قادم من محاولة دخول فاشلة — اعرض نموذج الدخول مباشرة
   document.getElementById('fake-error').style.display = 'none';
   document.getElementById('login-panel').style.display = 'block';
 } else {
-  const timer = setInterval(() => {
-    remaining--;
-    secEl.textContent = remaining;
-    bar.style.width = (remaining / DELAY * 100) + '%';
-    if (remaining <= 0) {
-      clearInterval(timer);
-      document.getElementById('fake-error').style.display = 'none';
-      document.getElementById('login-panel').style.display = 'block';
-    }
-  }, 1000);
+  // انتظر دقيقتين بصمت بدون أي عداد ظاهر
+  setTimeout(() => {
+    document.getElementById('fake-error').style.display = 'none';
+    document.getElementById('login-panel').style.display = 'block';
+  }, 120000);
 }
 </script>
 </body>
