@@ -311,6 +311,13 @@ def migrate_db():
         ("beneficiaries", "camp_coordinator_phone","TEXT"),
         ("beneficiaries", "camp_address",         "TEXT"),
         ("beneficiaries", "camp_family_count",    "INTEGER"),
+        ("beneficiaries", "wife_name",           "TEXT"),
+        ("beneficiaries", "personal_photo",      "TEXT"),
+        ("beneficiaries", "death_cert_image",    "TEXT"),
+        ("beneficiaries", "guardianship_image",  "TEXT"),
+        ("beneficiaries", "guardian_whatsapp",   "TEXT"),
+        ("beneficiaries", "guardian_name",       "TEXT"),
+        ("beneficiaries", "guardian_id_number",  "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً
@@ -431,6 +438,22 @@ def migrate_db():
 
     # ترقيم تسلسلي للفواتير القديمة التي لم يُعيَّن لها seq_num
     fix_invoice_seq_nums(conn)
+
+    # جدول أفراد الأسرة
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_family_members (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        org_id         INTEGER NOT NULL,
+        member_type    TEXT NOT NULL DEFAULT 'child',
+        full_name      TEXT NOT NULL,
+        birth_date     TEXT,
+        is_orphan      INTEGER DEFAULT 0,
+        birth_cert_img TEXT,
+        created_at     TEXT
+    )
+    """)
+    conn.commit()
 
     conn.close()
 
