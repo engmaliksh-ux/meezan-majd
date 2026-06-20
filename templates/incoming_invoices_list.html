@@ -476,8 +476,8 @@ if (hash && hash.startsWith('#inv-')) {
   const el = document.getElementById(hash.replace('#',''));
   if (el) setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'start'}), 300);
 }
-</script>
-ورة واحدة ──
+
+// ── طباعة فاتورة واحدة ──
 function printSingleInv(printId) {
   const el = document.getElementById(printId);
   if (!el) return;
