@@ -239,6 +239,18 @@
         <label class="form-label">ملاحظات</label>
         <textarea class="form-control" name="notes" rows="2">{{ form_data.get('notes','') }}</textarea>
       </div>
+      <!-- تحذير التكرار بين المؤسسات -->
+      <div id="dup-alert" style="display:none;background:#fff8e1;border:2px solid #ffe082;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-weight:800;color:#856404;margin-bottom:6px;"><i class="fas fa-exclamation-triangle me-2"></i>تنبيه: هذا المستفيد موجود في مؤسسة أخرى</div>
+        <div id="dup-msg" style="font-size:.87rem;color:#5a4000;margin-bottom:10px;"></div>
+        <button type="button" id="dup-notify-btn" class="btn btn-sm btn-warning fw-bold">
+          <i class="fas fa-bell me-1"></i>إبلاغ المؤسسة
+        </button>
+        <span id="dup-notify-done" style="display:none;color:#1a6b3a;font-weight:700;font-size:.85rem;margin-right:10px;">
+          <i class="fas fa-check me-1"></i>تم إرسال الإشعار
+        </span>
+      </div>
+
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-1"></i> حفظ</button>
         <a href="/beneficiaries" class="btn btn-secondary">إلغاء</a>
@@ -327,6 +339,56 @@ function addChild() {
 // ── رقم هوية - أرقام فقط ──
 document.querySelector('[name=id_number]')?.addEventListener('input', function(){
   this.value = this.value.replace(/\D/g,'').slice(0,9);
+  checkDuplicate();
+});
+
+// ── فحص التكرار بين المؤسسات ──
+let _dupBenefId = null, _dupOrgId = null;
+function checkDuplicate() {
+  const name  = document.querySelector('[name=full_name]')?.value.trim() || '';
+  const idNum = document.querySelector('[name=id_number]')?.value.trim() || '';
+  const type  = document.querySelector('[name=beneficiary_type]:checked')?.value || 'person';
+  if(type !== 'person' || name.split(' ').length < 2 || idNum.length < 9) {
+    document.getElementById('dup-alert').style.display = 'none';
+    return;
+  }
+  fetch(`/beneficiaries/check_duplicate?name=${encodeURIComponent(name)}&id_number=${encodeURIComponent(idNum)}`)
+    .then(r=>r.json()).then(d=>{
+      const alert = document.getElementById('dup-alert');
+      if(d.found) {
+        _dupBenefId = d.beneficiary_id;
+        _dupOrgId   = d.org_id;
+        document.getElementById('dup-msg').textContent =
+          'هذا المستفيد مسجل مسبقاً في مؤسسة "' + d.org_name + '". يمكنك إبلاغهم بذلك.';
+        document.getElementById('dup-notify-btn').style.display = d.pending ? 'none' : '';
+        document.getElementById('dup-notify-done').style.display = d.pending ? '' : 'none';
+        if(d.pending) document.getElementById('dup-notify-done').textContent = ' سبق وتم إرسال إشعار';
+        alert.style.display = '';
+      } else {
+        alert.style.display = 'none';
+        _dupBenefId = null;
+      }
+    }).catch(()=>{});
+}
+
+document.querySelector('[name=full_name]')?.addEventListener('blur', checkDuplicate);
+document.querySelector('[name=id_number]')?.addEventListener('blur', checkDuplicate);
+
+document.getElementById('dup-notify-btn')?.addEventListener('click', function() {
+  if(!_dupBenefId) return;
+  const csrf = document.querySelector('[name=_csrf_token]')?.value || '';
+  fetch('/beneficiaries/request_share', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: `beneficiary_id=${_dupBenefId}&_csrf_token=${encodeURIComponent(csrf)}`
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok) {
+      document.getElementById('dup-notify-btn').style.display = 'none';
+      const done = document.getElementById('dup-notify-done');
+      done.textContent = ' تم إرسال الإشعار للمؤسسة';
+      done.style.display = '';
+    }
+  });
 });
 </script>
 {% endblock %}
