@@ -3636,10 +3636,10 @@ def ai_reports_generate():
         rows = data["purchases"]
         _wtbl(tx["h_purchases"], h, rows,
               lambda r:[str(r["seq_num"] or ""), r["invoice_number"] or "", r["supplier"] or "",
-                        r["invoice_date"] or "", "%.2f" % r["grand_total"],
+                        r["invoice_date"] or "", "%.2f" % r["total"],
                         tx["closed"] if r["is_closed"] else tx["open_"],
                         tx["paid"] if r["is_paid"] else tx["unpaid"]],
-              tx["total"] + ": " + ("%.2f" % sum(r["grand_total"] for r in rows)))
+              tx["total"] + ": " + ("%.2f" % sum(r["total"] for r in rows)))
 
     if "outgoing" in data:
         h = {"ar":["رقم الفاتورة","التاريخ","الجهة","الإجمالي","الحالة"],

@@ -510,9 +510,10 @@ function printSingleInv(printId) {
 
   const w = window.open('', '_blank', 'width=950,height=700');
   w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">
-  <title>${invName || 'فاتورة'} — ${supplier}</title>
+  <title></title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 28px; direction: rtl; color: #222; }
+    @page { margin: 0; size: A4; }
+    body { font-family: Arial, sans-serif; padding: 18mm 18mm 14mm 18mm; direction: rtl; color: #222; }
     .header-box { border: 2px solid #1565c0; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
     .header-row { display: flex; gap: 32px; flex-wrap: wrap; }
     .header-field { margin-bottom: 6px; }
