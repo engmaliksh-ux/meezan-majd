@@ -273,6 +273,11 @@ def migrate_db():
         ("users",                 "phone",            "TEXT"),
         ("incoming_invoices",     "notes",            "TEXT"),
         ("outgoing_invoices",     "notes",            "TEXT"),
+        ("beneficiaries", "camp_manager_name",    "TEXT"),
+        ("beneficiaries", "camp_coordinator",     "TEXT"),
+        ("beneficiaries", "camp_coordinator_phone","TEXT"),
+        ("beneficiaries", "camp_address",         "TEXT"),
+        ("beneficiaries", "camp_family_count",    "INTEGER"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً

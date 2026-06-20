@@ -86,6 +86,44 @@
         <input class="form-control" name="camp_name" value="{{ b.camp_name or '' }}">
       </div>
 
+      <!-- بيانات المخيم التفصيلية -->
+      <div id="camp-extra-section"
+           style="display:{% if b.get('beneficiary_type')=='camp' %}block{% else %}none{% endif %};
+                  background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div style="font-weight:700;font-size:.85rem;color:#856404;margin-bottom:12px;">
+          <i class="fas fa-tents me-2"></i>بيانات المخيم التفصيلية
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">اسم مدير المخيم (رباعي)</label>
+            <input class="form-control" name="camp_manager_name"
+                   value="{{ b.camp_manager_name or '' }}" placeholder="الاسم الرباعي لمدير المخيم">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">المنسق</label>
+            <input class="form-control" name="camp_coordinator"
+                   value="{{ b.camp_coordinator or '' }}" placeholder="اسم المنسق">
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">رقم تواصل المنسق</label>
+            <input class="form-control" name="camp_coordinator_phone"
+                   value="{{ b.camp_coordinator_phone or '' }}" placeholder="05xxxxxxxx" inputmode="numeric">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">عدد الأسر في المخيم</label>
+            <input type="number" class="form-control" name="camp_family_count" min="0"
+                   value="{{ b.camp_family_count or '' }}" placeholder="0">
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">عنوان المخيم</label>
+          <input class="form-control" name="camp_address"
+                 value="{{ b.camp_address or '' }}" placeholder="العنوان التفصيلي للمخيم">
+        </div>
+      </div>
+
       <div class="row g-3 mb-3">
         <div class="col-md-4">
           <label class="form-label">{{ t.form_marital_status }}</label>
@@ -214,6 +252,8 @@ function toggleType() {
   const val = document.querySelector('[name=beneficiary_type]:checked')?.value;
   document.getElementById('type-person-lbl').classList.toggle('active', val === 'person');
   document.getElementById('type-camp-lbl').classList.toggle('active', val === 'camp');
+  const sec = document.getElementById('camp-extra-section');
+  if(sec) sec.style.display = val === 'camp' ? 'block' : 'none';
 }
 </script>
 {% endblock %}

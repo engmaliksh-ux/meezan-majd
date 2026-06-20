@@ -1181,7 +1181,9 @@ def delete_product(id):
 BENEF_KEYS = ["id", "org_id", "seq_num", "full_name", "gender", "phone",
               "address", "address2", "camp_name", "id_number", "family_size",
               "marital_status", "children_count", "wife_pregnant", "wife_nursing",
-              "has_orphans", "orphans_count", "notes", "created_at", "beneficiary_type"]
+              "has_orphans", "orphans_count", "notes", "created_at", "beneficiary_type",
+              "camp_manager_name", "camp_coordinator", "camp_coordinator_phone",
+              "camp_address", "camp_family_count"]
 
 
 @app.route("/beneficiaries")
@@ -1200,6 +1202,11 @@ def beneficiaries():
         d["seq_num"] = i
         d.setdefault("address2", "")
         d.setdefault("camp_name", "")
+        d.setdefault("camp_manager_name", "")
+        d.setdefault("camp_coordinator", "")
+        d.setdefault("camp_coordinator_phone", "")
+        d.setdefault("camp_address", "")
+        d.setdefault("camp_family_count", "")
         d.setdefault("marital_status", "married")
         d.setdefault("gender", "male")
         d.setdefault("children_count", 0)
@@ -1222,7 +1229,12 @@ def add_beneficiary():
         phone          = request.form.get("phone", "").strip()
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
-        camp_name      = request.form.get("camp_name", "").strip()
+        camp_name             = request.form.get("camp_name", "").strip()
+        camp_manager_name     = request.form.get("camp_manager_name", "").strip()
+        camp_coordinator      = request.form.get("camp_coordinator", "").strip()
+        camp_coordinator_phone= request.form.get("camp_coordinator_phone", "").strip()
+        camp_address          = request.form.get("camp_address", "").strip()
+        camp_family_count     = request.form.get("camp_family_count", "").strip() or None
         id_number      = request.form.get("id_number", "").strip()
         family_size    = request.form.get("family_size", "1").strip()
         marital_status = request.form.get("marital_status", "married").strip()
@@ -1262,11 +1274,13 @@ def add_beneficiary():
             """INSERT INTO beneficiaries
                (org_id, seq_num, full_name, gender, phone, address, address2, camp_name,
                 id_number, family_size, marital_status, children_count,
-                wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
+                camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (session["org_id"], next_seq, full_name, gender, phone, address, address2,
              camp_name, id_number, family_size, marital_status, children_count,
-             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type)
+             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
+             camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count)
         )
         conn.commit()
         conn.close()
@@ -1289,7 +1303,12 @@ def edit_beneficiary(id):
         phone          = request.form.get("phone", "").strip()
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
-        camp_name      = request.form.get("camp_name", "").strip()
+        camp_name             = request.form.get("camp_name", "").strip()
+        camp_manager_name     = request.form.get("camp_manager_name", "").strip()
+        camp_coordinator      = request.form.get("camp_coordinator", "").strip()
+        camp_coordinator_phone= request.form.get("camp_coordinator_phone", "").strip()
+        camp_address          = request.form.get("camp_address", "").strip()
+        camp_family_count     = request.form.get("camp_family_count", "").strip() or None
         id_number      = request.form.get("id_number", "").strip()
         family_size    = request.form.get("family_size", "1").strip()
         marital_status = request.form.get("marital_status", "married").strip()
@@ -1338,12 +1357,14 @@ def edit_beneficiary(id):
                SET full_name=?,gender=?,phone=?,address=?,address2=?,camp_name=?,
                    id_number=?,family_size=?,marital_status=?,children_count=?,
                    wife_pregnant=?,wife_nursing=?,has_orphans=?,orphans_count=?,notes=?,
-                   beneficiary_type=?
+                   beneficiary_type=?,camp_manager_name=?,camp_coordinator=?,
+                   camp_coordinator_phone=?,camp_address=?,camp_family_count=?
                WHERE id=? AND org_id=?""",
             (full_name, gender, phone, address, address2, camp_name,
              id_number, family_size, marital_status, children_count,
              wife_pregnant, wife_nursing, has_orphans, orphans_count, notes,
-             beneficiary_type, id, org_id)
+             beneficiary_type, camp_manager_name, camp_coordinator,
+             camp_coordinator_phone, camp_address, camp_family_count, id, org_id)
         )
         conn.commit()
         conn.close()
@@ -2277,6 +2298,8 @@ def workers_list():
     c = conn.cursor()
     c.execute("SELECT * FROM workers WHERE org_id=? ORDER BY id DESC", (org_id,))
     workers = [dict(r) for r in c.fetchall()]
+    for w in workers:
+        w['monthly_salary'] = w.get('monthly_salary') or 0
     c.execute("SELECT name FROM programs WHERE org_id=? AND is_active=1 ORDER BY name", (org_id,))
     programs = [r["name"] for r in c.fetchall()]
     conn.close()

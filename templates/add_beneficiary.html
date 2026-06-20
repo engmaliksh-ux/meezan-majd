@@ -97,6 +97,44 @@
                value="{{ form_data.get('camp_name','') }}" placeholder="{{ t.form_camp }}">
       </div>
 
+      <!-- بيانات المخيم — تظهر فقط عند اختيار نوع "مخيم" -->
+      <div id="camp-extra-section"
+           style="display:{% if form_data.get('beneficiary_type')=='camp' %}block{% else %}none{% endif %};
+                  background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div style="font-weight:700;font-size:.85rem;color:#856404;margin-bottom:12px;">
+          <i class="fas fa-tents me-2"></i>بيانات المخيم التفصيلية
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">اسم مدير المخيم (رباعي)</label>
+            <input class="form-control" name="camp_manager_name"
+                   value="{{ form_data.get('camp_manager_name','') }}" placeholder="الاسم الرباعي لمدير المخيم">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">المنسق</label>
+            <input class="form-control" name="camp_coordinator"
+                   value="{{ form_data.get('camp_coordinator','') }}" placeholder="اسم المنسق">
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">رقم تواصل المنسق</label>
+            <input class="form-control" name="camp_coordinator_phone"
+                   value="{{ form_data.get('camp_coordinator_phone','') }}" placeholder="05xxxxxxxx" inputmode="numeric">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">عدد الأسر في المخيم</label>
+            <input type="number" class="form-control" name="camp_family_count" min="0"
+                   value="{{ form_data.get('camp_family_count','') }}" placeholder="0">
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">عنوان المخيم</label>
+          <input class="form-control" name="camp_address"
+                 value="{{ form_data.get('camp_address','') }}" placeholder="العنوان التفصيلي للمخيم">
+        </div>
+      </div>
+
       <div class="row g-3 mb-3">
         <div class="col-md-4">
           <label class="form-label">{{ t.form_marital_status }}</label>
@@ -260,6 +298,8 @@ function toggleType() {
   const val = document.querySelector('[name=beneficiary_type]:checked')?.value;
   document.getElementById('type-person-lbl').classList.toggle('active', val === 'person');
   document.getElementById('type-camp-lbl').classList.toggle('active', val === 'camp');
+  const sec = document.getElementById('camp-extra-section');
+  if(sec) sec.style.display = val === 'camp' ? 'block' : 'none';
 }
 
 // ── كشف التكرار بين المؤسسات ──
