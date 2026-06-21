@@ -315,7 +315,19 @@ def resequence(org_id):
 # ══════════════════════════════════════════
 @app.route("/")
 def home():
-    return redirect(url_for("login"))
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type != 'camp'")
+    total_benef = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type = 'camp'")
+    total_camps = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM organizations WHERE status='approved'")
+    total_orgs = c.fetchone()[0]
+    conn.close()
+    return render_template("index.html",
+        total_benef=total_benef,
+        total_camps=total_camps,
+        total_orgs=total_orgs)
 
 
 # ══════════════════════════════════════════
