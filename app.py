@@ -315,7 +315,7 @@ def resequence(org_id):
 # ══════════════════════════════════════════
 @app.route("/")
 def home():
-    conn = get_db()
+    conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type != 'camp'")
     total_benef = c.fetchone()[0]
