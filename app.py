@@ -315,15 +315,25 @@ def resequence(org_id):
 # ══════════════════════════════════════════
 @app.route("/")
 def home():
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type != 'camp'")
-    total_benef = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type = 'camp'")
-    total_camps = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM organizations WHERE is_active=1")
-    total_orgs = c.fetchone()[0]
-    conn.close()
+    total_benef = total_camps = total_orgs = 0
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        try:
+            c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type != 'camp'")
+            total_benef = c.fetchone()[0]
+            c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type = 'camp'")
+            total_camps = c.fetchone()[0]
+        except Exception:
+            pass
+        try:
+            c.execute("SELECT COUNT(*) FROM organizations WHERE is_active=1")
+            total_orgs = c.fetchone()[0]
+        except Exception:
+            pass
+        conn.close()
+    except Exception:
+        pass
     return render_template("index.html",
         total_benef=total_benef,
         total_camps=total_camps,
