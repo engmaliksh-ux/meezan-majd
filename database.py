@@ -473,6 +473,7 @@ def migrate_db():
     conn.commit()
 
     conn.close()
+    init_camp_tables()
 
 
 def fix_invoice_seq_nums(conn):
@@ -497,3 +498,80 @@ def fix_invoice_seq_nums(conn):
                 (i, str(i), row[0])
             )
     conn.commit()
+
+
+def init_camp_tables():
+    """إنشاء جداول المخيمات والعلاقات"""
+    conn = get_connection()
+    c = conn.cursor()
+
+    # كيانات المخيمات/اللجان/العائلات
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS camp_entities (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type         TEXT    NOT NULL DEFAULT 'camp',
+        name                TEXT    NOT NULL,
+        manager_name        TEXT    NOT NULL,
+        id_number           TEXT,
+        mobile              TEXT,
+        whatsapp            TEXT,
+        email               TEXT    UNIQUE NOT NULL,
+        email_verified      INTEGER NOT NULL DEFAULT 0,
+        governorate         TEXT,
+        city                TEXT,
+        street              TEXT,
+        registered_families INTEGER DEFAULT 0,
+        password            TEXT,
+        is_active           INTEGER NOT NULL DEFAULT 1,
+        created_at          TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+
+    # طلبات انضمام مستفيد لمخيم
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS camp_join_requests (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id  INTEGER NOT NULL,
+        camp_entity_id  INTEGER NOT NULL,
+        status          TEXT    NOT NULL DEFAULT 'pending',
+        notes           TEXT,
+        created_at      TEXT    DEFAULT (datetime('now','localtime')),
+        resolved_at     TEXT,
+        FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(id),
+        FOREIGN KEY (camp_entity_id) REFERENCES camp_entities(id)
+    )
+    """)
+
+    # روابط المؤسسات بالمخيمات (many-to-many)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS institution_camp_links (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id          INTEGER NOT NULL,
+        camp_entity_id  INTEGER NOT NULL,
+        status          TEXT    NOT NULL DEFAULT 'pending',
+        created_at      TEXT    DEFAULT (datetime('now','localtime')),
+        resolved_at     TEXT,
+        UNIQUE(org_id, camp_entity_id),
+        FOREIGN KEY (org_id) REFERENCES organizations(id),
+        FOREIGN KEY (camp_entity_id) REFERENCES camp_entities(id)
+    )
+    """)
+
+    conn.commit()
+
+    # أعمدة جديدة للمستفيدين
+    new_cols = [
+        ("beneficiaries", "camp_entity_id",    "INTEGER"),
+        ("beneficiaries", "self_registered",   "INTEGER DEFAULT 0"),
+        ("beneficiaries", "beneficiary_status","TEXT DEFAULT 'independent'"),
+        ("beneficiaries", "governorate",       "TEXT"),
+        ("beneficiaries", "family_last_name",  "TEXT"),
+        ("beneficiaries", "self_reg_password", "TEXT"),
+    ]
+    for table, col, defn in new_cols:
+        try:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()

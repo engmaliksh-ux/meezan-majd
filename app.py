@@ -4390,3 +4390,440 @@ def api_sys_notif_count():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# ══════════════════════════════════════════
+# بوابة تسجيل المستفيد
+# ══════════════════════════════════════════
+
+@app.route("/register/beneficiary", methods=["GET", "POST"])
+def register_beneficiary():
+    conn = get_connection()
+    c = conn.cursor()
+    # جلب قائمة المخيمات النشطة
+    c.execute("SELECT id, name, governorate, city FROM camp_entities WHERE is_active=1 AND entity_type!='family' ORDER BY name")
+    camps = [dict(r) for r in c.fetchall()]
+
+    if request.method == "POST":
+        full_name      = request.form.get("full_name","").strip()
+        id_number      = request.form.get("id_number","").strip()
+        phone          = request.form.get("phone","").strip()
+        gender         = request.form.get("gender","male")
+        governorate    = request.form.get("governorate","").strip()
+        city           = request.form.get("city","").strip()
+        street         = request.form.get("street","").strip()
+        camp_choice    = request.form.get("camp_choice","")   # "id:5" أو "manual:اسم"
+        password       = request.form.get("password","")
+        password2      = request.form.get("password2","")
+
+        if not full_name or not id_number or not password:
+            flash("يرجى تعبئة جميع الحقول المطلوبة", "error")
+            conn.close()
+            return render_template("register_beneficiary.html", camps=camps)
+
+        if password != password2:
+            flash("كلمتا المرور غير متطابقتين", "error")
+            conn.close()
+            return render_template("register_beneficiary.html", camps=camps)
+
+        # استخراج الاسم الأخير (الكلمة الرابعة أو الأخيرة)
+        parts = full_name.split()
+        family_last_name = parts[3] if len(parts) >= 4 else parts[-1]
+
+        # تحقق: هل المستفيد موجود مسبقاً في مخيم؟
+        c.execute("""
+            SELECT b.full_name, ce.name as camp_name
+            FROM beneficiaries b
+            LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+            WHERE b.id_number=? AND b.id_number!=''
+        """, (id_number,))
+        existing = c.fetchone()
+        if existing:
+            camp_n = existing["camp_name"] or "غير محدد"
+            flash(f"رقم هويتك مسجل مسبقاً ضمن: {camp_n}. يرجى التواصل مع الإدارة.", "warning")
+            conn.close()
+            return render_template("register_beneficiary.html", camps=camps)
+
+        address = f"{governorate} - {city} - {street}"
+        hashed_pw = generate_password_hash(password)
+
+        camp_entity_id = None
+        beneficiary_status = "independent"
+
+        if camp_choice.startswith("id:"):
+            try:
+                camp_entity_id = int(camp_choice.split(":",1)[1])
+                beneficiary_status = "pending"
+            except Exception:
+                pass
+        elif camp_choice.startswith("manual:"):
+            manual_camp = camp_choice.split(":",1)[1].strip()
+            # ابحث عن مخيم بنفس الاسم
+            c.execute("SELECT id FROM camp_entities WHERE name=? AND is_active=1", (manual_camp,))
+            row = c.fetchone()
+            if row:
+                camp_entity_id = row["id"]
+                beneficiary_status = "pending"
+
+        # إدراج المستفيد
+        c.execute("""
+            INSERT INTO beneficiaries
+            (full_name, id_number, phone, gender, address, governorate,
+             camp_entity_id, self_registered, beneficiary_status,
+             family_last_name, self_reg_password, beneficiary_type, org_id)
+            VALUES (?,?,?,?,?,?,?,1,?,?,?,'person',1)
+        """, (full_name, id_number, phone, gender, address, governorate,
+              camp_entity_id, beneficiary_status, family_last_name, hashed_pw))
+        beneficiary_id = c.lastrowid
+        conn.commit()
+
+        # إذا اختار مخيماً → أنشئ طلب انضمام + إشعار للمخيم
+        if camp_entity_id and beneficiary_status == "pending":
+            c.execute("""
+                INSERT INTO camp_join_requests (beneficiary_id, camp_entity_id, status)
+                VALUES (?,?,'pending')
+            """, (beneficiary_id, camp_entity_id))
+            conn.commit()
+
+        conn.close()
+
+        if beneficiary_status == "pending":
+            flash("تم تسجيلك بنجاح! طلب انضمامك للمخيم قيد المراجعة.", "success")
+        else:
+            flash("تم تسجيلك كمستفيد مستقل بنجاح!", "success")
+        return redirect(url_for("beneficiary_portal"))
+
+    conn.close()
+    return render_template("register_beneficiary.html", camps=camps)
+
+
+# ══════════════════════════════════════════
+# بوابة المستفيد الذاتية (بعد التسجيل)
+# ══════════════════════════════════════════
+
+@app.route("/beneficiary/portal", methods=["GET", "POST"])
+def beneficiary_portal():
+    """صفحة دخول وعرض بيانات المستفيد"""
+    if request.method == "POST":
+        id_number = request.form.get("id_number","").strip()
+        password  = request.form.get("password","").strip()
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("""
+            SELECT b.*, ce.name as camp_name
+            FROM beneficiaries b
+            LEFT JOIN camp_entities ce ON b.camp_entity_id=ce.id
+            WHERE b.id_number=? AND b.self_registered=1
+        """, (id_number,))
+        ben = c.fetchone()
+        if ben and ben["self_reg_password"] and check_password_hash(ben["self_reg_password"], password):
+            # جلب طلب الانضمام
+            c.execute("""
+                SELECT cjr.status, ce.name as camp_name
+                FROM camp_join_requests cjr
+                JOIN camp_entities ce ON cjr.camp_entity_id=ce.id
+                WHERE cjr.beneficiary_id=?
+                ORDER BY cjr.id DESC LIMIT 1
+            """, (ben["id"],))
+            join_req = c.fetchone()
+            conn.close()
+            return render_template("beneficiary_portal.html", ben=dict(ben), join_req=join_req)
+        conn.close()
+        flash("رقم الهوية أو كلمة المرور غير صحيحة", "error")
+
+    return render_template("beneficiary_portal.html", ben=None, join_req=None)
+
+
+# ══════════════════════════════════════════
+# API: مخيمات حسب المنطقة
+# ══════════════════════════════════════════
+
+@app.route("/api/camps-by-area")
+def api_camps_by_area():
+    area = request.args.get("area","").strip()
+    conn = get_connection()
+    c = conn.cursor()
+    if area:
+        c.execute("""
+            SELECT id, name, entity_type, governorate, city
+            FROM camp_entities
+            WHERE is_active=1 AND entity_type!='family'
+              AND (governorate LIKE ? OR city LIKE ? OR street LIKE ?)
+            ORDER BY name
+        """, (f"%{area}%", f"%{area}%", f"%{area}%"))
+    else:
+        c.execute("""
+            SELECT id, name, entity_type, governorate, city
+            FROM camp_entities WHERE is_active=1 AND entity_type!='family'
+            ORDER BY name
+        """)
+    camps = [{"id": r["id"], "name": r["name"],
+              "type": r["entity_type"],
+              "location": f"{r['governorate'] or ''} - {r['city'] or ''}".strip(" -")}
+             for r in c.fetchall()]
+    conn.close()
+    return jsonify(camps)
+
+
+# ══════════════════════════════════════════
+# تسجيل المخيم / اللجنة / العائلة
+# ══════════════════════════════════════════
+
+@app.route("/register/camp", methods=["GET", "POST"])
+def register_camp():
+    if request.method == "POST":
+        action = request.form.get("action","")
+
+        if action == "send_code":
+            email = request.form.get("email","").strip()
+            if not email:
+                flash("يرجى إدخال البريد الإلكتروني", "error")
+                return render_template("register_camp.html")
+            # تحقق: هل البريد مسجل مسبقاً؟
+            conn = get_connection()
+            c = conn.cursor()
+            c.execute("SELECT id FROM camp_entities WHERE email=?", (email,))
+            if c.fetchone():
+                conn.close()
+                flash("هذا البريد الإلكتروني مسجل مسبقاً", "error")
+                return render_template("register_camp.html")
+            # أنشئ كود تحقق
+            code = generate_verification_code()
+            expires = (datetime.now() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("""
+                INSERT INTO verification_codes (email, code, purpose, expires_at)
+                VALUES (?,?,'camp_register',?)
+            """, (email, code, expires))
+            conn.commit()
+            conn.close()
+            try:
+                send_org_verification(email, code)
+                flash(f"تم إرسال رمز التحقق إلى {email}", "success")
+            except Exception:
+                flash(f"كود التحقق: {code} (تعذر إرسال البريد)", "warning")
+            session["camp_reg_email"] = email
+            return render_template("register_camp.html", step="verify", email=email)
+
+        elif action == "verify_code":
+            email = request.form.get("email","").strip()
+            code  = request.form.get("code","").strip()
+            conn  = get_connection()
+            c     = conn.cursor()
+            c.execute("""
+                SELECT id FROM verification_codes
+                WHERE email=? AND code=? AND purpose='camp_register'
+                  AND used=0 AND expires_at > datetime('now','localtime')
+                ORDER BY id DESC LIMIT 1
+            """, (email, code))
+            row = c.fetchone()
+            if not row:
+                conn.close()
+                flash("الرمز غير صحيح أو منتهي الصلاحية", "error")
+                return render_template("register_camp.html", step="verify", email=email)
+            c.execute("UPDATE verification_codes SET used=1 WHERE id=?", (row["id"],))
+            conn.commit()
+            conn.close()
+            session["camp_reg_email"]    = email
+            session["camp_reg_verified"] = True
+            return render_template("register_camp.html", step="form", email=email)
+
+        elif action == "submit":
+            if not session.get("camp_reg_verified"):
+                flash("يرجى التحقق من بريدك الإلكتروني أولاً", "error")
+                return render_template("register_camp.html")
+
+            email       = session.get("camp_reg_email","")
+            entity_type = request.form.get("entity_type","camp")
+            name        = request.form.get("name","").strip()
+            manager     = request.form.get("manager_name","").strip()
+            id_number   = request.form.get("id_number","").strip()
+            mobile      = request.form.get("mobile","").strip()
+            whatsapp    = request.form.get("whatsapp","").strip()
+            governorate = request.form.get("governorate","").strip()
+            city        = request.form.get("city","").strip()
+            street      = request.form.get("street","").strip()
+            families    = request.form.get("registered_families",0)
+            password    = request.form.get("password","")
+            password2   = request.form.get("password2","")
+
+            if not name or not manager or not password:
+                flash("يرجى تعبئة جميع الحقول المطلوبة", "error")
+                return render_template("register_camp.html", step="form", email=email)
+            if password != password2:
+                flash("كلمتا المرور غير متطابقتين", "error")
+                return render_template("register_camp.html", step="form", email=email)
+            if len(id_number) != 9 or not id_number.isdigit():
+                flash("رقم الهوية يجب أن يكون 9 أرقام", "error")
+                return render_template("register_camp.html", step="form", email=email)
+
+            hashed_pw = generate_password_hash(password)
+            conn = get_connection()
+            c    = conn.cursor()
+            try:
+                c.execute("""
+                    INSERT INTO camp_entities
+                    (entity_type, name, manager_name, id_number, mobile, whatsapp,
+                     email, email_verified, governorate, city, street,
+                     registered_families, password, is_active)
+                    VALUES (?,?,?,?,?,?,?,1,?,?,?,?,?,1)
+                """, (entity_type, name, manager, id_number, mobile, whatsapp,
+                      email, governorate, city, street, families or 0, hashed_pw))
+                new_id = c.lastrowid
+                conn.commit()
+            except Exception as e:
+                conn.close()
+                flash(f"خطأ في التسجيل: {e}", "error")
+                return render_template("register_camp.html", step="form", email=email)
+
+            # إشعار للمستفيدين الذين كتبوا نفس اسم المخيم يدوياً
+            c.execute("""
+                SELECT id FROM beneficiaries
+                WHERE camp_name=? AND camp_entity_id IS NULL AND self_registered=1
+            """, (name,))
+            pending_bens = c.fetchall()
+            for pb in pending_bens:
+                c.execute("""
+                    UPDATE beneficiaries
+                    SET camp_entity_id=?, beneficiary_status='pending'
+                    WHERE id=?
+                """, (new_id, pb["id"]))
+                c.execute("""
+                    INSERT OR IGNORE INTO camp_join_requests (beneficiary_id, camp_entity_id, status)
+                    VALUES (?,'pending')
+                """, (pb["id"], new_id))
+            conn.commit()
+            conn.close()
+
+            session.pop("camp_reg_email", None)
+            session.pop("camp_reg_verified", None)
+            flash("تم تسجيل حسابك بنجاح! يمكنك الآن تسجيل الدخول.", "success")
+            return redirect(url_for("camp_login"))
+
+    return render_template("register_camp.html", step="email")
+
+
+# ══════════════════════════════════════════
+# دخول المخيم / اللجنة / العائلة
+# ══════════════════════════════════════════
+
+@app.route("/camp/login", methods=["GET", "POST"])
+def camp_login():
+    if request.method == "POST":
+        email    = request.form.get("email","").strip()
+        password = request.form.get("password","").strip()
+        conn = get_connection()
+        c    = conn.cursor()
+        c.execute("SELECT * FROM camp_entities WHERE email=? AND is_active=1", (email,))
+        entity = c.fetchone()
+        conn.close()
+        if entity and entity["password"] and check_password_hash(entity["password"], password):
+            session["camp_id"]   = entity["id"]
+            session["camp_name"] = entity["name"]
+            session["camp_type"] = entity["entity_type"]
+            return redirect(url_for("camp_dashboard"))
+        flash("البريد الإلكتروني أو كلمة المرور غير صحيحة", "error")
+    return render_template("camp_login.html")
+
+
+def camp_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "camp_id" not in session:
+            return redirect(url_for("camp_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/camp/logout")
+def camp_logout():
+    session.pop("camp_id", None)
+    session.pop("camp_name", None)
+    session.pop("camp_type", None)
+    return redirect(url_for("camp_login"))
+
+
+@app.route("/camp/dashboard")
+@camp_login_required
+def camp_dashboard():
+    camp_id = session["camp_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    # طلبات الانضمام المعلقة
+    c.execute("""
+        SELECT cjr.id, cjr.created_at, cjr.status,
+               b.full_name, b.id_number, b.phone, b.address, b.gender, b.id as ben_id
+        FROM camp_join_requests cjr
+        JOIN beneficiaries b ON cjr.beneficiary_id=b.id
+        WHERE cjr.camp_entity_id=?
+        ORDER BY cjr.id DESC
+    """, (camp_id,))
+    requests_list = [dict(r) for r in c.fetchall()]
+    # المستفيدون المقبولون
+    c.execute("""
+        SELECT * FROM beneficiaries
+        WHERE camp_entity_id=? AND beneficiary_status='in_camp'
+        ORDER BY full_name
+    """, (camp_id,))
+    members = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_dashboard.html",
+        entity=entity,
+        requests_list=requests_list,
+        members=members)
+
+
+@app.route("/camp/join-request/<int:req_id>/<action>")
+@camp_login_required
+def camp_handle_request(req_id, action):
+    if action not in ("approve", "reject"):
+        return redirect(url_for("camp_dashboard"))
+    camp_id = session["camp_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT * FROM camp_join_requests WHERE id=? AND camp_entity_id=?", (req_id, camp_id))
+    req = c.fetchone()
+    if req:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if action == "approve":
+            c.execute("UPDATE camp_join_requests SET status='approved', resolved_at=? WHERE id=?", (now, req_id))
+            c.execute("UPDATE beneficiaries SET beneficiary_status='in_camp' WHERE id=?", (req["beneficiary_id"],))
+            flash("تم قبول المستفيد في مخيمك", "success")
+        else:
+            c.execute("UPDATE camp_join_requests SET status='rejected', resolved_at=? WHERE id=?", (now, req_id))
+            c.execute("UPDATE beneficiaries SET beneficiary_status='independent', camp_entity_id=NULL WHERE id=?", (req["beneficiary_id"],))
+            flash("تم رفض الطلب، سيُسجل المستفيد كمستفيد مستقل", "info")
+        conn.commit()
+    conn.close()
+    return redirect(url_for("camp_dashboard"))
+
+
+@app.route("/camp/add-beneficiary", methods=["GET","POST"])
+@camp_login_required
+def camp_add_beneficiary():
+    camp_id = session["camp_id"]
+    if request.method == "POST":
+        full_name   = request.form.get("full_name","").strip()
+        id_number   = request.form.get("id_number","").strip()
+        phone       = request.form.get("phone","").strip()
+        gender      = request.form.get("gender","male")
+        family_size = request.form.get("family_size",1)
+        address     = request.form.get("address","").strip()
+        notes       = request.form.get("notes","").strip()
+        parts       = full_name.split()
+        family_last_name = parts[3] if len(parts) >= 4 else (parts[-1] if parts else "")
+        conn = get_connection()
+        c    = conn.cursor()
+        c.execute("""
+            INSERT INTO beneficiaries
+            (full_name, id_number, phone, gender, family_size, address,
+             camp_entity_id, beneficiary_status, family_last_name,
+             self_registered, beneficiary_type, org_id, notes)
+            VALUES (?,?,?,?,?,?,?,'in_camp',?,0,'person',1,?)
+        """, (full_name, id_number, phone, gender, family_size, address,
+              camp_id, family_last_name, notes))
+        conn.commit()
+        conn.close()
+        flash("تم إضافة المستفيد بنجاح", "success")
+        return redirect(url_for("camp_dashboard"))
+    return render_template("camp_add_beneficiary.html")

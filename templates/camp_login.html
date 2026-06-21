@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دخول المخيم — ميزان مجد</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--teal-900:#0f3d2e;--teal-700:#1a6b3a;--teal-600:#2d8a50;--amber:#e8a020;--sand:#fafaf7;--ink:#1a1a2e;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);display:flex;flex-direction:column;min-height:100vh;align-items:center;justify-content:center;}
+.card{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:420px;
+      box-shadow:0 4px 24px rgba(0,0,0,.1);}
+.logo{text-align:center;margin-bottom:24px;}
+.logo-icon{width:56px;height:56px;background:var(--teal-600);border-radius:16px;
+           display:inline-flex;align-items:center;justify-content:center;color:var(--amber);font-size:1.4rem;margin-bottom:10px;}
+.logo h2{font-size:1.1rem;font-weight:800;color:var(--teal-900);}
+.logo p{font-size:.8rem;color:#64748b;}
+.flash{padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:.85rem;}
+.flash.error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+.form-group{margin-bottom:14px;}
+label{font-size:.82rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;}
+input{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
+      font-size:.88rem;font-family:inherit;transition:.15s;}
+input:focus{outline:none;border-color:var(--teal-600);box-shadow:0 0 0 3px rgba(45,138,80,.12);}
+.btn{width:100%;padding:13px;background:var(--teal-700);color:#fff;border:none;
+     border-radius:12px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:6px;transition:.15s;}
+.btn:hover{background:var(--teal-900);}
+.links{text-align:center;margin-top:16px;font-size:.82rem;color:#64748b;}
+.links a{color:var(--teal-700);font-weight:600;text-decoration:none;margin:0 8px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon"><i class="fas fa-campground"></i></div>
+    <h2>دخول المخيم / اللجنة / العائلة</h2>
+    <p>ميزان مجد — لوحة تحكم الجهات</p>
+  </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <div class="form-group">
+      <label>البريد الإلكتروني</label>
+      <input type="email" name="email" placeholder="example@gmail.com" required>
+    </div>
+    <div class="form-group">
+      <label>كلمة المرور</label>
+      <input type="password" name="password" required>
+    </div>
+    <button type="submit" class="btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
+  </form>
+  <div class="links">
+    <a href="/register/camp">تسجيل جهة جديدة</a> |
+    <a href="/">الصفحة الرئيسية</a>
+  </div>
+</div>
+</body>
+</html>

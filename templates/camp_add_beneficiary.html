@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>إضافة مستفيد — ميزان مجد</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--teal-900:#0f3d2e;--teal-700:#1a6b3a;--teal-600:#2d8a50;--amber:#e8a020;--sand:#f4f4ee;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);}
+.topbar{background:linear-gradient(90deg,var(--teal-900),var(--teal-700));color:#fff;
+        padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:1rem;font-weight:800;}
+.topbar a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.85rem;}
+.container{max-width:680px;margin:28px auto;padding:0 20px 60px;}
+.card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-title{font-size:1rem;font-weight:700;color:var(--teal-900);margin-bottom:20px;
+            padding-bottom:12px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;gap:8px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.form-row.full{grid-template-columns:1fr;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+label{font-size:.82rem;font-weight:600;color:#475569;}
+input,select,textarea{padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
+                      font-size:.88rem;font-family:inherit;transition:.15s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal-600);}
+.btn{padding:12px 24px;background:var(--teal-700);color:#fff;border:none;border-radius:12px;
+     font-size:.95rem;font-weight:700;cursor:pointer;margin-top:8px;}
+.btn:hover{background:var(--teal-900);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1><i class="fas fa-user-plus"></i> إضافة مستفيد جديد</h1>
+  <a href="/camp/dashboard"><i class="fas fa-arrow-right"></i> العودة للوحة</a>
+</div>
+<div class="container">
+  <div style="height:24px"></div>
+  <div class="card">
+    <div class="card-title"><i class="fas fa-id-card"></i> بيانات المستفيد</div>
+    <form method="POST">
+      <div class="form-row">
+        <div class="form-group">
+          <label>الاسم الرباعي *</label>
+          <input type="text" name="full_name" required>
+        </div>
+        <div class="form-group">
+          <label>رقم الهوية</label>
+          <input type="text" name="id_number" maxlength="9">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>رقم الجوال</label>
+          <input type="tel" name="phone">
+        </div>
+        <div class="form-group">
+          <label>الجنس</label>
+          <select name="gender">
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>حجم الأسرة</label>
+          <input type="number" name="family_size" value="1" min="1">
+        </div>
+        <div class="form-group">
+          <label>العنوان</label>
+          <input type="text" name="address">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>ملاحظات</label>
+          <textarea name="notes" rows="2"></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn"><i class="fas fa-save"></i> حفظ المستفيد</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

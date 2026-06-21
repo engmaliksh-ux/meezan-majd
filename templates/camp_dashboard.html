@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>لوحة {{ entity.name }} — ميزان مجد</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--teal-900:#0f3d2e;--teal-700:#1a6b3a;--teal-600:#2d8a50;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--teal-900),var(--teal-700));color:#fff;
+        padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:1rem;font-weight:800;}
+.topbar-right{display:flex;align-items:center;gap:16px;font-size:.85rem;}
+.topbar a{color:rgba(255,255,255,.8);text-decoration:none;}
+.topbar a:hover{color:#fff;}
+.container{max-width:1100px;margin:28px auto;padding:0 20px;}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:#fff;border-radius:14px;padding:20px;
+           box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center;}
+.stat-card .n{font-size:2rem;font-weight:900;color:var(--teal-700);}
+.stat-card .l{font-size:.8rem;color:#64748b;margin-top:4px;}
+.section{background:#fff;border-radius:16px;padding:24px;margin-bottom:20px;
+         box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.section-title{font-size:.95rem;font-weight:700;color:var(--teal-900);
+               margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;
+               display:flex;align-items:center;justify-content:space-between;}
+.badge{padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+.badge-pending{background:#fef3c7;color:#92400e;}
+.badge-approved{background:#d1fae5;color:#065f46;}
+.badge-rejected{background:#fee2e2;color:#991b1b;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+th{background:#f8f9fa;padding:10px 12px;text-align:right;font-weight:600;color:#475569;font-size:.78rem;}
+td{padding:10px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+tr:last-child td{border:none;}
+.btn-sm{padding:5px 12px;border-radius:8px;font-size:.78rem;font-weight:600;
+        border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.btn-approve{background:#d1fae5;color:#065f46;}
+.btn-approve:hover{background:#a7f3d0;}
+.btn-reject{background:#fee2e2;color:#991b1b;}
+.btn-reject:hover{background:#fecaca;}
+.btn-primary{background:var(--teal-600);color:#fff;padding:9px 18px;border-radius:10px;
+             text-decoration:none;font-size:.85rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary:hover{background:var(--teal-700);}
+.empty{text-align:center;color:#94a3b8;padding:24px;font-size:.88rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1><i class="fas fa-campground"></i> {{ entity.name }}</h1>
+  <div class="topbar-right">
+    <span>{{ entity.entity_type == 'camp' and 'مخيم' or entity.entity_type == 'committee' and 'لجنة' or 'عائلة' }}</span>
+    <a href="/camp/logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
+  </div>
+</div>
+
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem;
+                  background:{{ '#d1fae5' if cat=='success' else '#fee2e2' if cat=='error' else '#fef3c7' }};">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="n">{{ members|length }}</div>
+      <div class="l">مستفيد مقبول</div>
+    </div>
+    <div class="stat-card">
+      <div class="n">{{ requests_list|selectattr('status','equalto','pending')|list|length }}</div>
+      <div class="l">طلب معلق</div>
+    </div>
+    <div class="stat-card">
+      <div class="n">{{ entity.registered_families or 0 }}</div>
+      <div class="l">أسرة مسجلة</div>
+    </div>
+  </div>
+
+  <!-- طلبات الانضمام -->
+  <div class="section">
+    <div class="section-title">
+      <span><i class="fas fa-user-clock"></i> طلبات الانضمام</span>
+      <span class="badge badge-pending">{{ requests_list|selectattr('status','equalto','pending')|list|length }} معلق</span>
+    </div>
+    {% if requests_list %}
+    <table>
+      <thead><tr>
+        <th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>العنوان</th><th>الحالة</th><th>إجراء</th>
+      </tr></thead>
+      <tbody>
+      {% for r in requests_list %}
+      <tr>
+        <td><strong>{{ r.full_name }}</strong></td>
+        <td>{{ r.id_number or '—' }}</td>
+        <td>{{ r.phone or '—' }}</td>
+        <td>{{ r.address or '—' }}</td>
+        <td>
+          <span class="badge {{ 'badge-pending' if r.status=='pending' else 'badge-approved' if r.status=='approved' else 'badge-rejected' }}">
+            {{ 'معلق' if r.status=='pending' else 'مقبول' if r.status=='approved' else 'مرفوض' }}
+          </span>
+        </td>
+        <td>
+          {% if r.status == 'pending' %}
+          <a href="/camp/join-request/{{ r.id }}/approve" class="btn-sm btn-approve"><i class="fas fa-check"></i> قبول</a>
+          <a href="/camp/join-request/{{ r.id }}/reject" class="btn-sm btn-reject"><i class="fas fa-times"></i> رفض</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><i class="fas fa-inbox"></i><br>لا توجد طلبات انضمام</div>
+    {% endif %}
+  </div>
+
+  <!-- قائمة المستفيدين -->
+  <div class="section">
+    <div class="section-title">
+      <span><i class="fas fa-users"></i> المستفيدون المقبولون</span>
+      <a href="/camp/add-beneficiary" class="btn-primary"><i class="fas fa-user-plus"></i> إضافة مستفيد</a>
+    </div>
+    {% if members %}
+    <table>
+      <thead><tr>
+        <th>#</th><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>الجنس</th><th>حجم الأسرة</th>
+      </tr></thead>
+      <tbody>
+      {% for m in members %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><strong>{{ m.full_name }}</strong></td>
+        <td>{{ m.id_number or '—' }}</td>
+        <td>{{ m.phone or '—' }}</td>
+        <td>{{ 'ذكر' if m.gender=='male' else 'أنثى' }}</td>
+        <td>{{ m.family_size or 1 }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><i class="fas fa-users"></i><br>لا يوجد مستفيدون مقبولون بعد</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>
