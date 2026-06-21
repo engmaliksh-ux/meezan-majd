@@ -334,7 +334,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
           <div class="ai-msg-l">
             بحسب البيانات المتاحة: <strong>المواد الغذائية 38%</strong> من الاحتياجات المفتوحة، تليها الملابس والمستلزمات الطبية.
             <div class="ai-bars">
-              {% for h,op in [(38,.8),(27,.65),(18,.5),(10,.4),(7,.3)] %}
+              {% for h,op in [(38,0.8),(27,0.65),(18,0.5),(10,0.4),(7,0.3)] %}
               <span style="height:{{ h }}px;background:rgba(26,107,58,{{ op }});"></span>
               {% endfor %}
             </div>
