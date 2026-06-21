@@ -8,9 +8,35 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger deploy webhook
+      - name: Run git pull via PA Console
         run: |
+          # أنشئ console bash
+          CONSOLE=$(curl -s -X POST \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/" \
+            -d "executable=bash")
+          CONSOLE_ID=$(echo $CONSOLE | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          echo "Console ID: $CONSOLE_ID"
+          sleep 3
+
+          # شغّل git pull
           curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -d '{"ref":"main"}' \
-            "https://malikmohs.pythonanywhere.com/deploy/webhook"
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/$CONSOLE_ID/send_input/" \
+            --data-urlencode "input=cd ~/meezan-majd && git pull && echo '===DONE==='\n"
+
+          # انتظر حتى ينتهي
+          sleep 20
+
+      - name: Reload web app
+        run: |
+          RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/webapps/malikmohs.pythonanywhere.com/reload/")
+          echo "Reload status: $RESULT"
+          if [ "$RESULT" = "200" ]; then
+            echo "✅ Deployed successfully!"
+          else
+            echo "❌ Reload failed with status $RESULT"
+            exit 1
+          fi
