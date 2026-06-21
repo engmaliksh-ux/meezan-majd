@@ -318,6 +318,9 @@ def migrate_db():
         ("beneficiaries", "guardian_whatsapp",   "TEXT"),
         ("beneficiaries", "guardian_name",       "TEXT"),
         ("beneficiaries", "guardian_id_number",  "TEXT"),
+        ("beneficiaries", "displacement_date",    "TEXT"),
+        ("beneficiaries", "original_address",     "TEXT"),
+        ("beneficiaries", "shelter_type",         "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً
