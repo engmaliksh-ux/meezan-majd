@@ -321,7 +321,7 @@ def home():
     total_benef = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type = 'camp'")
     total_camps = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM organizations WHERE status='approved'")
+    c.execute("SELECT COUNT(*) FROM organizations WHERE is_active=1")
     total_orgs = c.fetchone()[0]
     conn.close()
     return render_template("index.html",
