@@ -4827,3 +4827,37 @@ def camp_add_beneficiary():
         flash("تم إضافة المستفيد بنجاح", "success")
         return redirect(url_for("camp_dashboard"))
     return render_template("camp_add_beneficiary.html")
+
+# ══════════════════════════════════════════
+# Auto-Deploy Webhook
+# ══════════════════════════════════════════
+import subprocess, hashlib, hmac
+
+@app.route("/deploy/webhook", methods=["POST"])
+def deploy_webhook():
+    secret = app.config.get("DEPLOY_SECRET", "")
+    if secret:
+        sig = request.headers.get("X-Hub-Signature-256", "")
+        body = request.get_data()
+        expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return jsonify({"error": "Unauthorized"}), 401
+    import os
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    result = subprocess.run(
+        ["git", "pull"],
+        cwd=project_dir,
+        capture_output=True, text=True, timeout=60
+    )
+    # أعِد تحميل التطبيق بلمس wsgi.py
+    try:
+        wsgi_path = os.path.join(project_dir, "wsgi.py")
+        os.utime(wsgi_path, None)
+    except Exception:
+        pass
+    return jsonify({
+        "status": "ok",
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "returncode": result.returncode
+    })
