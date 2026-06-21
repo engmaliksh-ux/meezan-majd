@@ -1,0 +1,20 @@
+name: Auto Deploy to PythonAnywhere
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to PythonAnywhere
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ssh.pythonanywhere.com
+          username: MalikMohs
+          key: ${{ secrets.PA_SSH_KEY }}
+          script: |
+            cd ~/meezan-majd
+            git pull
+            touch wsgi.py
