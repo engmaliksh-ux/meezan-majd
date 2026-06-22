@@ -4500,37 +4500,44 @@ def register_beneficiary():
 # بوابة المستفيد الذاتية (بعد التسجيل)
 # ══════════════════════════════════════════
 
-@app.route("/beneficiary/portal", methods=["GET", "POST"])
+@app.route("/beneficiary/portal", methods=["GET"])
 def beneficiary_portal():
-    """صفحة دخول وعرض بيانات المستفيد"""
-    if request.method == "POST":
-        id_number = request.form.get("id_number","").strip()
-        password  = request.form.get("password","").strip()
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("""
-            SELECT b.*, ce.name as camp_name
-            FROM beneficiaries b
-            LEFT JOIN camp_entities ce ON b.camp_entity_id=ce.id
-            WHERE b.id_number=? AND b.self_registered=1
-        """, (id_number,))
-        ben = c.fetchone()
-        if ben and ben["self_reg_password"] and check_password_hash(ben["self_reg_password"], password):
-            # جلب طلب الانضمام
-            c.execute("""
-                SELECT cjr.status, ce.name as camp_name
-                FROM camp_join_requests cjr
-                JOIN camp_entities ce ON cjr.camp_entity_id=ce.id
-                WHERE cjr.beneficiary_id=?
-                ORDER BY cjr.id DESC LIMIT 1
-            """, (ben["id"],))
-            join_req = c.fetchone()
-            conn.close()
-            return render_template("beneficiary_portal.html", ben=dict(ben), join_req=join_req)
+    """بوابة المستفيد — تعرض البيانات إن كان مسجلاً دخوله"""
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        # غير مسجل دخوله — أعد للرئيسية مع فتح modal
+        return redirect(url_for("home") + "?open=benModal")
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT b.*, ce.name as camp_name
+        FROM beneficiaries b
+        LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+        WHERE b.id = ?
+    """, (ben_id,))
+    ben = c.fetchone()
+    if not ben:
+        session.pop("beneficiary_id", None)
+        session.pop("beneficiary_name", None)
         conn.close()
-        flash("رقم الهوية أو كلمة المرور غير صحيحة", "error")
+        return redirect(url_for("home") + "?open=benModal")
+    c.execute("""
+        SELECT cjr.status, ce.name as camp_name
+        FROM camp_join_requests cjr
+        JOIN camp_entities ce ON cjr.camp_entity_id = ce.id
+        WHERE cjr.beneficiary_id = ?
+        ORDER BY cjr.id DESC LIMIT 1
+    """, (ben["id"],))
+    join_req = c.fetchone()
+    conn.close()
+    return render_template("beneficiary_portal.html", ben=dict(ben), join_req=join_req)
 
-    return render_template("beneficiary_portal.html", ben=None, join_req=None)
+
+@app.route("/beneficiary/logout")
+def beneficiary_logout():
+    session.pop("beneficiary_id", None)
+    session.pop("beneficiary_name", None)
+    return redirect(url_for("home"))
 
 
 # ══════════════════════════════════════════
@@ -4861,3 +4868,140 @@ def deploy_webhook():
         "stderr": result.stderr,
         "returncode": result.returncode
     })
+
+
+# ══════════════════════════════════════════
+# API: بوابة المستفيد — دخول وتسجيل بالبريد
+# ══════════════════════════════════════════
+
+@app.route("/api/beneficiary/login", methods=["POST"])
+def api_beneficiary_login():
+    """دخول المستفيد عبر رقم الهوية + كلمة المرور (JSON)"""
+    data      = request.get_json(force=True) or {}
+    id_number = data.get("id_number", "").strip()
+    password  = data.get("password", "").strip()
+    if not id_number or not password:
+        return jsonify({"ok": False, "error": "يرجى إدخال رقم الهوية وكلمة المرور"})
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT b.*, ce.name as camp_name
+        FROM beneficiaries b
+        LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+        WHERE b.id_number = ? AND b.self_registered = 1
+    """, (id_number,))
+    ben = c.fetchone()
+    conn.close()
+    if ben and ben["self_reg_password"] and check_password_hash(ben["self_reg_password"], password):
+        session["beneficiary_id"]   = ben["id"]
+        session["beneficiary_name"] = ben["full_name"]
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "رقم الهوية أو كلمة المرور غير صحيحة"})
+
+
+@app.route("/api/beneficiary/send-otp", methods=["POST"])
+def api_beneficiary_send_otp():
+    """إرسال رمز تحقق إلى البريد الإلكتروني للمستفيد الجديد"""
+    data      = request.get_json(force=True) or {}
+    email     = data.get("email", "").strip().lower()
+    id_number = data.get("id_number", "").strip()
+    if not email or not id_number:
+        return jsonify({"ok": False, "error": "يرجى إدخال البريد ورقم الهوية"})
+    # تحقق من عدم وجود حساب مسبق بنفس رقم الهوية
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "رقم الهوية مسجل مسبقاً، يرجى تسجيل الدخول"})
+    # توليد كود 6 أرقام وحفظه
+    import datetime
+    code       = generate_verification_code()
+    expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("DELETE FROM verification_codes WHERE email=? AND purpose='ben_register'", (email,))
+    c.execute(
+        "INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES (?,?,?,?)",
+        (email, code, "ben_register", expires_at)
+    )
+    conn.commit()
+    conn.close()
+    # حفظ البريد ورقم الهوية في الجلسة مؤقتاً
+    session["ben_reg_email"]     = email
+    session["ben_reg_id_number"] = id_number
+    # إرسال البريد
+    try:
+        send_org_verification(email, "تسجيل مستفيد جديد", "مستفيد عزيز", code, "", "")
+    except Exception as e:
+        app.logger.error(f"OTP email error: {e}")
+        return jsonify({"ok": False, "error": "فشل إرسال البريد، تحقق من العنوان وأعد المحاولة"})
+    return jsonify({"ok": True})
+
+
+@app.route("/api/beneficiary/verify-otp", methods=["POST"])
+def api_beneficiary_verify_otp():
+    """التحقق من رمز OTP المرسل للبريد"""
+    data  = request.get_json(force=True) or {}
+    email = data.get("email", "").strip().lower()
+    code  = data.get("code", "").strip()
+    if not email or not code:
+        return jsonify({"ok": False, "error": "بيانات ناقصة"})
+    import datetime
+    now  = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("""
+        SELECT * FROM verification_codes
+        WHERE email=? AND purpose='ben_register' AND used=0 AND expires_at > ?
+        ORDER BY id DESC LIMIT 1
+    """, (email, now))
+    row = c.fetchone()
+    if not row or row["code"] != code:
+        conn.close()
+        return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
+    c.execute("UPDATE verification_codes SET used=1 WHERE id=?", (row["id"],))
+    conn.commit()
+    conn.close()
+    session["ben_reg_verified"] = True
+    return jsonify({"ok": True})
+
+
+@app.route("/api/beneficiary/register", methods=["POST"])
+def api_beneficiary_register():
+    """إتمام تسجيل المستفيد بعد التحقق من البريد"""
+    if not session.get("ben_reg_verified"):
+        return jsonify({"ok": False, "error": "لم يتم التحقق من البريد"})
+    data      = request.get_json(force=True) or {}
+    email     = session.get("ben_reg_email", "").strip()
+    id_number = session.get("ben_reg_id_number", "").strip()
+    full_name = data.get("full_name", "").strip()
+    phone     = data.get("phone", "").strip()
+    password  = data.get("password", "")
+    if not full_name or not password or len(password) < 6:
+        return jsonify({"ok": False, "error": "يرجى إدخال الاسم وكلمة المرور (6 أحرف على الأقل)"})
+    parts            = full_name.split()
+    family_last_name = parts[3] if len(parts) >= 4 else (parts[-1] if parts else "")
+    hashed_pw        = generate_password_hash(password)
+    conn = get_connection()
+    c    = conn.cursor()
+    # تحقق مجدداً من عدم التكرار
+    c.execute("SELECT id FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "رقم الهوية مسجل مسبقاً"})
+    c.execute("""
+        INSERT INTO beneficiaries
+            (full_name, id_number, phone, email, family_last_name,
+             self_registered, beneficiary_status, self_reg_password, beneficiary_type, org_id)
+        VALUES (?,?,?,?,?, 1,'independent',?,'person',1)
+    """, (full_name, id_number, phone, email, family_last_name, hashed_pw))
+    new_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    # تنظيف الجلسة
+    session.pop("ben_reg_email", None)
+    session.pop("ben_reg_id_number", None)
+    session.pop("ben_reg_verified", None)
+    # تسجيل الدخول مباشرة
+    session["beneficiary_id"]   = new_id
+    session["beneficiary_name"] = full_name
+    return jsonify({"ok": True})

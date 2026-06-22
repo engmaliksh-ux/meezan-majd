@@ -222,8 +222,8 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       <h1>عدالةُ التوزيع تبدأ<br><em>ببياناتٍ دقيقة</em></h1>
       <p>ميزان مجد يربط إدارات المخيمات والمؤسسات الإنسانية والمبادرين والمستفيدين في شبكة واحدة: سجل موحد، مساعدات موثقة، شراكات مرنة، وإحصاءات فورية لدعم القرار.</p>
       <div class="hero-btns">
-        <a href="/register/beneficiary" class="btn-amber">تسجيل كمستفيد <i class="fas fa-arrow-left" style="font-size:.8rem;"></i></a>
-        <a href="/register/camp" class="btn-wh"><i class="fas fa-campground" style="font-size:.8rem;"></i> تسجيل مخيم/لجنة/عائلة</a>
+        <button onclick="openModal('benModal')" class="btn-amber"><i class="fas fa-user-circle" style="font-size:.8rem;"></i> دخول مستفيد</button>
+        <button onclick="openModal('adminModal')" class="btn-wh"><i class="fas fa-shield-alt" style="font-size:.8rem;"></i> دخول إداري</button>
       </div>
     </div>
 
@@ -358,8 +358,8 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
     <h2 class="cta-title">انضم إلى منظومة العمل الإنساني الموحدة</h2>
     <p class="cta-desc">مخيم، مؤسسة، مبادرة، أو مستفيد — مكانك جاهز وبياناتك محمية.</p>
     <div class="cta-btns">
-      <a href="/register" class="btn-amber">إنشاء حساب جديد</a>
-      <a href="/login" class="btn-wh">تسجيل الدخول</a>
+      <button onclick="openModal('benModal')" class="btn-amber"><i class="fas fa-user-circle"></i> دخول مستفيد</button>
+      <button onclick="openModal('adminModal')" class="btn-wh"><i class="fas fa-shield-alt"></i> دخول إداري</button>
     </div>
   </div>
 </section>
@@ -376,3 +376,332 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       <a href="/register">تسجيل</a>
     </div>
   
+  </div>
+</footer>
+
+<!-- ════ MODALS CSS ════ -->
+<style>
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+.modal-overlay.active{display:flex;}
+.modal{background:#fff;border-radius:20px;width:100%;max-width:440px;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-head{background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
+  padding:22px 24px;display:flex;align-items:center;justify-content:space-between;}
+.modal-head h3{color:#fff;font-size:1rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.modal-head h3 i{color:var(--amber-400);}
+.modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;
+  width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;
+  display:flex;align-items:center;justify-content:center;transition:.15s;}
+.modal-close:hover{background:rgba(255,255,255,.3);}
+.modal-body{padding:24px;}
+.modal-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:12px;overflow:hidden;
+  border:1.5px solid #e2e8f0;}
+.mtab{flex:1;padding:10px;text-align:center;font-size:.85rem;font-weight:600;
+  background:#f8f9fa;color:#64748b;cursor:pointer;border:none;transition:.15s;}
+.mtab.active{background:var(--teal-700);color:#fff;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.mform-group{margin-bottom:14px;}
+.mform-group label{font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;}
+.mform-group input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
+  font-size:.88rem;font-family:inherit;transition:.15s;}
+.mform-group input:focus{outline:none;border-color:var(--teal-600);box-shadow:0 0 0 3px rgba(45,138,80,.1);}
+.mbtn{width:100%;padding:13px;border:none;border-radius:12px;font-size:.92rem;
+  font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.mbtn-primary{background:var(--teal-700);color:#fff;}
+.mbtn-primary:hover{background:var(--teal-900);}
+.mbtn-outline{background:#fff;color:var(--teal-700);border:1.5px solid var(--teal-600);margin-top:8px;}
+.mbtn-outline:hover{background:#f0fdf4;}
+.modal-sep{text-align:center;font-size:.78rem;color:#94a3b8;margin:14px 0;position:relative;}
+.modal-sep::before,.modal-sep::after{content:'';position:absolute;top:50%;
+  width:38%;height:1px;background:#e2e8f0;}
+.modal-sep::before{right:0;} .modal-sep::after{left:0;}
+.mflash{padding:10px 14px;border-radius:8px;font-size:.82rem;margin-bottom:14px;display:none;}
+.mflash.error{background:#fee2e2;color:#991b1b;display:block;}
+.mflash.success{background:#d1fae5;color:#065f46;display:block;}
+.mflash.info{background:#dbeafe;color:#1e40af;display:block;}
+.otp-row{display:flex;gap:8px;justify-content:center;margin:16px 0;}
+.otp-row input{width:46px;height:50px;text-align:center;font-size:1.3rem;
+  font-weight:700;border:2px solid #e2e8f0;border-radius:10px;padding:0;}
+.otp-row input:focus{border-color:var(--teal-600);outline:none;}
+.admin-options{display:flex;flex-direction:column;gap:10px;}
+.admin-opt{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2e8f0;
+  border-radius:14px;text-decoration:none;color:var(--ink-900);transition:.15s;cursor:pointer;}
+.admin-opt:hover{border-color:var(--teal-600);background:#f0fdf4;}
+.admin-opt-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:1.1rem;color:#fff;flex-shrink:0;}
+.admin-opt-text strong{display:block;font-size:.9rem;margin-bottom:2px;}
+.admin-opt-text span{font-size:.75rem;color:#64748b;}
+</style>
+
+<!-- ════ MODAL: دخول مستفيد ════ -->
+<div class="modal-overlay" id="benModal" onclick="closeOnBg(event,'benModal')">
+  <div class="modal">
+    <div class="modal-head">
+      <h3><i class="fas fa-user-circle"></i> بوابة المستفيد</h3>
+      <button class="modal-close" onclick="closeModal('benModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="mtab active" onclick="switchTab('ben','login')">دخول</button>
+        <button class="mtab" onclick="switchTab('ben','register')">تسجيل جديد</button>
+      </div>
+
+      <!-- دخول -->
+      <div class="tab-pane active" id="ben-login">
+        <div class="mflash" id="ben-login-flash"></div>
+        <div class="mform-group">
+          <label>رقم الهوية</label>
+          <input type="text" id="bl-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+        </div>
+        <div class="mform-group">
+          <label>كلمة المرور</label>
+          <input type="password" id="bl-pw" placeholder="••••••••">
+        </div>
+        <button class="mbtn mbtn-primary" onclick="benLogin()">
+          <i class="fas fa-sign-in-alt"></i> دخول
+        </button>
+      </div>
+
+      <!-- تسجيل - الخطوة 1: رقم الجوال -->
+      <div class="tab-pane" id="ben-register">
+        <div class="mflash" id="ben-reg-flash"></div>
+        <div id="breg-step1">
+          <div class="mform-group">
+            <label>البريد الإلكتروني <span style="color:#e53e3e">*</span></label>
+            <input type="email" id="br-email" placeholder="example@gmail.com">
+          </div>
+          <div class="mform-group">
+            <label>رقم الهوية <span style="color:#e53e3e">*</span></label>
+            <input type="text" id="br-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+          </div>
+          <button class="mbtn mbtn-primary" onclick="benSendOTP()">
+            <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
+          </button>
+        </div>
+
+        <!-- الخطوة 2: رمز OTP -->
+        <div id="breg-step2" style="display:none">
+          <p style="text-align:center;font-size:.85rem;color:#64748b;margin-bottom:4px;">
+            تم إرسال رمز إلى بريدك الإلكتروني
+          </p>
+          <p style="text-align:center;font-weight:700;color:var(--teal-800);font-size:.88rem;margin-bottom:16px;" id="br-email-display"></p>
+          <div class="otp-row" id="br-otp-inputs">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+          </div>
+          <button class="mbtn mbtn-primary" onclick="benVerifyOTP()">
+            <i class="fas fa-check-circle"></i> تأكيد الرمز
+          </button>
+          <button class="mbtn mbtn-outline" onclick="benSendOTP()">
+            <i class="fas fa-redo"></i> إعادة الإرسال
+          </button>
+        </div>
+
+        <!-- الخطوة 3: إكمال البيانات -->
+        <div id="breg-step3" style="display:none">
+          <div class="mform-group">
+            <label>الاسم الرباعي <span style="color:#e53e3e">*</span></label>
+            <input type="text" id="br-name" placeholder="الاسم الأول والأب والجد والعائلة">
+          </div>
+          <div class="mform-group">
+            <label>رقم الجوال</label>
+            <input type="tel" id="br-phone" placeholder="05xxxxxxxx">
+          </div>
+          <div class="mform-group">
+            <label>كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <input type="password" id="br-pw" placeholder="8 أحرف على الأقل">
+          </div>
+          <div class="mform-group">
+            <label>تأكيد كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <input type="password" id="br-pw2" placeholder="أعد الكتابة">
+          </div>
+          <button class="mbtn mbtn-primary" onclick="benCompleteReg()">
+            <i class="fas fa-user-check"></i> إنشاء الحساب
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: دخول إداري ════ -->
+<div class="modal-overlay" id="adminModal" onclick="closeOnBg(event,'adminModal')">
+  <div class="modal">
+    <div class="modal-head">
+      <h3><i class="fas fa-shield-alt"></i> الدخول الإداري</h3>
+      <button class="modal-close" onclick="closeModal('adminModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:#64748b;margin-bottom:16px;text-align:center;">
+        اختر نوع حسابك للدخول أو التسجيل
+      </p>
+      <div class="admin-options">
+        <a href="/login" class="admin-opt">
+          <div class="admin-opt-icon" style="background:var(--teal-700);">
+            <i class="fas fa-building"></i>
+          </div>
+          <div class="admin-opt-text">
+            <strong>دخول مؤسسة</strong>
+            <span>منظمات، جمعيات، مبادرات</span>
+          </div>
+          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
+        </a>
+        <a href="/camp/login" class="admin-opt">
+          <div class="admin-opt-icon" style="background:#0e7490;">
+            <i class="fas fa-campground"></i>
+          </div>
+          <div class="admin-opt-text">
+            <strong>دخول مخيم / لجنة / عائلة</strong>
+            <span>إدارة المخيم وطلبات الانضمام</span>
+          </div>
+          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
+        </a>
+        <div class="modal-sep">أو</div>
+        <a href="/register" class="admin-opt" style="border-color:var(--teal-600);">
+          <div class="admin-opt-icon" style="background:var(--amber-500);">
+            <i class="fas fa-plus"></i>
+          </div>
+          <div class="admin-opt-text">
+            <strong>تسجيل مؤسسة جديدة</strong>
+            <span>انضم بمؤسستك للمنظومة</span>
+          </div>
+          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
+        </a>
+        <a href="/register/camp" class="admin-opt">
+          <div class="admin-opt-icon" style="background:#059669;">
+            <i class="fas fa-tent"></i>
+          </div>
+          <div class="admin-opt-text">
+            <strong>تسجيل مخيم / لجنة / عائلة</strong>
+            <span>سجّل جهتك بالمنظومة</span>
+          </div>
+          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL SCRIPTS ════ -->
+<script>
+// فتح modal تلقائياً من URL
+(function(){ const p=new URLSearchParams(location.search).get('open'); if(p){ const m=document.getElementById(p); if(m){m.classList.add('active');document.body.style.overflow='hidden';} history.replaceState({},'',location.pathname); } })();
+function openModal(id){ document.getElementById(id).classList.add('active'); document.body.style.overflow='hidden'; }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); document.body.style.overflow=''; }
+function closeOnBg(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active')); document.body.style.overflow=''; });
+
+function switchTab(modal, tab){
+  document.querySelectorAll(`#${modal}Modal .mtab`).forEach((t,i)=>{
+    t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1));
+  });
+  document.getElementById(`${modal}-login`) && (document.getElementById(`${modal}-login`).classList.toggle('active', tab==='login'));
+  document.getElementById(`${modal}-register`) && (document.getElementById(`${modal}-register`).classList.toggle('active', tab==='register'));
+}
+
+function setFlash(id, msg, type){
+  const el = document.getElementById(id);
+  el.className = 'mflash ' + type;
+  el.textContent = msg;
+}
+
+// OTP inputs auto-focus
+document.querySelectorAll('.otp-row').forEach(row => {
+  const inputs = row.querySelectorAll('input');
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '');
+      if(inp.value && i < inputs.length-1) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', e => {
+      if(e.key==='Backspace' && !inp.value && i>0) inputs[i-1].focus();
+    });
+  });
+});
+
+function getOTP(rowId){
+  return [...document.querySelectorAll(`#${rowId} input`)].map(i=>i.value).join('');
+}
+
+// === بوابة المستفيد ===
+async function benLogin(){
+  const id = document.getElementById('bl-id').value.trim();
+  const pw = document.getElementById('bl-pw').value.trim();
+  if(!id||!pw){ setFlash('ben-login-flash','يرجى تعبئة جميع الحقول','error'); return; }
+  const res = await fetch('/api/beneficiary/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({id_number:id, password:pw})
+  });
+  const data = await res.json();
+  if(data.ok){ window.location.href = '/beneficiary/portal'; }
+  else { setFlash('ben-login-flash', data.error||'بيانات غير صحيحة', 'error'); }
+}
+
+async function benSendOTP(){
+  const email = document.getElementById('br-email').value.trim();
+  const id    = document.getElementById('br-id').value.trim();
+  if(!email||!id){ setFlash('ben-reg-flash','يرجى إدخال البريد ورقم الهوية','error'); return; }
+  const res = await fetch('/api/beneficiary/send-otp', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, id_number:id})
+  });
+  const data = await res.json();
+  if(data.ok){
+    document.getElementById('breg-step1').style.display='none';
+    document.getElementById('breg-step2').style.display='block';
+    document.getElementById('br-email-display').textContent = email;
+    setFlash('ben-reg-flash','تم إرسال الرمز إلى بريدك الإلكتروني','success');
+  } else {
+    setFlash('ben-reg-flash', data.error||'حدث خطأ', 'error');
+  }
+}
+
+async function benVerifyOTP(){
+  const code = getOTP('br-otp-inputs');
+  const email = document.getElementById('br-email').value.trim();
+  if(code.length < 6){ setFlash('ben-reg-flash','أدخل الرمز كاملاً','error'); return; }
+  const res = await fetch('/api/beneficiary/verify-otp', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, code})
+  });
+  const data = await res.json();
+  if(data.ok){
+    document.getElementById('breg-step2').style.display='none';
+    document.getElementById('breg-step3').style.display='block';
+    setFlash('ben-reg-flash','تم التحقق! أكمل بياناتك','success');
+  } else {
+    setFlash('ben-reg-flash', data.error||'الرمز غير صحيح', 'error');
+  }
+}
+
+async function benCompleteReg(){
+  const name = document.getElementById('br-name').value.trim();
+  const phone= document.getElementById('br-phone').value.trim();
+  const pw   = document.getElementById('br-pw').value;
+  const pw2  = document.getElementById('br-pw2').value;
+  const email= document.getElementById('br-email').value.trim();
+  const id   = document.getElementById('br-id').value.trim();
+  if(!name||!pw){ setFlash('ben-reg-flash','يرجى تعبئة الاسم وكلمة المرور','error'); return; }
+  if(pw !== pw2){ setFlash('ben-reg-flash','كلمتا المرور غير متطابقتين','error'); return; }
+  const res = await fetch('/api/beneficiary/register', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, id_number:id, full_name:name, phone, password:pw})
+  });
+  const data = await res.json();
+  if(data.ok){
+    setFlash('ben-reg-flash','تم إنشاء حسابك بنجاح! جاري التحويل...','success');
+    setTimeout(()=>{ window.location.href='/beneficiary/portal'; }, 1500);
+  } else {
+    setFlash('ben-reg-flash', data.error||'حدث خطأ', 'error');
+  }
+}
+</script>
+</body>
+</html>

@@ -567,6 +567,7 @@ def init_camp_tables():
         ("beneficiaries", "governorate",       "TEXT"),
         ("beneficiaries", "family_last_name",  "TEXT"),
         ("beneficiaries", "self_reg_password", "TEXT"),
+        ("beneficiaries", "email",             "TEXT"),
     ]
     for table, col, defn in new_cols:
         try:

@@ -2,120 +2,178 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>بوابة المستفيد — ميزان مجد</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--teal-900:#0f3d2e;--teal-700:#1a6b3a;--teal-600:#2d8a50;--amber:#e8a020;--sand:#fafaf7;}
+:root{--teal-900:#0f3d2e;--teal-800:#14532d;--teal-700:#1a6b3a;--teal-600:#2d8a50;
+      --amber:#e8a020;--sand:#fafaf7;}
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
-body{background:var(--sand);display:flex;flex-direction:column;min-height:100vh;}
-.nav{background:rgba(250,250,247,.95);backdrop-filter:blur(12px);border-bottom:1px solid #e5e5d8;
-     padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+body{background:var(--sand);min-height:100vh;display:flex;flex-direction:column;}
+.nav{background:rgba(15,61,46,.97);padding:14px 24px;
+     display:flex;align-items:center;justify-content:space-between;
+     position:sticky;top:0;z-index:100;}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .brand-icon{width:36px;height:36px;background:var(--teal-600);border-radius:10px;
-            display:inline-flex;align-items:center;justify-content:center;color:var(--amber);}
-.brand-title{font-size:15px;font-weight:800;color:var(--teal-900);}
-.back-link{font-size:.85rem;color:var(--teal-700);text-decoration:none;}
-.container{max-width:680px;margin:32px auto;padding:0 20px 60px;width:100%;}
-.flash{padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:.88rem;}
-.flash.error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
-.flash.success{background:#d1fae5;color:#065f46;}
-.card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:20px;}
-.card-title{font-size:1rem;font-weight:700;color:var(--teal-900);margin-bottom:20px;
-            padding-bottom:12px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;gap:8px;}
-.info-row{display:flex;justify-content:space-between;padding:10px 0;
-          border-bottom:1px solid #f0f0e8;font-size:.88rem;}
-.info-row:last-child{border:none;}
-.info-label{color:#64748b;font-weight:600;}
-.info-val{font-weight:700;color:#1a1a2e;}
-.status-badge{padding:5px 14px;border-radius:999px;font-size:.8rem;font-weight:700;}
-.s-independent{background:#f1f5f9;color:#475569;}
-.s-pending{background:#fef3c7;color:#92400e;}
-.s-in_camp{background:#d1fae5;color:#065f46;}
-.form-group{margin-bottom:14px;}
-label{font-size:.82rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;}
-input{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
-      font-size:.88rem;font-family:inherit;transition:.15s;}
-input:focus{outline:none;border-color:var(--teal-600);}
-.btn{width:100%;padding:13px;background:var(--teal-700);color:#fff;border:none;
-     border-radius:12px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:6px;}
-.reg-link{text-align:center;margin-top:16px;font-size:.85rem;color:#64748b;}
-.reg-link a{color:var(--teal-700);font-weight:600;text-decoration:none;}
+            display:inline-flex;align-items:center;justify-content:center;}
+.brand-icon i{color:var(--amber);font-size:.95rem;}
+.brand-title{font-size:15px;font-weight:800;color:#fff;}
+.nav-actions{display:flex;align-items:center;gap:10px;}
+.nav-user{background:rgba(255,255,255,.12);color:#fff;padding:7px 14px;
+          border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;}
+.nav-logout{background:rgba(232,160,32,.2);color:var(--amber);padding:7px 14px;
+            border-radius:8px;font-size:.82rem;text-decoration:none;
+            display:flex;align-items:center;gap:6px;transition:.15s;}
+.nav-logout:hover{background:rgba(232,160,32,.35);}
+.hero-strip{background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
+            padding:28px 24px;text-align:center;color:#fff;}
+.hero-strip h1{font-size:1.3rem;font-weight:800;margin-bottom:6px;}
+.hero-strip p{font-size:.85rem;color:rgba(255,255,255,.75);}
+.container{max-width:720px;margin:28px auto;padding:0 20px 60px;width:100%;}
+.card{background:#fff;border-radius:16px;padding:24px;
+      box-shadow:0 2px 14px rgba(0,0,0,.07);margin-bottom:18px;}
+.card-title{font-size:.95rem;font-weight:700;color:var(--teal-900);
+            padding-bottom:12px;margin-bottom:16px;border-bottom:2px solid #f0f0e8;
+            display:flex;align-items:center;gap:8px;}
+.card-title i{color:var(--teal-600);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.info-row{display:flex;flex-direction:column;padding:10px 0;border-bottom:1px solid #f5f5ee;}
+.info-row:nth-child(odd){padding-left:16px;border-left:1px solid #f0f0e8;}
+.info-label{font-size:.75rem;color:#94a3b8;font-weight:600;margin-bottom:3px;}
+.info-val{font-size:.9rem;font-weight:700;color:#1e293b;}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.8rem;font-weight:700;}
+.badge-independent{background:#d1fae5;color:#065f46;}
+.badge-pending{background:#fef3c7;color:#92400e;}
+.badge-in_camp{background:#dbeafe;color:#1e40af;}
+.join-card{border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;border:1.5px solid;}
+.join-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;
+           justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0;}
+.join-info strong{display:block;font-size:.9rem;margin-bottom:3px;}
+.join-info span{font-size:.82rem;color:#64748b;}
+.empty-state{text-align:center;padding:28px 20px;}
+.empty-state i{font-size:2.5rem;color:#cbd5e1;margin-bottom:12px;display:block;}
+.empty-state p{font-size:.88rem;color:#94a3b8;line-height:1.7;}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal-700);
+           font-size:.85rem;text-decoration:none;margin-bottom:20px;transition:.15s;}
+.back-link:hover{color:var(--teal-900);}
 </style>
 </head>
 <body>
 <nav class="nav">
   <a href="/" class="brand">
     <div class="brand-icon"><i class="fas fa-balance-scale"></i></div>
-    <div><div class="brand-title">ميزان مجد</div></div>
+    <span class="brand-title">ميزان مجد</span>
   </a>
-  <a href="/" class="back-link"><i class="fas fa-arrow-right"></i> الرئيسية</a>
+  <div class="nav-actions">
+    <div class="nav-user"><i class="fas fa-user-circle"></i> {{ ben.full_name }}</div>
+    <a href="/beneficiary/logout" class="nav-logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
+  </div>
 </nav>
 
+<div class="hero-strip">
+  <h1><i class="fas fa-id-card" style="color:var(--amber);margin-left:8px;"></i> بوابتي كمستفيد</h1>
+  <p>عرض بياناتك وحالة ملفك في منظومة ميزان مجد</p>
+</div>
+
 <div class="container">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div class="flash {{ cat }}">{{ msg }}</div>
+  <a href="/" class="back-link"><i class="fas fa-arrow-right"></i> العودة للرئيسية</a>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in msgs %}
+    <div class="card" style="background:{% if cat=='error' %}#fee2e2{% else %}#d1fae5{% endif %};
+         color:{% if cat=='error' %}#991b1b{% else %}#065f46{% endif %};padding:12px 16px;">
+      <i class="fas fa-{% if cat=='error' %}exclamation-circle{% else %}check-circle{% endif %}"></i> {{ msg }}
+    </div>
     {% endfor %}
   {% endwith %}
 
-  {% if ben %}
   <div class="card">
-    <div class="card-title"><i class="fas fa-user-circle"></i> بياناتي الشخصية</div>
-    <div class="info-row"><span class="info-label">الاسم</span><span class="info-val">{{ ben.full_name }}</span></div>
-    <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-val">{{ ben.id_number or '—' }}</span></div>
-    <div class="info-row"><span class="info-label">الجوال</span><span class="info-val">{{ ben.phone or '—' }}</span></div>
-    <div class="info-row"><span class="info-label">العنوان</span><span class="info-val">{{ ben.address or '—' }}</span></div>
-    <div class="info-row">
-      <span class="info-label">الحالة</span>
-      <span class="status-badge s-{{ ben.beneficiary_status }}">
-        {% if ben.beneficiary_status == 'in_camp' %}داخل مخيم
-        {% elif ben.beneficiary_status == 'pending' %}طلب معلق
-        {% else %}مستفيد مستقل{% endif %}
-      </span>
+    <div class="card-title"><i class="fas fa-user"></i> البيانات الشخصية</div>
+    <div class="info-grid">
+      <div class="info-row">
+        <span class="info-label">الاسم الكامل</span>
+        <span class="info-val">{{ ben.full_name or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">رقم الهوية</span>
+        <span class="info-val">{{ ben.id_number or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">رقم الجوال</span>
+        <span class="info-val">{{ ben.phone or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">البريد الإلكتروني</span>
+        <span class="info-val" style="font-size:.82rem;">{{ ben.email or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">اسم العائلة</span>
+        <span class="info-val">{{ ben.family_last_name or '—' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">الحالة</span>
+        <span class="info-val">
+          {% if ben.beneficiary_status == 'in_camp' %}
+            <span class="badge badge-in_camp"><i class="fas fa-campground"></i> داخل مخيم</span>
+          {% elif ben.beneficiary_status == 'pending' %}
+            <span class="badge badge-pending"><i class="fas fa-clock"></i> طلب معلق</span>
+          {% else %}
+            <span class="badge badge-independent"><i class="fas fa-user-check"></i> مستفيد مستقل</span>
+          {% endif %}
+        </span>
+      </div>
+      {% if ben.address %}
+      <div class="info-row" style="grid-column:1/-1;">
+        <span class="info-label">العنوان</span>
+        <span class="info-val">{{ ben.address }}</span>
+      </div>
+      {% endif %}
     </div>
-    {% if ben.camp_name %}
-    <div class="info-row"><span class="info-label">المخيم</span><span class="info-val">{{ ben.camp_name }}</span></div>
-    {% endif %}
   </div>
-  {% if join_req %}
+
+  {% if ben.camp_name %}
   <div class="card">
-    <div class="card-title"><i class="fas fa-door-open"></i> طلب الانضمام للمخيم</div>
-    <div class="info-row">
-      <span class="info-label">المخيم</span>
-      <span class="info-val">{{ join_req.camp_name }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">الحالة</span>
-      <span class="status-badge s-{{ join_req.status }}">
-        {% if join_req.status=='approved' %}مقبول ✓
-        {% elif join_req.status=='rejected' %}مرفوض — سيُسجل كمستفيد مستقل
-        {% else %}قيد المراجعة…{% endif %}
-      </span>
+    <div class="card-title"><i class="fas fa-campground"></i> المخيم / اللجنة</div>
+    <div class="join-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#bbf7d0;">
+      <div class="join-icon" style="background:var(--teal-600);"><i class="fas fa-tent"></i></div>
+      <div class="join-info">
+        <strong style="color:var(--teal-900);">{{ ben.camp_name }}</strong>
+        <span>مسجل ضمن هذا المخيم</span>
+      </div>
     </div>
   </div>
   {% endif %}
-  <div style="text-align:center;margin-top:8px;">
-    <a href="/" style="color:var(--teal-700);font-size:.85rem;text-decoration:none;">
-      <i class="fas fa-arrow-right"></i> العودة للرئيسية
-    </a>
-  </div>
-  {% else %}
+
+  {% if join_req %}
   <div class="card">
-    <div class="card-title"><i class="fas fa-sign-in-alt"></i> دخول بوابة المستفيد</div>
-    <form method="POST">
-      <div class="form-group">
-        <label>رقم الهوية</label>
-        <input type="text" name="id_number" placeholder="9 أرقام" maxlength="9" required>
+    <div class="card-title"><i class="fas fa-door-open"></i> طلب الانضمام</div>
+    {% set sc = {'approved':'#bbf7d0','rejected':'#fca5a5','pending':'#fde68a'} %}
+    {% set bg = {'approved':'linear-gradient(135deg,#f0fdf4,#dcfce7)','rejected':'linear-gradient(135deg,#fff5f5,#fee2e2)','pending':'linear-gradient(135deg,#fffbeb,#fef3c7)'} %}
+    {% set ic = {'approved':teal_600,'rejected':'#dc2626','pending':'#d97706'} %}
+    <div class="join-card" style="background:{{ bg.get(join_req.status,'#fff') }};border-color:{{ sc.get(join_req.status,'#e2e8f0') }};">
+      <div class="join-icon" style="background:{% if join_req.status=='approved' %}var(--teal-600){% elif join_req.status=='rejected' %}#dc2626{% else %}#d97706{% endif %};">
+        <i class="fas fa-{% if join_req.status=='approved' %}check{% elif join_req.status=='rejected' %}times{% else %}clock{% endif %}"></i>
       </div>
-      <div class="form-group">
-        <label>كلمة المرور</label>
-        <input type="password" name="password" required>
+      <div class="join-info">
+        <strong style="color:var(--teal-900);">{{ join_req.camp_name }}</strong>
+        <span>
+          {% if join_req.status == 'approved' %}تم قبول طلبك ✓
+          {% elif join_req.status == 'rejected' %}تم رفض الطلب — أنت مسجل كمستفيد مستقل
+          {% else %}طلبك قيد المراجعة من إدارة المخيم…
+          {% endif %}
+        </span>
       </div>
-      <button type="submit" class="btn"><i class="fas fa-user-circle"></i> عرض بياناتي</button>
-    </form>
-    <div class="reg-link">
-      لم تسجل بعد؟ <a href="/register/beneficiary">سجّل الآن</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not ben.camp_name and not join_req %}
+  <div class="card">
+    <div class="card-title"><i class="fas fa-campground"></i> الانضمام لمخيم</div>
+    <div class="empty-state">
+      <i class="fas fa-tent"></i>
+      <p>لست مرتبطاً بأي مخيم حالياً.<br>تواصل مع مشرف المخيم للانضمام إليه.</p>
     </div>
   </div>
   {% endif %}
