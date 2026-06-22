@@ -4522,13 +4522,14 @@ def beneficiary_portal():
         conn.close()
         return redirect(url_for("home") + "?open=benModal")
     c.execute("""
-        SELECT cjr.status, ce.name as camp_name
+        SELECT cjr.id, cjr.status, cjr.created_at, ce.name as camp_name, ce.id as camp_entity_id
         FROM camp_join_requests cjr
         JOIN camp_entities ce ON cjr.camp_entity_id = ce.id
         WHERE cjr.beneficiary_id = ?
         ORDER BY cjr.id DESC LIMIT 1
     """, (ben["id"],))
-    join_req = c.fetchone()
+    join_req_row = c.fetchone()
+    join_req = dict(join_req_row) if join_req_row else None
     # بيانات الأسرة التفصيلية
     c.execute("SELECT * FROM beneficiary_spouse WHERE beneficiary_id=?", (ben["id"],))
     spouse = dict(c.fetchone()) if (r := c.fetchone() if False else None) is not None else (dict(c.fetchone()) if False else None)
@@ -4563,11 +4564,19 @@ def beneficiary_portal():
     except Exception:
         benefits = []
     conn.close()
+    # قائمة المخيمات واللجان النشطة
+    c2 = get_connection().cursor()
+    c2.execute("""SELECT id, name, entity_type, governorate, city
+                  FROM camp_entities WHERE is_active=1 ORDER BY entity_type, name""")
+    all_entities = [dict(r) for r in c2.fetchall()]
+    camps       = [e for e in all_entities if e['entity_type'] == 'camp']
+    committees  = [e for e in all_entities if e['entity_type'] != 'camp']
     return render_template("beneficiary_portal.html",
                            ben=dict(ben), join_req=join_req, benefits=benefits,
                            spouse=spouse, children=children, health=health,
                            widowed_info=widowed_info, orphans=orphans,
-                           dependents=dependents)
+                           dependents=dependents,
+                           camps=camps, committees=committees)
 
 
 @app.route("/beneficiary/logout")
@@ -4680,6 +4689,90 @@ def api_ben_update_family():
 
     conn.commit(); conn.close()
     return jsonify({"ok": True})
+
+
+# ── تحديث انتماء المستفيد ──
+@app.route("/api/beneficiary/update-affiliation", methods=["POST"])
+def api_ben_update_affiliation():
+    """
+    status=independent : يحدّث الحالة فقط (بدون مخيم)
+    status=in_shelter  : يحدّث الحالة + اسم الإيواء
+    status=in_camp     : يُنشئ طلب انضمام للمخيم — الربط الفعلي يتم بعد موافقة الإدارة
+    """
+    import datetime
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data        = request.get_json(force=True) or {}
+    status      = data.get("status", "independent")
+    entity_id   = data.get("entity_id")
+    manual_name = (data.get("manual_name") or "").strip()
+
+    conn = get_connection(); c = conn.cursor()
+
+    if status == "in_camp" and entity_id:
+        # تحقق أن المخيم موجود ونشط
+        c.execute("SELECT id, name FROM camp_entities WHERE id=? AND is_active=1", (entity_id,))
+        camp = c.fetchone()
+        if not camp:
+            conn.close()
+            return jsonify({"ok": False, "error": "المخيم غير موجود"})
+        # تحقق إن كان هناك طلب معلق مسبقاً
+        c.execute("""SELECT id, status FROM camp_join_requests
+                     WHERE beneficiary_id=? AND camp_entity_id=?
+                     ORDER BY id DESC LIMIT 1""", (ben_id, entity_id))
+        existing = c.fetchone()
+        if existing and existing["status"] == "pending":
+            conn.close()
+            return jsonify({"ok": False, "error": "طلب انضمام لهذا المخيم قيد الانتظار بالفعل"})
+        if existing and existing["status"] == "approved":
+            conn.close()
+            return jsonify({"ok": False, "error": "أنت مقبول في هذا المخيم بالفعل"})
+        # أنشئ طلب انضمام جديد
+        c.execute("""INSERT INTO camp_join_requests (beneficiary_id, camp_entity_id, status, created_at)
+                     VALUES (?, ?, 'pending', ?)""",
+                  (ben_id, entity_id, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        # حدّث حالة المستفيد للإشارة أن هناك طلب معلق
+        c.execute("UPDATE beneficiaries SET beneficiary_status='pending_camp', camp_name=? WHERE id=?",
+                  (camp["name"], ben_id))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True, "msg": f"تم إرسال طلب الانضمام لـ {camp['name']} — بانتظار موافقة إدارة المخيم"})
+
+    elif status == "in_camp" and manual_name:
+        # ابحث عن مخيم بنفس الاسم تلقائياً
+        c.execute("SELECT id,name FROM camp_entities WHERE name=? AND is_active=1", (manual_name,))
+        found = c.fetchone()
+        if found:
+            c.execute("SELECT id,status FROM camp_join_requests WHERE beneficiary_id=? AND camp_entity_id=? ORDER BY id DESC LIMIT 1",
+                      (ben_id, found["id"]))
+            existing = c.fetchone()
+            if not existing or existing["status"] == "rejected":
+                c.execute("""INSERT INTO camp_join_requests (beneficiary_id,camp_entity_id,status,created_at)
+                             VALUES (?,?,'pending',?)""",
+                          (ben_id, found["id"], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            c.execute("UPDATE beneficiaries SET beneficiary_status='pending_camp', camp_name=? WHERE id=?",
+                      (found["name"], ben_id))
+            conn.commit(); conn.close()
+            return jsonify({"ok": True, "msg": f"تم ربط طلبك بمخيم {found['name']} — بانتظار موافقة الإدارة"})
+        else:
+            # مخيم غير مسجل — احفظ الاسم فقط
+            c.execute("UPDATE beneficiaries SET beneficiary_status='in_camp', camp_entity_id=NULL, camp_name=? WHERE id=?",
+                      (manual_name, ben_id))
+            conn.commit(); conn.close()
+            return jsonify({"ok": True, "msg": "تم حفظ اسم المخيم — لم يُعثر على مخيم مسجل بهذا الاسم"})
+
+    elif status == "in_shelter":
+        shelter_name = (data.get("shelter_name") or manual_name or "").strip()
+        c.execute("UPDATE beneficiaries SET beneficiary_status='in_shelter', camp_entity_id=NULL, camp_name=? WHERE id=?",
+                  (shelter_name, ben_id))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True})
+
+    else:  # independent
+        c.execute("UPDATE beneficiaries SET beneficiary_status='independent', camp_entity_id=NULL, camp_name=NULL WHERE id=?",
+                  (ben_id,))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True})
 
 
 # ── رفع الصورة الشخصية للمستفيد ──
