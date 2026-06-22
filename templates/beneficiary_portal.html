@@ -72,8 +72,8 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
                 box-shadow:0 4px 14px rgba(45,138,80,.4);transform:translateY(-2px);}
 .tab-btn i{transition:transform .25s;}
 .tab-btn.active i{transform:scale(1.15);}
-.page-body{max-width:960px;margin:0 auto;padding:0 20px 80px;}
-.tab-pane{display:none;animation:fadeUp .3s ease;}
+.page-body{max-width:960px;margin:0 auto;padding:0;}
+.tab-pane{display:none;}
 .tab-pane.active{display:block;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .card{background:#fff;border-radius:18px;box-shadow:0 2px 16px rgba(0,0,0,.07);
@@ -258,7 +258,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 <div class="page-body" style="margin-top:0;">
 
 <!-- ═══ البيانات الشخصية ═══ -->
-<div id="tab-personal" class="tab-pane active">
+<div id="tab-personal" class="tab-pane active" style="padding:0 20px 80px;">
   <div class="card">
     <div class="card-head">
       <div class="card-head-left">
@@ -609,7 +609,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 </div><!-- end tab-personal -->
 
 <!-- ═══ كشف الاستفادة ═══ -->
-<div id="tab-benefits" class="tab-pane" style="padding-top:0;margin-top:0;">
+<div id="tab-benefits" class="tab-pane" style="padding:0 20px 80px;">
 <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start;">
 
   <!-- ── عمود الكشف ── -->
