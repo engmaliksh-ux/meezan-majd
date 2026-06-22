@@ -1073,7 +1073,41 @@ function getOTP(rowId){
           <div class="info-item"><span class="info-lbl">حالة الحساب</span><span class="badge badge-yes"><i class="fas fa-check-circle"></i> نشط</span></div>
           <div class="info-item"><span class="info-lbl">نوع الحساب</span><span class="info-val">مستفيد ذاتي</span></div>
           <div class="info-item"><span class="info-lbl">الانتماء</span><span class="info-val {% if not ben.camp_name %}muted{% endif %}">{{ ben.camp_name or 'مستقل' }}</span></div>
-          <div class="info-item"><span class="info-lbl">البريد الإلكتروني</span><span class="info-val {% if not ben.email %}muted{% endif %}" dir="ltr">{{ ben.email or 'غير محدد' }}</span></div>
+          <div class="info-item">
+            <span class="info-lbl">البريد الإلكتروني</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="info-val {% if not ben.email %}muted{% endif %}" dir="ltr" id="email-display">{{ ben.email or 'غير محدد' }}</span>
+              <button class="btn-edit" style="padding:4px 10px;font-size:.72rem;" onclick="document.getElementById('email-view').style.display='none';document.getElementById('email-step1').style.display='block';this.style.display='none'">
+                <i class="fas fa-pen"></i>
+              </button>
+            </div>
+          </div>
+          <!-- نموذج تغيير البريد (مدمج) -->
+          <div id="email-view" style="display:none;"></div>
+          <div id="email-step1" style="display:none;padding-top:10px;">
+            <div class="fg" style="margin-bottom:10px;"><label>البريد الجديد</label><input type="email" id="em-new" dir="ltr" placeholder="example@mail.com" value="{{ ben.email or '' }}"></div>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn-cancel" style="padding:7px 14px;font-size:.82rem;"
+                onclick="document.getElementById('email-step1').style.display='none';document.querySelector('.btn-edit[onclick*=email-step1]').style.display=''">إلغاء</button>
+              <button class="btn-save" style="padding:7px 14px;font-size:.82rem;" onclick="requestEmailChange()"><i class="fas fa-paper-plane"></i> إرسال رمز</button>
+            </div>
+          </div>
+          <div id="email-step2" style="display:none;padding-top:10px;">
+            <p style="font-size:.8rem;color:var(--ink-6);margin-bottom:10px;text-align:center;">رمز التحقق أُرسل إلى <strong id="em-sent-to"></strong></p>
+            <div class="otp-row" id="em-otp-inputs">
+              <input type="text" maxlength="1" inputmode="numeric">
+              <input type="text" maxlength="1" inputmode="numeric">
+              <input type="text" maxlength="1" inputmode="numeric">
+              <input type="text" maxlength="1" inputmode="numeric">
+              <input type="text" maxlength="1" inputmode="numeric">
+              <input type="text" maxlength="1" inputmode="numeric">
+            </div>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn-cancel" style="padding:7px 14px;font-size:.82rem;"
+                onclick="document.getElementById('email-step1').style.display='block';document.getElementById('email-step2').style.display='none'">رجوع</button>
+              <button class="btn-save" style="padding:7px 14px;font-size:.82rem;" onclick="confirmEmailChange()"><i class="fas fa-check"></i> تأكيد</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1100,37 +1134,7 @@ function getOTP(rowId){
       </div>
 
       <!-- تغيير البريد الإلكتروني -->
-      <div class="acc-section">
-        <div class="acc-section-title"><i class="fas fa-envelope"></i> البريد الإلكتروني</div>
-        <div id="email-view" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <span style="font-size:.85rem;color:var(--ink-6);direction:ltr;">{{ ben.email or 'لم يُضف بعد' }}</span>
-          <button class="btn-edit" onclick="document.getElementById('email-view').style.display='none';document.getElementById('email-step1').style.display='block'">
-            <i class="fas fa-pen"></i> تغيير
-          </button>
-        </div>
-        <div id="email-step1" style="display:none;">
-          <div class="fg" style="margin-bottom:12px;"><label>البريد الإلكتروني الجديد</label><input type="email" id="em-new" dir="ltr" placeholder="example@mail.com" value="{{ ben.email or '' }}"></div>
-          <div class="btn-row">
-            <button class="btn-cancel" onclick="document.getElementById('email-view').style.display='flex';document.getElementById('email-step1').style.display='none'">إلغاء</button>
-            <button class="btn-save" onclick="requestEmailChange()"><i class="fas fa-paper-plane"></i> إرسال رمز</button>
-          </div>
-        </div>
-        <div id="email-step2" style="display:none;">
-          <p style="font-size:.83rem;color:var(--ink-6);margin-bottom:12px;text-align:center;">أدخل الرمز المرسل لـ <strong id="em-sent-to"></strong></p>
-          <div class="otp-row" id="em-otp-inputs">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-          </div>
-          <div class="btn-row">
-            <button class="btn-cancel" onclick="document.getElementById('email-step1').style.display='block';document.getElementById('email-step2').style.display='none'">رجوع</button>
-            <button class="btn-save" onclick="confirmEmailChange()"><i class="fas fa-check"></i> تأكيد</button>
-          </div>
-        </div>
-      </div>
+
 
     </div>
   </div>
