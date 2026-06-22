@@ -4529,6 +4529,24 @@ def beneficiary_portal():
         ORDER BY cjr.id DESC LIMIT 1
     """, (ben["id"],))
     join_req = c.fetchone()
+    # بيانات الأسرة التفصيلية
+    c.execute("SELECT * FROM beneficiary_spouse WHERE beneficiary_id=?", (ben["id"],))
+    spouse = dict(c.fetchone()) if (r := c.fetchone() if False else None) is not None else (dict(c.fetchone()) if False else None)
+    # إعادة استعلام صحيح
+    c.execute("SELECT * FROM beneficiary_spouse WHERE beneficiary_id=?", (ben["id"],))
+    row = c.fetchone()
+    spouse = dict(row) if row else {}
+    c.execute("SELECT * FROM beneficiary_children WHERE beneficiary_id=? ORDER BY sort_order", (ben["id"],))
+    children = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM beneficiary_health WHERE beneficiary_id=?", (ben["id"],))
+    health = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM beneficiary_widowed WHERE beneficiary_id=?", (ben["id"],))
+    row = c.fetchone(); widowed_info = dict(row) if row else {}
+    c.execute("SELECT * FROM beneficiary_orphans WHERE beneficiary_id=?", (ben["id"],))
+    orphans = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM beneficiary_dependents WHERE beneficiary_id=?", (ben["id"],))
+    dependents = [dict(r) for r in c.fetchall()]
+
     # كشف الاستفادة
     try:
         c.execute("""
@@ -4546,7 +4564,10 @@ def beneficiary_portal():
         benefits = []
     conn.close()
     return render_template("beneficiary_portal.html",
-                           ben=dict(ben), join_req=join_req, benefits=benefits)
+                           ben=dict(ben), join_req=join_req, benefits=benefits,
+                           spouse=spouse, children=children, health=health,
+                           widowed_info=widowed_info, orphans=orphans,
+                           dependents=dependents)
 
 
 @app.route("/beneficiary/logout")
@@ -4583,28 +4604,102 @@ def api_ben_update_profile():
     return jsonify({"ok": True})
 
 
-# ── تحديث بيانات الأسرة ──
+# ── تحديث بيانات الأسرة الكاملة ──
 @app.route("/api/beneficiary/update-family", methods=["POST"])
 def api_ben_update_family():
+    import os
     ben_id = session.get("beneficiary_id")
     if not ben_id:
         return jsonify({"ok": False, "error": "غير مصرح"}), 401
-    data = request.get_json(force=True) or {}
-    conn = get_connection(); c = conn.cursor()
-    c.execute("""UPDATE beneficiaries
-                 SET marital_status=?, family_size=?, children_count=?,
-                     wife_pregnant=?, wife_nursing=?, has_orphans=?, orphans_count=?
-                 WHERE id=? AND self_registered=1""",
-              (data.get("marital_status",""),
-               int(data.get("family_size",1) or 1),
-               int(data.get("children_count",0) or 0),
-               1 if data.get("wife_pregnant") else 0,
-               1 if data.get("wife_nursing") else 0,
-               1 if data.get("has_orphans") else 0,
-               int(data.get("orphans_count",0) or 0),
-               ben_id))
+    data   = request.get_json(force=True) or {}
+    marital= data.get("marital_status", "")
+    conn   = get_connection(); c = conn.cursor()
+
+    # تحديث عدد الأبناء وحجم الأسرة
+    children_count = int(data.get("children_count", 0) or 0)
+    family_size    = int(data.get("family_size", 1) or 1)
+    c.execute("UPDATE beneficiaries SET marital_status=?, family_size=?, children_count=? WHERE id=?",
+              (marital, family_size, children_count, ben_id))
+
+    # ── بيانات الزوجة (للمتزوج) ──
+    if marital == "married":
+        sp = data.get("spouse", {})
+        pregnant = 1 if sp.get("pregnant") else 0
+        nursing  = 1 if sp.get("nursing")  else 0
+        c.execute("UPDATE beneficiaries SET wife_pregnant=?, wife_nursing=? WHERE id=?",
+                  (pregnant, nursing, ben_id))
+        c.execute("""INSERT INTO beneficiary_spouse
+                     (beneficiary_id,full_name,id_number,birth_date,marriage_date,pregnant,nursing)
+                     VALUES (?,?,?,?,?,?,?)
+                     ON CONFLICT(beneficiary_id) DO UPDATE SET
+                     full_name=excluded.full_name, id_number=excluded.id_number,
+                     birth_date=excluded.birth_date, marriage_date=excluded.marriage_date,
+                     pregnant=excluded.pregnant, nursing=excluded.nursing""",
+                  (ben_id, sp.get("full_name",""), sp.get("id_number",""),
+                   sp.get("birth_date",""), sp.get("marriage_date",""), pregnant, nursing))
+
+    # ── الأبناء ──
+    children = data.get("children", [])
+    if children:
+        c.execute("DELETE FROM beneficiary_children WHERE beneficiary_id=?", (ben_id,))
+        for i, ch in enumerate(children):
+            c.execute("INSERT INTO beneficiary_children (beneficiary_id,full_name,birth_date,sort_order) VALUES (?,?,?,?)",
+                      (ben_id, ch.get("full_name",""), ch.get("birth_date",""), i))
+
+    # ── الحالة الصحية ──
+    health_list = data.get("health", [])
+    if health_list:
+        c.execute("DELETE FROM beneficiary_health WHERE beneficiary_id=?", (ben_id,))
+        for h in health_list:
+            c.execute("INSERT INTO beneficiary_health (beneficiary_id,condition_type,notes,condition_date) VALUES (?,?,?,?)",
+                      (ben_id, h.get("condition_type",""), h.get("notes",""), h.get("condition_date","")))
+
+    # ── بيانات الأرمل ──
+    if marital in ("widowed",):
+        wd = data.get("widowed", {})
+        c.execute("""INSERT INTO beneficiary_widowed (beneficiary_id,death_type,death_date)
+                     VALUES (?,?,?)
+                     ON CONFLICT(beneficiary_id) DO UPDATE SET
+                     death_type=excluded.death_type, death_date=excluded.death_date""",
+                  (ben_id, wd.get("death_type",""), wd.get("death_date","")))
+        # أيتام
+        orphans = data.get("orphans", [])
+        if orphans:
+            c.execute("DELETE FROM beneficiary_orphans WHERE beneficiary_id=?", (ben_id,))
+            for o in orphans:
+                c.execute("INSERT INTO beneficiary_orphans (beneficiary_id,full_name,martyrdom_date) VALUES (?,?,?)",
+                          (ben_id, o.get("full_name",""), o.get("martyrdom_date","")))
+
+    # ── من يعيلهم (أعزب/أرمل) ──
+    if marital in ("single", "widowed"):
+        dependents = data.get("dependents", [])
+        c.execute("DELETE FROM beneficiary_dependents WHERE beneficiary_id=?", (ben_id,))
+        for dep in dependents:
+            c.execute("INSERT INTO beneficiary_dependents (beneficiary_id,full_name,birth_date) VALUES (?,?,?)",
+                      (ben_id, dep.get("full_name",""), dep.get("birth_date","")))
+
     conn.commit(); conn.close()
     return jsonify({"ok": True})
+
+
+# ── رفع مرفقات صحية أو أيتام ──
+@app.route("/api/beneficiary/upload-doc", methods=["POST"])
+def api_ben_upload_doc():
+    import os, uuid as uuid_lib
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "error": "لا يوجد ملف"})
+    ext  = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.jpg','.jpeg','.png','.pdf'):
+        return jsonify({"ok": False, "error": "صيغة غير مدعومة"})
+    fname    = f"{ben_id}_{uuid_lib.uuid4().hex[:8]}{ext}"
+    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "docs")
+    os.makedirs(save_dir, exist_ok=True)
+    f.save(os.path.join(save_dir, fname))
+    return jsonify({"ok": True, "path": f"/static/uploads/docs/{fname}"})
 
 
 # ── تغيير كلمة المرور ──

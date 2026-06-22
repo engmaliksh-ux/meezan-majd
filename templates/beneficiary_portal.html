@@ -322,61 +322,205 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
     <div class="card-head">
       <div class="card-head-left">
         <div class="card-head-icon"><i class="fas fa-users"></i></div>
-        <div><h3>معلومات الأسرة</h3><p>الحالة الاجتماعية وتفاصيل الأسرة</p></div>
+        <div><h3>بيانات الأسرة</h3>
+          <p>الحالة: <strong id="family-status-lbl">{% if ben.marital_status=='married' %}متزوج{% elif ben.marital_status=='single' %}أعزب{% elif ben.marital_status=='divorced' %}مطلق{% elif ben.marital_status=='widowed' %}أرمل{% else %}غير محدد{% endif %}</strong></p>
+        </div>
       </div>
-      <button class="btn-edit" onclick="toggleEdit('family')"><i class="fas fa-pen"></i> تعديل</button>
     </div>
     <div class="card-body">
       <div id="flash-family" class="flash"></div>
-      <div id="view-family" class="view-mode">
-        <div class="info-list">
-          <div class="info-item"><span class="info-lbl">الحالة الاجتماعية</span>
-            <span class="info-val">{% if ben.marital_status=='married' %}متزوج{% elif ben.marital_status=='single' %}أعزب{% elif ben.marital_status=='divorced' %}مطلق{% elif ben.marital_status=='widowed' %}أرمل{% else %}{{ ben.marital_status or '—' }}{% endif %}</span>
+
+      <!-- عرض -->
+      <div id="view-family">
+        {% if ben.marital_status == 'married' and spouse %}
+        <div style="background:var(--sand-100);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:.78rem;font-weight:700;color:var(--teal-700);margin-bottom:8px;"><i class="fas fa-heart"></i> بيانات الزوجة</div>
+          <div class="info-list">
+            <div class="info-item"><span class="info-lbl">الاسم</span><span class="info-val">{{ spouse.full_name or '—' }}</span></div>
+            <div class="info-item"><span class="info-lbl">رقم الهوية</span><span class="info-val" dir="ltr">{{ spouse.id_number or '—' }}</span></div>
+            <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val">{{ spouse.birth_date or '—' }}</span></div>
+            <div class="info-item"><span class="info-lbl">تاريخ الزواج</span><span class="info-val">{{ spouse.marriage_date or '—' }}</span></div>
+            <div class="info-item"><span class="info-lbl">حامل</span><span class="badge {% if spouse.pregnant %}badge-yes{% else %}badge-no{% endif %}">{% if spouse.pregnant %}نعم{% else %}لا{% endif %}</span></div>
+            <div class="info-item"><span class="info-lbl">مرضعة</span><span class="badge {% if spouse.nursing %}badge-yes{% else %}badge-no{% endif %}">{% if spouse.nursing %}نعم{% else %}لا{% endif %}</span></div>
           </div>
-          <div class="info-item"><span class="info-lbl">حجم الأسرة</span><span class="info-val">{{ ben.family_size or 1 }} فرد</span></div>
-          <div class="info-item"><span class="info-lbl">عدد الأبناء</span><span class="info-val">{{ ben.children_count or 0 }}</span></div>
-          <div class="info-item"><span class="info-lbl">زوجة حامل</span>
-            <span class="badge {% if ben.wife_pregnant %}badge-yes{% else %}badge-no{% endif %}">{% if ben.wife_pregnant %}<i class="fas fa-check"></i> نعم{% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
-          </div>
-          <div class="info-item"><span class="info-lbl">زوجة مرضعة</span>
-            <span class="badge {% if ben.wife_nursing %}badge-yes{% else %}badge-no{% endif %}">{% if ben.wife_nursing %}<i class="fas fa-check"></i> نعم{% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
-          </div>
-          <div class="info-item"><span class="info-lbl">يُعيل أيتاماً</span>
-            <span class="badge {% if ben.has_orphans %}badge-yes{% else %}badge-no{% endif %}">{% if ben.has_orphans %}<i class="fas fa-check"></i> نعم ({{ ben.orphans_count }}){% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
-          </div>
+        </div>
+        {% endif %}
+        {% if children %}
+        <div style="background:var(--sand-100);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:.78rem;font-weight:700;color:var(--teal-700);margin-bottom:8px;"><i class="fas fa-child"></i> الأبناء ({{ children|length }})</div>
+          {% for ch in children %}<div class="info-item"><span class="info-lbl">{{ loop.index }}. {{ ch.full_name }}</span><span class="info-val">{{ ch.birth_date or '—' }}</span></div>{% endfor %}
+        </div>
+        {% endif %}
+        {% if ben.marital_status == 'widowed' and widowed_info %}
+        <div style="background:#fff7ed;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #fed7aa;">
+          <div style="font-size:.78rem;font-weight:700;color:#c2410c;margin-bottom:8px;"><i class="fas fa-info-circle"></i> حالة الوفاة</div>
+          <div class="info-item"><span class="info-lbl">النوع</span><span class="info-val">{% if widowed_info.death_type=='deceased' %}متوفي{% elif widowed_info.death_type=='martyr_post_oct7' %}شهيد بعد 7/أكتوبر{% elif widowed_info.death_type=='martyr_pre_oct7' %}شهيد قبل 7/أكتوبر{% else %}—{% endif %}</span></div>
+          {% if widowed_info.death_date %}<div class="info-item"><span class="info-lbl">التاريخ</span><span class="info-val">{{ widowed_info.death_date }}</span></div>{% endif %}
+        </div>
+        {% endif %}
+        {% if orphans %}
+        <div style="background:#fef2f2;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #fecaca;">
+          <div style="font-size:.78rem;font-weight:700;color:#b91c1c;margin-bottom:8px;"><i class="fas fa-child"></i> الأيتام ({{ orphans|length }})</div>
+          {% for o in orphans %}<div class="info-item"><span class="info-lbl">{{ loop.index }}. {{ o.full_name }}</span><span class="info-val">{{ o.martyrdom_date or '—' }}</span></div>{% endfor %}
+        </div>
+        {% endif %}
+        {% if health %}
+        <div style="background:#fef2f2;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #fecaca;">
+          <div style="font-size:.78rem;font-weight:700;color:#b91c1c;margin-bottom:8px;"><i class="fas fa-heartbeat"></i> الحالة الصحية</div>
+          {% for h in health %}
+          <div class="info-item"><span class="info-lbl">{{ {'chronic':'مرض مزمن','war_injury':'إصابة حرب','pre_war':'إصابة قبل الحرب','non_chronic':'مرض غير مزمن'}.get(h.condition_type, h.condition_type) }}</span><span class="info-val">{{ h.condition_date or '—' }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if dependents %}
+        <div style="background:var(--sand-100);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:.78rem;font-weight:700;color:var(--teal-700);margin-bottom:8px;"><i class="fas fa-hands-helping"></i> من يعيلهم</div>
+          {% for d in dependents %}<div class="info-item"><span class="info-lbl">{{ d.full_name }}</span><span class="info-val">{{ d.birth_date or '—' }}</span></div>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn-save" onclick="openFamilyEdit()" style="background:var(--sand-100);color:var(--teal-700);border:1.5px solid var(--sand-200);">
+            <i class="fas fa-pen"></i> تحديث بيانات الأسرة
+          </button>
         </div>
       </div>
-      <div id="edit-family" class="edit-mode">
-        <div class="form-grid">
-          <div class="fg"><label>الحالة الاجتماعية</label>
-            <select id="f-marital">
-              <option value="married" {% if ben.marital_status=='married' %}selected{% endif %}>متزوج</option>
-              <option value="single" {% if ben.marital_status=='single' %}selected{% endif %}>أعزب</option>
-              <option value="divorced" {% if ben.marital_status=='divorced' %}selected{% endif %}>مطلق</option>
-              <option value="widowed" {% if ben.marital_status=='widowed' %}selected{% endif %}>أرمل</option>
+
+      <!-- نموذج التعديل -->
+      <div id="edit-family" style="display:none;">
+        <div class="fg" style="margin-bottom:16px;">
+          <label>حجم الأسرة (إجمالي)</label>
+          <input type="number" id="f-size" value="{{ ben.family_size or 1 }}" min="1" max="30" style="max-width:120px;">
+        </div>
+
+        <!-- ══ زوجة (متزوج) ══ -->
+        <div id="sec-married" style="display:{% if ben.marital_status=='married' %}block{% else %}none{% endif %};">
+          <div style="font-size:.82rem;font-weight:700;color:var(--teal-700);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--sand-200);"><i class="fas fa-heart"></i> بيانات الزوجة</div>
+          <div class="form-grid">
+            <div class="fg"><label>الاسم الرباعي</label><input type="text" id="sp-name" value="{{ spouse.full_name or '' }}" placeholder="اسم الزوجة رباعياً"></div>
+            <div class="fg"><label>رقم الهوية</label><input type="text" id="sp-id" value="{{ spouse.id_number or '' }}" dir="ltr"></div>
+            <div class="fg"><label>تاريخ الميلاد</label><input type="date" id="sp-birth" value="{{ spouse.birth_date or '' }}"></div>
+            <div class="fg"><label>تاريخ الزواج</label><input type="date" id="sp-marriage" value="{{ spouse.marriage_date or '' }}"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <label class="toggle-row"><div class="toggle-lbl"><strong>حامل</strong></div>
+              <label class="sw"><input type="checkbox" id="sp-pregnant" {% if spouse.pregnant %}checked{% endif %}><span class="sw-slider"></span></label></label>
+            <label class="toggle-row"><div class="toggle-lbl"><strong>مرضعة</strong></div>
+              <label class="sw"><input type="checkbox" id="sp-nursing" {% if spouse.nursing %}checked{% endif %}><span class="sw-slider"></span></label></label>
+          </div>
+        </div>
+
+        <!-- ══ الأبناء ══ -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--sand-200);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="font-size:.82rem;font-weight:700;color:var(--teal-700);"><i class="fas fa-child"></i> الأبناء</span>
+            <button type="button" onclick="addChild()" class="btn-edit" style="padding:5px 12px;font-size:.78rem;">+ إضافة</button>
+          </div>
+          <div id="children-list">
+            {% for ch in children %}
+            <div class="child-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:flex-end;">
+              <div class="fg"><label>الاسم</label><input type="text" class="ch-name" value="{{ ch.full_name or '' }}"></div>
+              <div class="fg"><label>تاريخ الميلاد</label><input type="date" class="ch-birth" value="{{ ch.birth_date or '' }}"></div>
+              <button type="button" onclick="this.closest('.child-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:10px;cursor:pointer;color:#ef4444;height:42px;align-self:flex-end;"><i class="fas fa-times"></i></button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- ══ أرمل ══ -->
+        <div id="sec-widowed" style="display:{% if ben.marital_status=='widowed' %}block{% else %}none{% endif %};margin-top:18px;padding-top:14px;border-top:1px solid var(--sand-200);">
+          <div style="font-size:.82rem;font-weight:700;color:#b91c1c;margin-bottom:10px;"><i class="fas fa-info-circle"></i> حالة الوفاة</div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label>نوع الوفاة</label>
+            <select id="wd-type" onchange="onDeathTypeChange()">
+              <option value="">اختر</option>
+              <option value="deceased" {% if widowed_info.death_type=='deceased' %}selected{% endif %}>متوفي</option>
+              <option value="martyr_post_oct7" {% if widowed_info.death_type=='martyr_post_oct7' %}selected{% endif %}>شهيد حرب بعد 7/أكتوبر</option>
+              <option value="martyr_pre_oct7" {% if widowed_info.death_type=='martyr_pre_oct7' %}selected{% endif %}>شهيد قبل 7/أكتوبر</option>
             </select>
           </div>
-          <div class="fg"><label>حجم الأسرة</label><input type="number" id="f-size" value="{{ ben.family_size or 1 }}" min="1" max="30"></div>
-          <div class="fg"><label>عدد الأبناء</label><input type="number" id="f-children" value="{{ ben.children_count or 0 }}" min="0" max="30"></div>
-          <div class="fg"><label>عدد الأيتام</label><input type="number" id="f-orphans" value="{{ ben.orphans_count or 0 }}" min="0" max="30"></div>
+          <div id="wd-date-row" style="display:{% if widowed_info.death_type=='deceased' %}block{% else %}none{% endif %};">
+            <div class="fg"><label>تاريخ الوفاة</label><input type="date" id="wd-date" value="{{ widowed_info.death_date or '' }}"></div>
+          </div>
+          <div id="sec-orphans" style="display:{% if widowed_info.death_type in ['martyr_post_oct7','martyr_pre_oct7'] %}block{% else %}none{% endif %};margin-top:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:.8rem;font-weight:700;color:#b91c1c;"><i class="fas fa-child"></i> الأيتام</span>
+              <button type="button" onclick="addOrphan()" class="btn-edit" style="padding:5px 12px;font-size:.78rem;">+ إضافة</button>
+            </div>
+            <div id="orphans-list">
+              {% for o in orphans %}
+              <div class="orphan-row" style="background:var(--sand-100);border-radius:10px;padding:12px;margin-bottom:8px;">
+                <div class="form-grid">
+                  <div class="fg"><label>الاسم الرباعي</label><input type="text" class="or-name" value="{{ o.full_name or '' }}"></div>
+                  <div class="fg"><label>تاريخ الاستشهاد</label><input type="date" class="or-date" value="{{ o.martyrdom_date or '' }}"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;">
+                  <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>شهادة الميلاد<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'birth_cert',this.closest('.orphan-row'))"></label>
+                  <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>وفاة الأب/الأم<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'death_cert',this.closest('.orphan-row'))"></label>
+                  <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>وكالة/وصاية<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'custody',this.closest('.orphan-row'))"></label>
+                </div>
+                <button type="button" onclick="this.closest('.orphan-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;margin-top:8px;cursor:pointer;color:#ef4444;font-size:.78rem;"><i class="fas fa-times"></i> حذف</button>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
-        <div style="margin-top:16px;">
-          <label class="toggle-row">
-            <div class="toggle-lbl"><strong>زوجة حامل</strong></div>
-            <label class="sw"><input type="checkbox" id="f-pregnant" {% if ben.wife_pregnant %}checked{% endif %}><span class="sw-slider"></span></label>
-          </label>
-          <label class="toggle-row">
-            <div class="toggle-lbl"><strong>زوجة مرضعة</strong></div>
-            <label class="sw"><input type="checkbox" id="f-nursing" {% if ben.wife_nursing %}checked{% endif %}><span class="sw-slider"></span></label>
-          </label>
-          <label class="toggle-row">
-            <div class="toggle-lbl"><strong>يُعيل أيتاماً</strong></div>
-            <label class="sw"><input type="checkbox" id="f-orphans-chk" {% if ben.has_orphans %}checked{% endif %}><span class="sw-slider"></span></label>
-          </label>
+
+        <!-- ══ الصحة ══ -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--sand-200);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="font-size:.82rem;font-weight:700;color:#b91c1c;"><i class="fas fa-heartbeat"></i> الحالة الصحية</span>
+            <button type="button" onclick="addHealth()" class="btn-edit" style="padding:5px 12px;font-size:.78rem;">+ إضافة حالة</button>
+          </div>
+          <div id="health-list">
+            {% for h in health %}
+            <div class="health-row" style="background:#fef2f2;border-radius:10px;padding:12px;margin-bottom:8px;">
+              <div class="form-grid">
+                <div class="fg"><label>نوع الحالة</label>
+                  <select class="h-type">
+                    <option value="chronic" {% if h.condition_type=='chronic' %}selected{% endif %}>مرض مزمن</option>
+                    <option value="war_injury" {% if h.condition_type=='war_injury' %}selected{% endif %}>إصابة حرب</option>
+                    <option value="pre_war" {% if h.condition_type=='pre_war' %}selected{% endif %}>إصابة قبل الحرب</option>
+                    <option value="non_chronic" {% if h.condition_type=='non_chronic' %}selected{% endif %}>مرض غير مزمن</option>
+                  </select>
+                </div>
+                <div class="fg"><label>تاريخ البداية</label><input type="date" class="h-date" value="{{ h.condition_date or '' }}"></div>
+                <div class="fg" style="grid-column:1/-1"><label>ملاحظات / نوع العلاج</label>
+                  <textarea class="h-notes" rows="2" placeholder="اكتب نوع العلاج أو أي ملاحظة...">{{ h.notes or '' }}</textarea></div>
+                <div class="fg" style="grid-column:1/-1">
+                  <label style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:.78rem;">
+                    <i class="fas fa-upload" style="color:var(--teal-600)"></i> ارفع تقرير طبي
+                    <input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'medical_report',this.closest('.health-row'))">
+                  </label>
+                  <span class="doc-status" style="font-size:.72rem;color:var(--green);margin-right:8px;display:none;"><i class="fas fa-check-circle"></i> تم الرفع</span>
+                </div>
+              </div>
+              <button type="button" onclick="this.closest('.health-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;margin-top:8px;cursor:pointer;color:#ef4444;font-size:.78rem;"><i class="fas fa-times"></i> حذف</button>
+            </div>
+            {% endfor %}
+          </div>
         </div>
-        <div class="btn-row">
-          <button class="btn-cancel" onclick="toggleEdit('family',true)">إلغاء</button>
-          <button class="btn-save" onclick="saveFamily()"><i class="fas fa-check"></i> حفظ</button>
+
+        <!-- ══ من يعيلهم (أعزب/أرمل) ══ -->
+        <div id="sec-dependents" style="display:{% if ben.marital_status in ['single','widowed'] %}block{% else %}none{% endif %};margin-top:18px;padding-top:14px;border-top:1px solid var(--sand-200);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:.82rem;font-weight:700;color:var(--teal-700);"><i class="fas fa-hands-helping"></i> من يعيلهم</span>
+            <button type="button" onclick="addDependent()" class="btn-edit" style="padding:5px 12px;font-size:.78rem;">+ إضافة</button>
+          </div>
+          <div id="dependents-list">
+            {% for dep in dependents %}
+            <div class="dep-row" style="display:grid;grid-template-columns:1fr 1fr 80px auto;gap:8px;margin-bottom:8px;align-items:flex-end;">
+              <div class="fg"><label>الاسم الرباعي</label><input type="text" class="dep-name" value="{{ dep.full_name or '' }}"></div>
+              <div class="fg"><label>تاريخ الميلاد</label><input type="date" class="dep-birth" value="{{ dep.birth_date or '' }}" oninput="calcAge(this,this.closest('.dep-row').querySelector('.dep-age'))"></div>
+              <div class="fg"><label>العمر</label><input type="text" class="dep-age" readonly style="background:var(--sand-100);color:var(--ink-4);" placeholder="—"></div>
+              <button type="button" onclick="this.closest('.dep-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:10px;cursor:pointer;color:#ef4444;height:42px;align-self:flex-end;"><i class="fas fa-times"></i></button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="btn-cancel" onclick="closeFamilyEdit()">إلغاء</button>
+          <button class="btn-save" onclick="saveFamily()"><i class="fas fa-save"></i> حفظ بيانات الأسرة</button>
         </div>
       </div>
     </div>
@@ -561,6 +705,152 @@ async function saveProfile(){
   else setFlash('profile', d.error||'خطأ في الحفظ','error');
 }
 
+// ── بيانات الأسرة ──
+const BEN_MARITAL = "{{ ben.marital_status or '' }}";
+
+function openFamilyEdit(){
+  document.getElementById('view-family').style.display='none';
+  document.getElementById('edit-family').style.display='block';
+  // أظهر الأقسام حسب الحالة
+  const m = BEN_MARITAL;
+  document.getElementById('sec-married').style.display   = m==='married'  ? 'block':'none';
+  document.getElementById('sec-widowed').style.display   = m==='widowed'  ? 'block':'none';
+  document.getElementById('sec-dependents').style.display= (m==='single'||m==='widowed') ? 'block':'none';
+}
+function closeFamilyEdit(){
+  document.getElementById('view-family').style.display='block';
+  document.getElementById('edit-family').style.display='none';
+}
+function onDeathTypeChange(){
+  const v = document.getElementById('wd-type').value;
+  document.getElementById('wd-date-row').style.display   = v==='deceased' ? 'block':'none';
+  document.getElementById('sec-orphans').style.display   = (v==='martyr_post_oct7'||v==='martyr_pre_oct7') ? 'block':'none';
+}
+function calcAge(input, ageInput){
+  if(!input.value) return;
+  const diff = Date.now() - new Date(input.value).getTime();
+  const age  = Math.floor(diff / (1000*60*60*24*365.25));
+  if(ageInput) ageInput.value = age >= 0 ? age + ' سنة' : '—';
+}
+function addChild(){
+  const row = document.createElement('div');
+  row.className='child-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:flex-end;';
+  row.innerHTML=`<div class="fg"><label>الاسم</label><input type="text" class="ch-name" placeholder="اسم الابن"></div>
+    <div class="fg"><label>تاريخ الميلاد</label><input type="date" class="ch-birth"></div>
+    <button type="button" onclick="this.closest('.child-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:10px;cursor:pointer;color:#ef4444;height:42px;align-self:flex-end;"><i class="fas fa-times"></i></button>`;
+  document.getElementById('children-list').appendChild(row);
+}
+function addOrphan(){
+  const row = document.createElement('div');
+  row.className='orphan-row';
+  row.style.cssText='background:var(--sand-100);border-radius:10px;padding:12px;margin-bottom:8px;';
+  row.innerHTML=`<div class="form-grid">
+    <div class="fg"><label>الاسم الرباعي</label><input type="text" class="or-name"></div>
+    <div class="fg"><label>تاريخ الاستشهاد</label><input type="date" class="or-date"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;">
+    <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>شهادة الميلاد<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'birth_cert',this.closest('.orphan-row'))"></label>
+    <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>وفاة الأب/الأم<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'death_cert',this.closest('.orphan-row'))"></label>
+    <label style="font-size:.72rem;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:6px;text-align:center;cursor:pointer;"><i class="fas fa-upload" style="color:var(--teal-600)"></i><br>وكالة/وصاية<input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'custody',this.closest('.orphan-row'))"></label>
+  </div>
+  <button type="button" onclick="this.closest('.orphan-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;margin-top:8px;cursor:pointer;color:#ef4444;font-size:.78rem;"><i class="fas fa-times"></i> حذف</button>`;
+  document.getElementById('orphans-list').appendChild(row);
+}
+function addHealth(){
+  const row = document.createElement('div');
+  row.className='health-row';
+  row.style.cssText='background:#fef2f2;border-radius:10px;padding:12px;margin-bottom:8px;';
+  row.innerHTML=`<div class="form-grid">
+    <div class="fg"><label>نوع الحالة</label>
+      <select class="h-type"><option value="chronic">مرض مزمن</option><option value="war_injury">إصابة حرب</option><option value="pre_war">إصابة قبل الحرب</option><option value="non_chronic">مرض غير مزمن</option></select></div>
+    <div class="fg"><label>تاريخ البداية</label><input type="date" class="h-date"></div>
+    <div class="fg" style="grid-column:1/-1"><label>ملاحظات / نوع العلاج</label><textarea class="h-notes" rows="2" placeholder="اكتب نوع العلاج أو أي ملاحظة..."></textarea></div>
+    <div class="fg" style="grid-column:1/-1">
+      <label style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px dashed var(--sand-200);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:.78rem;">
+        <i class="fas fa-upload" style="color:var(--teal-600)"></i> ارفع تقرير طبي
+        <input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadDoc(this,'medical_report',this.closest('.health-row'))">
+      </label>
+      <span class="doc-status" style="font-size:.72rem;color:var(--green);margin-right:8px;display:none;"><i class="fas fa-check-circle"></i> تم الرفع</span>
+    </div>
+  </div>
+  <button type="button" onclick="this.closest('.health-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;margin-top:8px;cursor:pointer;color:#ef4444;font-size:.78rem;"><i class="fas fa-times"></i> حذف</button>`;
+  document.getElementById('health-list').appendChild(row);
+}
+function addDependent(){
+  const row = document.createElement('div');
+  row.className='dep-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 80px auto;gap:8px;margin-bottom:8px;align-items:flex-end;';
+  row.innerHTML=`<div class="fg"><label>الاسم الرباعي</label><input type="text" class="dep-name"></div>
+    <div class="fg"><label>تاريخ الميلاد</label><input type="date" class="dep-birth" oninput="calcAge(this,this.closest('.dep-row').querySelector('.dep-age'))"></div>
+    <div class="fg"><label>العمر</label><input type="text" class="dep-age" readonly style="background:var(--sand-100);color:var(--ink-4);" placeholder="—"></div>
+    <button type="button" onclick="this.closest('.dep-row').remove()" style="background:#fee2e2;border:none;border-radius:8px;padding:10px;cursor:pointer;color:#ef4444;height:42px;align-self:flex-end;"><i class="fas fa-times"></i></button>`;
+  document.getElementById('dependents-list').appendChild(row);
+}
+async function uploadDoc(input, docType, container){
+  const file = input.files[0];
+  if(!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/beneficiary/upload-doc', {method:'POST', body:fd});
+  const d = await r.json();
+  if(d.ok){
+    container.dataset[docType] = d.path;
+    const st = container.querySelector('.doc-status');
+    if(st){ st.style.display='inline'; }
+    else { const lbl = input.closest('label'); if(lbl) lbl.style.borderColor='var(--green)'; }
+  }
+}
+async function saveFamily(){
+  const marital = BEN_MARITAL;
+  const body = {
+    marital_status: marital,
+    family_size: parseInt(document.getElementById('f-size').value)||1,
+    children_count: document.querySelectorAll('#children-list .child-row').length,
+  };
+  // زوجة
+  if(marital==='married'){
+    body.spouse = {
+      full_name:     document.getElementById('sp-name')?.value.trim()||'',
+      id_number:     document.getElementById('sp-id')?.value.trim()||'',
+      birth_date:    document.getElementById('sp-birth')?.value||'',
+      marriage_date: document.getElementById('sp-marriage')?.value||'',
+      pregnant:      document.getElementById('sp-pregnant')?.checked||false,
+      nursing:       document.getElementById('sp-nursing')?.checked||false,
+    };
+  }
+  // أبناء
+  body.children = Array.from(document.querySelectorAll('#children-list .child-row')).map(r=>({
+    full_name: r.querySelector('.ch-name')?.value.trim()||'',
+    birth_date: r.querySelector('.ch-birth')?.value||'',
+  }));
+  // أرمل
+  if(marital==='widowed'){
+    body.widowed = { death_type: document.getElementById('wd-type')?.value||'', death_date: document.getElementById('wd-date')?.value||'' };
+    body.orphans = Array.from(document.querySelectorAll('#orphans-list .orphan-row')).map(r=>({
+      full_name: r.querySelector('.or-name')?.value.trim()||'',
+      martyrdom_date: r.querySelector('.or-date')?.value||'',
+    }));
+  }
+  // صحة
+  body.health = Array.from(document.querySelectorAll('#health-list .health-row')).map(r=>({
+    condition_type: r.querySelector('.h-type')?.value||'',
+    notes:          r.querySelector('.h-notes')?.value.trim()||'',
+    condition_date: r.querySelector('.h-date')?.value||'',
+  }));
+  // من يعيلهم
+  if(marital==='single'||marital==='widowed'){
+    body.dependents = Array.from(document.querySelectorAll('#dependents-list .dep-row')).map(r=>({
+      full_name:  r.querySelector('.dep-name')?.value.trim()||'',
+      birth_date: r.querySelector('.dep-birth')?.value||'',
+    }));
+  }
+  const res = await fetch('/api/beneficiary/update-family',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d   = await res.json();
+  if(d.ok){ setFlash('family','✅ تم حفظ بيانات الأسرة','success'); closeFamilyEdit(); setTimeout(()=>location.reload(),1200); }
+  else setFlash('family', d.error||'خطأ','error');
+}
+
 function switchTab(name,btn){
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -589,21 +879,7 @@ function setFlash(id,msg,type){
   if(type==='success')setTimeout(()=>{el.className='flash';},4000);
 }
 // saveProfile defined above
-async function saveFamily(){
-  const body={
-    marital_status:document.getElementById('f-marital').value,
-    family_size:document.getElementById('f-size').value,
-    children_count:document.getElementById('f-children').value,
-    orphans_count:document.getElementById('f-orphans').value,
-    wife_pregnant:document.getElementById('f-pregnant').checked,
-    wife_nursing:document.getElementById('f-nursing').checked,
-    has_orphans:document.getElementById('f-orphans-chk').checked
-  };
-  const r=await fetch('/api/beneficiary/update-family',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const d=await r.json();
-  if(d.ok){setFlash('family','✅ تم الحفظ','success');toggleEdit('family',true);setTimeout(()=>location.reload(),1200);}
-  else setFlash('family',d.error||'خطأ','error');
-}
+// saveFamily defined above
 async function changePassword(){
   const oldPw=document.getElementById('pw-old').value;
   const newPw=document.getElementById('pw-new').value;

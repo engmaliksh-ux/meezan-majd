@@ -593,5 +593,59 @@ def init_camp_tables():
             c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
         except Exception:
             pass
+
+    # ── جدول بيانات الزوجة ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_spouse (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id  INTEGER NOT NULL UNIQUE,
+        full_name       TEXT, id_number TEXT,
+        birth_date      TEXT, marriage_date TEXT,
+        pregnant        INTEGER DEFAULT 0,
+        nursing         INTEGER DEFAULT 0,
+        updated_at      TEXT DEFAULT (datetime('now','localtime'))
+    )""")
+    # ── جدول الأبناء ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_children (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        full_name TEXT, birth_date TEXT, sort_order INTEGER DEFAULT 0
+    )""")
+    # ── جدول الحالة الصحية ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_health (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        condition_type TEXT, notes TEXT,
+        condition_date TEXT, report_path TEXT,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+    )""")
+    # ── جدول الأرمل/الأرملة ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_widowed (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL UNIQUE,
+        death_type TEXT, death_date TEXT,
+        updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )""")
+    # ── جدول الأيتام ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_orphans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        full_name TEXT, martyrdom_date TEXT,
+        birth_cert_path TEXT, death_cert_path TEXT, custody_path TEXT,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+    )""")
+    # ── جدول من يعيلهم ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_dependents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beneficiary_id INTEGER NOT NULL,
+        full_name TEXT, birth_date TEXT,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+    )""")
+
     conn.commit()
     conn.close()
