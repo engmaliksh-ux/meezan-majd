@@ -148,10 +148,7 @@ body{background:var(--sand);min-height:100vh;display:flex;flex-direction:column;
   {% if join_req %}
   <div class="card">
     <div class="card-title"><i class="fas fa-door-open"></i> طلب الانضمام</div>
-    {% set sc = {'approved':'#bbf7d0','rejected':'#fca5a5','pending':'#fde68a'} %}
-    {% set bg = {'approved':'linear-gradient(135deg,#f0fdf4,#dcfce7)','rejected':'linear-gradient(135deg,#fff5f5,#fee2e2)','pending':'linear-gradient(135deg,#fffbeb,#fef3c7)'} %}
-    {% set ic = {'approved':teal_600,'rejected':'#dc2626','pending':'#d97706'} %}
-    <div class="join-card" style="background:{{ bg.get(join_req.status,'#fff') }};border-color:{{ sc.get(join_req.status,'#e2e8f0') }};">
+    <div class="join-card" style="background:{% if join_req.status=='approved' %}linear-gradient(135deg,#f0fdf4,#dcfce7){% elif join_req.status=='rejected' %}linear-gradient(135deg,#fff5f5,#fee2e2){% else %}linear-gradient(135deg,#fffbeb,#fef3c7){% endif %};border-color:{% if join_req.status=='approved' %}#bbf7d0{% elif join_req.status=='rejected' %}#fca5a5{% else %}#fde68a{% endif %};">
       <div class="join-icon" style="background:{% if join_req.status=='approved' %}var(--teal-600){% elif join_req.status=='rejected' %}#dc2626{% else %}#d97706{% endif %};">
         <i class="fas fa-{% if join_req.status=='approved' %}check{% elif join_req.status=='rejected' %}times{% else %}clock{% endif %}"></i>
       </div>
