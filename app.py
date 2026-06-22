@@ -4968,19 +4968,19 @@ def api_beneficiary_login():
 
 @app.route("/api/beneficiary/forgot-password", methods=["POST"])
 def api_beneficiary_forgot_password():
-    """إرسال رابط إعادة تعيين كلمة المرور عبر البريد"""
+    """إرسال رمز إعادة تعيين كلمة المرور عبر البريد الإلكتروني"""
     import datetime
-    data      = request.get_json(force=True) or {}
-    id_number = data.get("id_number", "").strip()
-    if not id_number:
-        return jsonify({"ok": False, "error": "أدخل رقم الهوية"})
+    data  = request.get_json(force=True) or {}
+    email = data.get("email", "").strip().lower()
+    if not email:
+        return jsonify({"ok": False, "error": "أدخل بريدك الإلكتروني"})
     conn = get_connection()
     c    = conn.cursor()
-    c.execute("SELECT id, email, full_name FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    c.execute("SELECT id, email, full_name FROM beneficiaries WHERE email=? AND self_registered=1", (email,))
     ben = c.fetchone()
-    if not ben or not ben["email"]:
+    if not ben:
         conn.close()
-        return jsonify({"ok": False, "error": "لم يُعثر على حساب بهذا الرقم أو لا يوجد بريد مسجل"})
+        return jsonify({"ok": False, "error": "لا يوجد حساب مرتبط بهذا البريد"})
     code       = generate_verification_code()
     expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
     c.execute("DELETE FROM verification_codes WHERE email=? AND purpose='ben_reset'", (ben["email"],))
@@ -5000,15 +5000,15 @@ def api_beneficiary_forgot_password():
 def api_beneficiary_reset_password():
     """تعيين كلمة مرور جديدة بعد التحقق من OTP"""
     import datetime
-    data      = request.get_json(force=True) or {}
-    id_number = data.get("id_number", "").strip()
-    code      = data.get("code", "").strip()
-    new_pw    = data.get("password", "")
-    if not id_number or not code or not new_pw or len(new_pw) < 6:
+    data   = request.get_json(force=True) or {}
+    email  = data.get("email", "").strip().lower()
+    code   = data.get("code", "").strip()
+    new_pw = data.get("password", "")
+    if not email or not code or not new_pw or len(new_pw) < 6:
         return jsonify({"ok": False, "error": "بيانات ناقصة أو كلمة المرور قصيرة"})
     conn = get_connection()
     c    = conn.cursor()
-    c.execute("SELECT id, email FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    c.execute("SELECT id, email FROM beneficiaries WHERE email=? AND self_registered=1", (email,))
     ben = c.fetchone()
     if not ben:
         conn.close()
@@ -5018,7 +5018,7 @@ def api_beneficiary_reset_password():
         SELECT * FROM verification_codes
         WHERE email=? AND purpose='ben_reset' AND used=0 AND expires_at > ?
         ORDER BY id DESC LIMIT 1
-    """, (ben["email"], now))
+    """, (email, now))
     row = c.fetchone()
     if not row or row["code"] != code:
         conn.close()

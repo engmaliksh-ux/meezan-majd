@@ -507,8 +507,8 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         <div class="mflash" id="ben-forgot-flash"></div>
         <div id="bfg-step1">
           <div class="mform-group">
-            <label>رقم الهوية</label>
-            <input type="text" id="bfg-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+            <label>البريد الإلكتروني المسجل</label>
+            <input type="email" id="bfg-email" placeholder="example@email.com" dir="ltr">
           </div>
           <button class="mbtn mbtn-primary" onclick="benForgotSend()">
             <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
@@ -718,11 +718,11 @@ function showLogin(){
   document.querySelector('#benModal .mtab:first-child').classList.add('active');
 }
 async function benForgotSend(){
-  const id = document.getElementById('bfg-id').value.trim();
-  if(!id){ setFlash('ben-forgot-flash','أدخل رقم الهوية','error'); return; }
+  const email = document.getElementById('bfg-email').value.trim();
+  if(!email){ setFlash('ben-forgot-flash','أدخل بريدك الإلكتروني','error'); return; }
   const res = await fetch('/api/beneficiary/forgot-password',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id_number:id})
+    body:JSON.stringify({email})
   });
   const data = await res.json();
   if(data.ok){
@@ -734,13 +734,13 @@ async function benForgotSend(){
   }
 }
 async function benResetPassword(){
-  const id   = document.getElementById('bfg-id').value.trim();
-  const code = getOTP('bfg-otp-inputs');
-  const pw   = document.getElementById('bfg-pw').value;
+  const email = document.getElementById('bfg-email').value.trim();
+  const code  = getOTP('bfg-otp-inputs');
+  const pw    = document.getElementById('bfg-pw').value;
   if(code.length<6||!pw){ setFlash('ben-forgot-flash','أكمل جميع الحقول','error'); return; }
   const res = await fetch('/api/beneficiary/reset-password',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id_number:id,code,password:pw})
+    body:JSON.stringify({email,code,password:pw})
   });
   const data = await res.json();
   if(data.ok){
