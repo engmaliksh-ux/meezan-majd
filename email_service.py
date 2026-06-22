@@ -21,7 +21,7 @@ import string
 # ═══════════════════════════════════════════════════════
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 SENDER_EMAIL     = os.environ.get("SENDER_EMAIL", "")
-SENDER_NAME      = "مخزن الخير"
+SENDER_NAME      = "ميزان مجد"
 # ═══════════════════════════════════════════════════════
 
 DEV_MODE = not SENDGRID_API_KEY
