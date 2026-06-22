@@ -4705,6 +4705,30 @@ def api_ben_update_family():
     return jsonify({"ok": True})
 
 
+# ── رفع صورة هوية المستفيد ──
+@app.route("/api/beneficiary/upload-id-card", methods=["POST"])
+def api_ben_upload_id_card():
+    import os, uuid as _uuid
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "error": "لا يوجد ملف"})
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.jpg','.jpeg','.png','.webp','.pdf'):
+        return jsonify({"ok": False, "error": "صيغة غير مدعومة (jpg/png/pdf)"})
+    fname    = f"id_card_{ben_id}_{_uuid.uuid4().hex[:6]}{ext}"
+    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "id_cards")
+    os.makedirs(save_dir, exist_ok=True)
+    f.save(os.path.join(save_dir, fname))
+    path = f"/static/uploads/id_cards/{fname}"
+    conn = get_connection(); c = conn.cursor()
+    c.execute("UPDATE beneficiaries SET id_card_path=? WHERE id=?", (path, ben_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True, "path": path})
+
+
 # ── تحديث انتماء المستفيد ──
 @app.route("/api/beneficiary/update-affiliation", methods=["POST"])
 def api_ben_update_affiliation():
