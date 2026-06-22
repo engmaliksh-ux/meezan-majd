@@ -51,17 +51,26 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       color:rgba(255,255,255,.85);padding:4px 12px;border-radius:20px;font-size:.73rem;}
 .htag.amber{background:rgba(232,160,32,.2);border-color:rgba(232,160,32,.4);color:var(--amber);}
 .hero-wave{display:block;width:100%;height:32px;margin-bottom:-2px;}
-.tab-bar{background:#fff;border-bottom:2px solid var(--sand-200);
-         position:sticky;top:62px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.tab-bar-inner{max-width:960px;margin:0 auto;padding:0 20px;
-               display:flex;overflow-x:auto;}
-.tab-bar-inner::-webkit-scrollbar{height:3px;}
-.tab-btn{padding:14px 20px;font-size:.85rem;font-weight:600;color:var(--ink-6);
-         border:none;background:transparent;cursor:pointer;
-         border-bottom:3px solid transparent;margin-bottom:-2px;
-         display:flex;align-items:center;gap:7px;white-space:nowrap;transition:.2s;}
-.tab-btn:hover{color:var(--teal-700);}
-.tab-btn.active{color:var(--teal-700);border-bottom-color:var(--teal-600);}
+.tab-bar{background:rgba(250,250,247,.95);backdrop-filter:blur(12px);
+         position:sticky;top:62px;z-index:100;
+         border-bottom:1px solid var(--sand-200);
+         box-shadow:0 4px 16px rgba(0,0,0,.06);}
+.tab-bar-inner{max-width:960px;margin:0 auto;padding:12px 20px;
+               display:flex;gap:8px;overflow-x:auto;}
+.tab-bar-inner::-webkit-scrollbar{height:0;}
+.tab-btn{padding:9px 20px;font-size:.85rem;font-weight:700;
+         color:var(--ink-6);border:1.5px solid var(--sand-200);
+         background:#fff;cursor:pointer;border-radius:999px;
+         display:flex;align-items:center;gap:7px;white-space:nowrap;
+         transition:all .25s cubic-bezier(.34,1.56,.64,1);
+         box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.tab-btn:hover{color:var(--teal-700);border-color:var(--teal-500);
+               background:#f0fdf4;transform:translateY(-2px);
+               box-shadow:0 4px 12px rgba(45,138,80,.15);}
+.tab-btn.active{color:#fff;background:var(--teal-600);border-color:var(--teal-600);
+                box-shadow:0 4px 14px rgba(45,138,80,.4);transform:translateY(-2px);}
+.tab-btn i{transition:transform .25s;}
+.tab-btn.active i{transform:scale(1.15);}
 .page-body{max-width:960px;margin:0 auto;padding:28px 20px 80px;}
 .tab-pane{display:none;animation:fadeUp .3s ease;}
 .tab-pane.active{display:block;}
@@ -191,9 +200,6 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
     <button class="tab-btn active" onclick="switchTab('personal',this)">
       <i class="fas fa-id-card"></i> <span>البيانات الشخصية</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('family',this)">
-      <i class="fas fa-users"></i> <span>بيانات الأسرة</span>
-    </button>
     <button class="tab-btn" onclick="switchTab('benefits',this)">
       <i class="fas fa-hand-holding-heart"></i> <span>كشف الاستفادة</span>
     </button>
@@ -314,11 +320,10 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       </div>
     </div>
   </div>
-</div>
 
-<!-- ═══ بيانات الأسرة ═══ -->
-<div id="tab-family" class="tab-pane">
-  <div class="card">
+<!-- بطاقة بيانات الأسرة -->
+<div style="margin-top:0;">
+<div class="card">
     <div class="card-head">
       <div class="card-head-left">
         <div class="card-head-icon"><i class="fas fa-users"></i></div>
@@ -526,6 +531,8 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
     </div>
   </div>
 </div>
+</div>
+</div><!-- end tab-personal -->
 
 <!-- ═══ كشف الاستفادة ═══ -->
 <div id="tab-benefits" class="tab-pane">
