@@ -7,54 +7,63 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      PA_TOKEN: ${{ secrets.PA_API_TOKEN }}
     steps:
-      - name: Run git pull via PA Console
+      - name: Deploy via PA API
         run: |
-          AUTH="Authorization: Token ${{ secrets.PA_API_TOKEN }}"
-          BASE="https://www.pythonanywhere.com/api/v0/user/MalikMohs"
+          python3 - << 'PYEOF'
+          import urllib.request, urllib.parse, urllib.error, json, os, time, sys
 
-          # احذف جميع الـ consoles القديمة
-          OLD=$(curl -s -H "$AUTH" "$BASE/consoles/")
-          echo "$OLD" | python3 -c "
-          import sys,json,urllib.request,urllib.error
-          consoles=json.load(sys.stdin)
-          for c in consoles:
-              req=urllib.request.Request(
-                  'https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/'+str(c['id'])+'/',
-                  method='DELETE',
-                  headers={'Authorization':'Token ${{ secrets.PA_API_TOKEN }}'}
-              )
-              try: urllib.request.urlopen(req)
-              except: pass
-              print('Deleted console',c['id'])
-          " || true
-          sleep 2
+          token = os.environ["PA_TOKEN"].strip()
+          base  = "https://www.pythonanywhere.com/api/v0/user/MalikMohs"
 
-          # أنشئ console جديد
-          CONSOLE=$(curl -s -X POST -H "$AUTH" "$BASE/consoles/" -d "executable=bash")
-          echo "Console response: $CONSOLE"
-          CONSOLE_ID=$(echo $CONSOLE | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-          echo "Console ID: $CONSOLE_ID"
-          sleep 3
+          def req(method, path, data=None):
+              url  = base + path
+              body = urllib.parse.urlencode(data).encode() if data else None
+              r    = urllib.request.Request(url, data=body, method=method,
+                         headers={"Authorization": "Token " + token,
+                                  "Content-Type": "application/x-www-form-urlencoded"})
+              try:
+                  with urllib.request.urlopen(r) as resp:
+                      txt = resp.read().decode()
+                      return json.loads(txt) if txt else {}, resp.status
+              except urllib.error.HTTPError as e:
+                  txt = e.read().decode()
+                  print(f"HTTP {e.code}: {txt}")
+                  return json.loads(txt) if txt else {}, e.code
 
-          # شغّل git pull
-          curl -s -X POST -H "$AUTH" \
-            "$BASE/consoles/$CONSOLE_ID/send_input/" \
-            --data-urlencode "input=cd ~/meezan-majd && git pull && echo DONE\n"
-          sleep 25
+          # حذف consoles القديمة
+          consoles, _ = req("GET", "/consoles/")
+          for c in (consoles if isinstance(consoles, list) else []):
+              req("DELETE", f"/consoles/{c['id']}/")
+              print(f"Deleted console {c['id']}")
+          time.sleep(2)
 
-          # احذف الـ console بعد الانتهاء
-          curl -s -X DELETE -H "$AUTH" "$BASE/consoles/$CONSOLE_ID/" || true
+          # إنشاء console جديد
+          result, status = req("POST", "/consoles/", {"executable": "bash"})
+          print(f"Console create: status={status} id={result.get('id','?')}")
+          if "id" not in result:
+              print("ERROR: Could not create console")
+              sys.exit(1)
+
+          cid = result["id"]
+          time.sleep(4)
+
+          # git pull
+          req("POST", f"/consoles/{cid}/send_input/",
+              {"input": "cd ~/meezan-majd && git pull && echo '=DONE='\n"})
+          time.sleep(28)
+
+          # حذف console
+          req("DELETE", f"/consoles/{cid}/")
+          print("Done.")
+          PYEOF
 
       - name: Reload web app
         run: |
-          RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Token $PA_TOKEN" \
             "https://www.pythonanywhere.com/api/v0/user/MalikMohs/webapps/malikmohs.pythonanywhere.com/reload/")
-          echo "Reload status: $RESULT"
-          if [ "$RESULT" = "200" ]; then
-            echo "✅ Deployed successfully!"
-          else
-            echo "❌ Reload failed with status $RESULT"
-            exit 1
-          fi
+          echo "Reload HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Deployed!" || { echo "❌ Failed: $STATUS"; exit 1; }

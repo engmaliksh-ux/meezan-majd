@@ -32,11 +32,13 @@ body{background:var(--sand-50);color:var(--ink-900);}
 .nav-links a:hover{color:var(--teal-700);}
 .nav-ctas{display:flex;gap:8px;}
 .btn-ghost{padding:8px 18px;font-size:.85rem;font-weight:600;color:var(--teal-800);
-            border-radius:10px;text-decoration:none;transition:.15s;}
+            border-radius:10px;text-decoration:none;transition:.15s;border:none;
+            background:transparent;cursor:pointer;}
 .btn-ghost:hover{background:rgba(26,107,58,.07);}
 .btn-primary{padding:9px 20px;font-size:.85rem;font-weight:700;color:#fff;
               background:var(--teal-600);border-radius:10px;text-decoration:none;
-              box-shadow:0 2px 8px rgba(45,138,80,.35);transition:.15s;}
+              box-shadow:0 2px 8px rgba(45,138,80,.35);transition:.15s;
+              border:none;cursor:pointer;}
 .btn-primary:hover{background:var(--teal-700);transform:translateY(-1px);}
 
 /* HERO */
@@ -219,8 +221,8 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       <li><a href="#how">كيف تعمل</a></li>
     </ul>
     <div class="nav-ctas">
-      <a href="/login" class="btn-ghost">تسجيل الدخول</a>
-      <a href="/register" class="btn-primary">إنشاء حساب</a>
+      <button onclick="openModal('benModal')" class="btn-ghost">دخول مستفيد</button>
+      <button onclick="openModal('adminModal')" class="btn-primary">دخول إداري</button>
     </div>
   </div>
 </header>
