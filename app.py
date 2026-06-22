@@ -5113,21 +5113,126 @@ def register_camp():
 
 @app.route("/camp/login", methods=["GET", "POST"])
 def camp_login():
+    import datetime as _dt
     if request.method == "POST":
-        email    = request.form.get("email","").strip()
-        password = request.form.get("password","").strip()
-        conn = get_connection()
-        c    = conn.cursor()
-        c.execute("SELECT * FROM camp_entities WHERE email=? AND is_active=1", (email,))
+        email    = (request.form.get("email") or "").strip().lower()
+        password = (request.form.get("password") or "").strip()
+        ip       = request.remote_addr or "0.0.0.0"
+        now      = _dt.datetime.now()
+        conn = get_connection(); c = conn.cursor()
+
+        # ── Rate limiting على IP ──
+        c.execute("""SELECT COUNT(*) as cnt FROM login_attempts
+                     WHERE ip_address=? AND attempt_type='camp'
+                     AND success=0 AND created_at >= datetime('now','-15 minutes','localtime')""", (ip,))
+        ip_count = c.fetchone()["cnt"]
+        if ip_count >= 10:
+            conn.close()
+            return jsonify({"ok": False, "error": "تم تجاوز الحد المسموح — حاول بعد 15 دقيقة"})                    if request.is_json else (flash("تم تجاوز الحد المسموح — حاول بعد 15 دقيقة", "error") or
+                   render_template("camp_login.html"))
+
+        c.execute("SELECT * FROM camp_entities WHERE LOWER(email)=? AND is_active=1", (email,))
         entity = c.fetchone()
-        conn.close()
+
+        # ── قفل الحساب ──
+        if entity and entity.get("locked_until"):
+            try:
+                lock_dt = _dt.datetime.fromisoformat(entity["locked_until"])
+                if now < lock_dt:
+                    remaining = int((lock_dt - now).total_seconds() // 60) + 1
+                    conn.close()
+                    flash(f"الحساب مقفل — حاول بعد {remaining} دقيقة", "error")
+                    return render_template("camp_login.html")
+                else:
+                    c.execute("UPDATE camp_entities SET failed_attempts=0, locked_until=NULL WHERE id=?", (entity["id"],))
+                    conn.commit()
+            except Exception:
+                pass
+
+        # ── التحقق من كلمة المرور ──
         if entity and entity["password"] and check_password_hash(entity["password"], password):
+            c.execute("UPDATE camp_entities SET failed_attempts=0, locked_until=NULL WHERE id=?", (entity["id"],))
+            c.execute("INSERT INTO login_attempts (identifier,attempt_type,ip_address,success) VALUES (?,?,?,1)",
+                      (email, "camp", ip))
+            conn.commit(); conn.close()
             session["camp_id"]   = entity["id"]
             session["camp_name"] = entity["name"]
             session["camp_type"] = entity["entity_type"]
+            session["camp_last_active"] = _dt.datetime.utcnow().isoformat()
             return redirect(url_for("camp_dashboard"))
-        flash("البريد الإلكتروني أو كلمة المرور غير صحيحة", "error")
+
+        # ── فشل الدخول ──
+        c.execute("INSERT INTO login_attempts (identifier,attempt_type,ip_address,success) VALUES (?,?,?,0)",
+                  (email, "camp", ip))
+        if entity:
+            fails = (entity.get("failed_attempts") or 0) + 1
+            locked = None
+            if fails >= 5:
+                locked = (now + _dt.timedelta(minutes=30)).isoformat()
+                fails  = 0
+            c.execute("UPDATE camp_entities SET failed_attempts=?, locked_until=? WHERE id=?",
+                      (fails, locked, entity["id"]))
+            remaining_tries = 5 - fails if not locked else 0
+            conn.commit(); conn.close()
+            if locked:
+                flash("تم قفل الحساب 30 دقيقة بسبب المحاولات المتكررة", "error")
+            else:
+                flash(f"كلمة المرور غير صحيحة — تبقى {remaining_tries} محاولة", "error")
+        else:
+            conn.commit(); conn.close()
+            flash("البريد الإلكتروني غير مسجل", "error")
     return render_template("camp_login.html")
+
+
+# ── نسيت كلمة مرور المخيم ──
+@app.route("/api/camp/forgot-password", methods=["POST"])
+def api_camp_forgot_password():
+    data  = request.get_json(force=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"ok": False, "error": "أدخل البريد الإلكتروني"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id, name FROM camp_entities WHERE LOWER(email)=? AND is_active=1", (email,))
+    entity = c.fetchone()
+    if not entity:
+        conn.close()
+        return jsonify({"ok": False, "error": "البريد الإلكتروني غير مسجل"})
+    code = generate_verification_code()
+    import datetime as _dt
+    expires = (_dt.datetime.now() + _dt.timedelta(minutes=15)).isoformat()
+    c.execute("DELETE FROM verification_codes WHERE identifier=? AND purpose='camp_reset'", (email,))
+    c.execute("INSERT INTO verification_codes (identifier,code,purpose,expires_at) VALUES (?,?,?,?)",
+              (email, code, "camp_reset", expires))
+    conn.commit(); conn.close()
+    try:
+        send_org_verification(email, entity["name"], code)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"خطأ في الإرسال: {str(e)}"})
+
+
+@app.route("/api/camp/reset-password", methods=["POST"])
+def api_camp_reset_password():
+    data     = request.get_json(force=True) or {}
+    email    = (data.get("email") or "").strip().lower()
+    code     = (data.get("code") or "").strip()
+    new_pass = (data.get("password") or "").strip()
+    if len(new_pass) < 6:
+        return jsonify({"ok": False, "error": "كلمة المرور قصيرة جداً"})
+    conn = get_connection(); c = conn.cursor()
+    import datetime as _dt
+    c.execute("""SELECT * FROM verification_codes
+                 WHERE identifier=? AND code=? AND purpose='camp_reset'
+                 AND expires_at > datetime('now','localtime')""", (email, code))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
+    c.execute("UPDATE camp_entities SET password=?, failed_attempts=0, locked_until=NULL WHERE LOWER(email)=?",
+              (generate_password_hash(new_pass), email))
+    c.execute("DELETE FROM verification_codes WHERE identifier=? AND purpose='camp_reset'", (email,))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
 
 
 def camp_login_required(f):
