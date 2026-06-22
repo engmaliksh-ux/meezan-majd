@@ -17,47 +17,45 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
 body{background:var(--sand);color:var(--ink);min-height:100vh;}
-.nav{background:var(--teal-900);padding:13px 24px;display:flex;align-items:center;
+.nav{background:var(--teal-900);padding:0 20px;display:flex;align-items:center;
      justify-content:space-between;position:sticky;top:0;z-index:200;
-     box-shadow:0 2px 12px rgba(0,0,0,.25);}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
-.brand-icon{width:36px;height:36px;background:var(--teal-600);border-radius:10px;
-            display:flex;align-items:center;justify-content:center;color:var(--amber);font-size:.95rem;}
-.brand-title{font-size:15px;font-weight:800;color:#fff;}
-.nav-right{display:flex;align-items:center;gap:10px;}
-.nav-badge{background:rgba(255,255,255,.1);color:#fff;padding:6px 14px;border-radius:8px;
-           font-size:.82rem;display:flex;align-items:center;gap:6px;}
-.nav-badge i{color:var(--amber);}
-.btn-logout{background:rgba(239,68,68,.15);color:#fca5a5;padding:6px 14px;border-radius:8px;
-            font-size:.82rem;text-decoration:none;display:flex;align-items:center;gap:6px;
-            border:none;cursor:pointer;transition:.15s;}
-.btn-logout:hover{background:rgba(239,68,68,.3);}
-.hero{background:linear-gradient(135deg,var(--teal-900) 0%,var(--teal-700) 60%,#1e5c3a 100%);
-      padding:36px 24px 0;position:relative;overflow:hidden;}
-.hero::before{content:'';position:absolute;inset:0;
-  background-image:radial-gradient(circle,rgba(255,255,255,.05) 1px,transparent 1px);
-  background-size:24px 24px;pointer-events:none;}
-.hero-inner{max-width:960px;margin:0 auto;display:flex;align-items:flex-end;gap:24px;
-            position:relative;z-index:1;}
-.hero-avatar{width:78px;height:78px;border-radius:50%;background:var(--teal-600);
-             border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;
-             justify-content:center;font-size:2rem;color:#fff;flex-shrink:0;
-             box-shadow:0 4px 16px rgba(0,0,0,.3);}
-.hero-info{flex:1;padding-bottom:28px;}
-.hero-info h1{font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:4px;}
-.hero-info p{font-size:.83rem;color:rgba(255,255,255,.65);margin-bottom:10px;}
-.hero-tags{display:flex;gap:8px;flex-wrap:wrap;}
-.htag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
-      color:rgba(255,255,255,.85);padding:4px 12px;border-radius:20px;font-size:.73rem;}
-.htag.amber{background:rgba(232,160,32,.2);border-color:rgba(232,160,32,.4);color:var(--amber);}
-.hero-wave{display:block;width:100%;height:32px;margin-bottom:-2px;}
-.tab-bar{background:rgba(250,250,247,.95);backdrop-filter:blur(12px);
-         position:sticky;top:62px;z-index:100;
-         border-bottom:1px solid var(--sand-200);
-         box-shadow:0 4px 16px rgba(0,0,0,.06);}
-.tab-bar-inner{max-width:960px;margin:0 auto;padding:12px 20px;
-               display:flex;gap:8px;overflow-x:auto;justify-content:center;}
-.tab-bar-inner::-webkit-scrollbar{height:0;}
+     box-shadow:0 2px 16px rgba(0,0,0,.3);min-height:70px;gap:12px;}
+/* يمين: صورة + بيانات المستخدم */
+.nav-user{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-avatar{width:44px;height:44px;border-radius:50%;background:var(--teal-600);
+            border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;
+            justify-content:center;font-size:1.1rem;color:#fff;cursor:pointer;
+            overflow:hidden;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3);
+            transition:transform .2s;}
+.nav-avatar:hover{transform:scale(1.06);}
+.nav-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+
+/* وسط: شعار + تبويبات */
+.nav-center{display:flex;align-items:center;gap:6px;flex:1;justify-content:center;flex-wrap:wrap;padding:10px 0;}
+.brand-pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);
+            border:1px solid rgba(255,255,255,.2);border-radius:999px;
+            padding:6px 14px;text-decoration:none;flex-shrink:0;}
+.brand-pill i{color:var(--amber);font-size:.9rem;}
+.brand-pill span{font-size:.82rem;font-weight:800;color:#fff;}
+/* تبويبات على الخلفية الخضراء */
+.tab-btn{padding:8px 16px;font-size:.8rem;font-weight:700;
+         color:rgba(255,255,255,.75);border:1.5px solid rgba(255,255,255,.2);
+         background:rgba(255,255,255,.08);cursor:pointer;border-radius:999px;
+         display:flex;align-items:center;gap:6px;white-space:nowrap;
+         transition:all .25s cubic-bezier(.34,1.56,.64,1);
+         box-shadow:none;flex-shrink:0;}
+.tab-btn:hover{color:#fff;border-color:rgba(255,255,255,.5);
+               background:rgba(255,255,255,.15);transform:translateY(-1px);}
+.tab-btn.active{color:var(--teal-900);background:#fff;border-color:#fff;
+                box-shadow:0 3px 12px rgba(0,0,0,.25);transform:translateY(-2px);}
+.tab-btn i{transition:transform .25s;}
+.tab-btn.active i{transform:scale(1.15);}
+/* يسار: خروج */
+.btn-logout{background:rgba(239,68,68,.15);color:#fca5a5;padding:7px 14px;border-radius:8px;
+            font-size:.8rem;text-decoration:none;display:flex;align-items:center;gap:6px;
+            border:none;cursor:pointer;transition:.15s;flex-shrink:0;white-space:nowrap;}
+.btn-logout:hover{background:rgba(239,68,68,.35);}
+
 .age-badge{display:inline-flex;align-items:center;background:var(--sand-200);
             color:var(--teal-700);font-size:.72rem;font-weight:700;padding:2px 8px;
             border-radius:999px;margin-right:4px;}
@@ -154,63 +152,41 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 .otp-row input{width:44px;height:48px;text-align:center;font-size:1.2rem;font-weight:700;
                border:1.5px solid var(--sand-200);border-radius:9px;transition:.15s;}
 .otp-row input:focus{border-color:var(--teal-500);outline:none;box-shadow:0 0 0 3px rgba(58,170,99,.12);}
-@media(max-width:640px){
-  .hero-inner{flex-direction:column;align-items:flex-start;}
-  .hero-avatar{width:60px;height:60px;font-size:1.5rem;}
-  .form-grid{grid-template-columns:1fr;}
-  .tab-btn{padding:12px 14px;font-size:.8rem;}
+@media(max-width:768px){
+  .nav-center{gap:4px;}
   .tab-btn span{display:none;}
+  .tab-btn{padding:7px 11px;}
+  .brand-pill span{display:none;}
+  .form-grid{grid-template-columns:1fr;}
+}
+@media(max-width:480px){
+  .nav{padding:0 10px;}
+  .nav-avatar{width:36px;height:36px;font-size:.9rem;}
 }
 </style>
 </head>
 <body>
 <nav class="nav">
-  <a href="/" class="brand">
-    <div class="brand-icon"><i class="fas fa-balance-scale"></i></div>
-    <span class="brand-title">ميزان مجد</span>
-  </a>
-  <div class="nav-right">
-    <div class="nav-badge"><i class="fas fa-user-circle"></i> {{ ben.full_name.split()[0] }}</div>
-    <a href="/beneficiary/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
-  </div>
-</nav>
-
-<div class="hero">
-  <div class="hero-inner">
-    <div class="hero-avatar" style="position:relative;cursor:pointer;" onclick="document.getElementById('avatar-upload').click()" title="تغيير الصورة">
+  <!-- يمين: صورة المستخدم + اسمه -->
+  <div class="nav-user">
+    <div class="nav-avatar" onclick="document.getElementById('avatar-upload').click()" title="تغيير الصورة">
       {% if ben.avatar_path %}
-        <img src="{{ ben.avatar_path }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" id="avatar-img">
+        <img src="{{ ben.avatar_path }}" id="avatar-img">
       {% else %}
         <i class="fas fa-user" id="avatar-icon"></i>
-        <img src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:none;" id="avatar-img">
+        <img src="" style="display:none;width:100%;height:100%;border-radius:50%;object-fit:cover;" id="avatar-img">
       {% endif %}
-      <div style="position:absolute;bottom:2px;left:2px;width:22px;height:22px;background:var(--amber);
-                  border-radius:50%;display:flex;align-items:center;justify-content:center;
-                  font-size:.6rem;color:var(--teal-900);box-shadow:0 1px 4px rgba(0,0,0,.3);">
-        <i class="fas fa-camera"></i>
-      </div>
       <input type="file" id="avatar-upload" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="uploadAvatar(this)">
     </div>
-    <div class="hero-info">
-      <h1>{{ ben.full_name }}</h1>
-      <p>رقم الهوية: {{ ben.id_number }} &nbsp;·&nbsp; مستفيد منذ {{ ben.created_at[:10] if ben.created_at else '—' }}</p>
-      <div class="hero-tags">
-        {% if ben.beneficiary_status == 'in_camp' %}
-          <span class="htag amber"><i class="fas fa-campground"></i> {{ ben.camp_name or 'في مخيم' }}</span>
-        {% else %}
-          <span class="htag"><i class="fas fa-user-check"></i> مستفيد مستقل</span>
-        {% endif %}
-        {% if ben.email %}<span class="htag"><i class="fas fa-envelope"></i> {{ ben.email }}</span>{% endif %}
-      </div>
-    </div>
-  </div>
-  <svg class="hero-wave" viewBox="0 0 1440 32" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,20 C360,36 720,4 1080,20 C1260,28 1380,10 1440,16 L1440,32 L0,32 Z" fill="#fafaf7"/>
-  </svg>
-</div>
 
-<div class="tab-bar">
-  <div class="tab-bar-inner">
+  </div>
+
+  <!-- وسط: شعار + تبويبات -->
+  <div class="nav-center">
+    <a href="/" class="brand-pill">
+      <i class="fas fa-balance-scale"></i>
+      <span>ميزان مجد</span>
+    </a>
     <button class="tab-btn active" onclick="switchTab('personal',this)">
       <i class="fas fa-id-card"></i> <span>البيانات الشخصية</span>
     </button>
@@ -221,7 +197,12 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       <i class="fas fa-cog"></i> <span>بيانات الحساب</span>
     </button>
   </div>
-</div>
+
+  <!-- يسار: خروج -->
+  <a href="/beneficiary/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
+</nav>
+
+
 
 <div class="page-body">
 
@@ -754,8 +735,9 @@ function renderAllAges(){
     const bd = new Date(el.dataset.bd);
     if(isNaN(bd)) return;
     let y=today.getFullYear()-bd.getFullYear(), m=today.getMonth()-bd.getMonth(), d=today.getDate()-bd.getDate();
-    if(d<0){m--;} if(m<0){y--;}
-    el.textContent = y>0 ? y+' سنة' : (Math.abs(m)>0 ? Math.abs(m)+' شهر' : '—');
+    if(d<0){m--;}
+    if(m<0){y--; m+=12;}
+    el.textContent = y>0 ? y+' سنة' : (m>0 ? m+' شهر' : '—');
   });
 }
 document.addEventListener('DOMContentLoaded', renderAllAges);
