@@ -575,7 +575,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
           </button>
           <div style="display:flex;gap:8px;margin-top:8px;">
             <button class="mbtn mbtn-outline" onclick="openEmailInbox()" style="flex:1;font-size:.78rem;">
-              <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> تحقق من البريد المزعج
+              <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> تحقق من وصول الرمز
             </button>
             <button class="mbtn mbtn-outline" onclick="benSendOTP()" style="flex:1">
               <i class="fas fa-redo"></i> إعادة الإرسال
@@ -758,15 +758,7 @@ async function benResetPassword(){
 
 // === فتح مجلد الرسائل غير المرغوب فيها ===
 function openEmailInbox(){
-  const email = (document.getElementById('br-email-display').textContent || '').trim();
-  let url = 'https://mail.google.com/mail/u/0/#spam';
-  if(email.includes('@yahoo'))
-    url = 'https://mail.yahoo.com/d/folders/6';
-  else if(email.includes('@outlook')||email.includes('@hotmail')||email.includes('@live'))
-    url = 'https://outlook.live.com/mail/junkemail';
-  else if(email.includes('@icloud'))
-    url = 'https://www.icloud.com/mail';
-  window.open(url,'_blank');
+  window.open('https://mail.google.com/mail/u/0/#spam','_blank');
 }
 
 // === بوابة المستفيد ===
