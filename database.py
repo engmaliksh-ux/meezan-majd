@@ -584,6 +584,7 @@ def init_camp_tables():
         ("beneficiaries", "failed_attempts",   "INTEGER DEFAULT 0"),
         ("beneficiaries", "locked_until",      "TEXT"),
         ("beneficiaries", "birth_date",        "TEXT"),
+        ("beneficiaries", "avatar_path",       "TEXT"),
         ("beneficiaries", "city",              "TEXT"),
         ("beneficiaries", "neighborhood",      "TEXT"),
         ("beneficiaries", "street",            "TEXT"),

@@ -56,8 +56,11 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
          border-bottom:1px solid var(--sand-200);
          box-shadow:0 4px 16px rgba(0,0,0,.06);}
 .tab-bar-inner{max-width:960px;margin:0 auto;padding:12px 20px;
-               display:flex;gap:8px;overflow-x:auto;}
+               display:flex;gap:8px;overflow-x:auto;justify-content:center;}
 .tab-bar-inner::-webkit-scrollbar{height:0;}
+.age-badge{display:inline-flex;align-items:center;background:var(--sand-200);
+            color:var(--teal-700);font-size:.72rem;font-weight:700;padding:2px 8px;
+            border-radius:999px;margin-right:4px;}
 .tab-btn{padding:9px 20px;font-size:.85rem;font-weight:700;
          color:var(--ink-6);border:1.5px solid var(--sand-200);
          background:#fff;cursor:pointer;border-radius:999px;
@@ -174,8 +177,19 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-avatar">
-      <i class="fas fa-user"></i>
+    <div class="hero-avatar" style="position:relative;cursor:pointer;" onclick="document.getElementById('avatar-upload').click()" title="تغيير الصورة">
+      {% if ben.avatar_path %}
+        <img src="{{ ben.avatar_path }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" id="avatar-img">
+      {% else %}
+        <i class="fas fa-user" id="avatar-icon"></i>
+        <img src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:none;" id="avatar-img">
+      {% endif %}
+      <div style="position:absolute;bottom:2px;left:2px;width:22px;height:22px;background:var(--amber);
+                  border-radius:50%;display:flex;align-items:center;justify-content:center;
+                  font-size:.6rem;color:var(--teal-900);box-shadow:0 1px 4px rgba(0,0,0,.3);">
+        <i class="fas fa-camera"></i>
+      </div>
+      <input type="file" id="avatar-upload" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="uploadAvatar(this)">
     </div>
     <div class="hero-info">
       <h1>{{ ben.full_name }}</h1>
@@ -242,7 +256,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
             <span class="info-val">{% if ben.marital_status=='married' %}متزوج{% elif ben.marital_status=='single' %}أعزب{% elif ben.marital_status=='divorced' %}مطلق{% elif ben.marital_status=='widowed' %}أرمل{% else %}—{% endif %}</span>
           </div>
           <div class="info-item"><span class="info-lbl">رقم الجوال</span><span class="info-val {% if not ben.phone %}muted{% endif %}">{{ ben.phone or 'غير محدد' }}</span></div>
-          <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val {% if not ben.birth_date %}muted{% endif %}">{{ ben.birth_date or 'غير محدد' }}</span></div>
+          <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val {% if not ben.birth_date %}muted{% endif %}">{{ ben.birth_date or 'غير محدد' }}{% if ben.birth_date %} &nbsp;<span class="age-badge" data-bd="{{ ben.birth_date }}"></span>{% endif %}</span></div>
           <div class="info-item"><span class="info-lbl">السكن الحالي</span>
             <span class="info-val {% if not ben.governorate %}muted{% endif %}">
               {% if ben.governorate %}
@@ -343,7 +357,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
           <div class="info-list">
             <div class="info-item"><span class="info-lbl">الاسم</span><span class="info-val">{{ spouse.full_name or '—' }}</span></div>
             <div class="info-item"><span class="info-lbl">رقم الهوية</span><span class="info-val" dir="ltr">{{ spouse.id_number or '—' }}</span></div>
-            <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val">{{ spouse.birth_date or '—' }}</span></div>
+            <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val">{{ spouse.birth_date or '—' }}{% if spouse.birth_date %} &nbsp;<span class="age-badge" data-bd="{{ spouse.birth_date }}"></span>{% endif %}</span></div>
             <div class="info-item"><span class="info-lbl">تاريخ الزواج</span><span class="info-val">{{ spouse.marriage_date or '—' }}</span></div>
             <div class="info-item"><span class="info-lbl">حامل</span><span class="badge {% if spouse.pregnant %}badge-yes{% else %}badge-no{% endif %}">{% if spouse.pregnant %}نعم{% else %}لا{% endif %}</span></div>
             <div class="info-item"><span class="info-lbl">مرضعة</span><span class="badge {% if spouse.nursing %}badge-yes{% else %}badge-no{% endif %}">{% if spouse.nursing %}نعم{% else %}لا{% endif %}</span></div>
@@ -353,7 +367,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
         {% if children %}
         <div style="background:var(--sand-100);border-radius:10px;padding:14px;margin-bottom:12px;">
           <div style="font-size:.78rem;font-weight:700;color:var(--teal-700);margin-bottom:8px;"><i class="fas fa-child"></i> الأبناء ({{ children|length }})</div>
-          {% for ch in children %}<div class="info-item"><span class="info-lbl">{{ loop.index }}. {{ ch.full_name }}</span><span class="info-val">{{ ch.birth_date or '—' }}</span></div>{% endfor %}
+          {% for ch in children %}<div class="info-item"><span class="info-lbl">{{ loop.index }}. {{ ch.full_name }}</span><span class="info-val">{{ ch.birth_date or '—' }}{% if ch.birth_date %} &nbsp;<span class="age-badge" data-bd="{{ ch.birth_date }}"></span>{% endif %}</span></div>{% endfor %}
         </div>
         {% endif %}
         {% if ben.marital_status == 'widowed' and widowed_info %}
@@ -380,7 +394,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
         {% if dependents %}
         <div style="background:var(--sand-100);border-radius:10px;padding:14px;margin-bottom:12px;">
           <div style="font-size:.78rem;font-weight:700;color:var(--teal-700);margin-bottom:8px;"><i class="fas fa-hands-helping"></i> من يعيلهم</div>
-          {% for d in dependents %}<div class="info-item"><span class="info-lbl">{{ d.full_name }}</span><span class="info-val">{{ d.birth_date or '—' }}</span></div>{% endfor %}
+          {% for d in dependents %}<div class="info-item"><span class="info-lbl">{{ d.full_name }}</span><span class="info-val">{{ d.birth_date or '—' }}{% if d.birth_date %} &nbsp;<span class="age-badge" data-bd="{{ d.birth_date }}"></span>{% endif %}</span></div>{% endfor %}
         </div>
         {% endif %}
         <div class="btn-row" style="margin-top:16px;">
@@ -733,6 +747,35 @@ function onDeathTypeChange(){
   document.getElementById('wd-date-row').style.display   = v==='deceased' ? 'block':'none';
   document.getElementById('sec-orphans').style.display   = (v==='martyr_post_oct7'||v==='martyr_pre_oct7') ? 'block':'none';
 }
+/* ── حساب العمر من data-bd ── */
+function renderAllAges(){
+  const today = new Date();
+  document.querySelectorAll('.age-badge[data-bd]').forEach(el=>{
+    const bd = new Date(el.dataset.bd);
+    if(isNaN(bd)) return;
+    let y=today.getFullYear()-bd.getFullYear(), m=today.getMonth()-bd.getMonth(), d=today.getDate()-bd.getDate();
+    if(d<0){m--;} if(m<0){y--;}
+    el.textContent = y>0 ? y+' سنة' : (Math.abs(m)>0 ? Math.abs(m)+' شهر' : '—');
+  });
+}
+document.addEventListener('DOMContentLoaded', renderAllAges);
+
+/* ── ping كل دقيقتين لإبقاء الـ session حية ── */
+setInterval(()=>{ fetch('/api/beneficiary/ping',{method:'POST'}); }, 120000);
+
+/* ── رفع الصورة الشخصية ── */
+async function uploadAvatar(input){
+  const file = input.files[0]; if(!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await fetch('/api/beneficiary/upload-avatar',{method:'POST',body:fd}).then(x=>x.json());
+  if(r.ok){
+    document.getElementById('avatar-img').src = r.path;
+    document.getElementById('avatar-img').style.display = 'block';
+    const ic = document.getElementById('avatar-icon');
+    if(ic) ic.style.display = 'none';
+  } else { alert(r.error||'خطأ في رفع الصورة'); }
+}
+
 function calcAge(input, ageInput){
   if(!input.value) return;
   const diff = Date.now() - new Date(input.value).getTime();

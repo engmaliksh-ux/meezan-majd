@@ -4638,19 +4638,19 @@ def api_ben_update_family():
                   (ben_id, sp.get("full_name",""), sp.get("id_number",""),
                    sp.get("birth_date",""), sp.get("marriage_date",""), pregnant, nursing))
 
-    # ── الأبناء ──
+    # ── الأبناء ── (دائماً احذف ثم أعد الإدخال)
     children = data.get("children", [])
-    if children:
-        c.execute("DELETE FROM beneficiary_children WHERE beneficiary_id=?", (ben_id,))
-        for i, ch in enumerate(children):
+    c.execute("DELETE FROM beneficiary_children WHERE beneficiary_id=?", (ben_id,))
+    for i, ch in enumerate(children):
+        if ch.get("full_name"):
             c.execute("INSERT INTO beneficiary_children (beneficiary_id,full_name,birth_date,sort_order) VALUES (?,?,?,?)",
                       (ben_id, ch.get("full_name",""), ch.get("birth_date",""), i))
 
-    # ── الحالة الصحية ──
+    # ── الحالة الصحية ── (دائماً احذف ثم أعد الإدخال حتى لو القائمة فاضية)
     health_list = data.get("health", [])
-    if health_list:
-        c.execute("DELETE FROM beneficiary_health WHERE beneficiary_id=?", (ben_id,))
-        for h in health_list:
+    c.execute("DELETE FROM beneficiary_health WHERE beneficiary_id=?", (ben_id,))
+    for h in health_list:
+        if h.get("condition_type"):
             c.execute("INSERT INTO beneficiary_health (beneficiary_id,condition_type,notes,condition_date) VALUES (?,?,?,?)",
                       (ben_id, h.get("condition_type",""), h.get("notes",""), h.get("condition_date","")))
 
@@ -4680,6 +4680,30 @@ def api_ben_update_family():
 
     conn.commit(); conn.close()
     return jsonify({"ok": True})
+
+
+# ── رفع الصورة الشخصية للمستفيد ──
+@app.route("/api/beneficiary/upload-avatar", methods=["POST"])
+def api_ben_upload_avatar():
+    import os, uuid as _uuid
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"ok": False, "error": "لا يوجد ملف"})
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.jpg','.jpeg','.png','.webp'):
+        return jsonify({"ok": False, "error": "صيغة غير مدعومة (jpg/png فقط)"})
+    fname    = f"avatar_{ben_id}_{_uuid.uuid4().hex[:6]}{ext}"
+    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "avatars")
+    os.makedirs(save_dir, exist_ok=True)
+    f.save(os.path.join(save_dir, fname))
+    path = f"/static/uploads/avatars/{fname}"
+    conn = get_connection(); c = conn.cursor()
+    c.execute("UPDATE beneficiaries SET avatar_path=? WHERE id=?", (path, ben_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True, "path": path})
 
 
 # ── رفع مرفقات صحية أو أيتام ──
@@ -5118,12 +5142,22 @@ def check_beneficiary_session_timeout():
         last = session.get("ben_last_active")
         if last:
             diff = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(last)).total_seconds()
-            if diff > 300:  # 5 دقائق
+            if diff > 1800:  # 30 دقيقة
                 session.pop("beneficiary_id", None)
                 session.pop("beneficiary_name", None)
                 session.pop("ben_last_active", None)
                 return
         session["ben_last_active"] = datetime.datetime.utcnow().isoformat()
+
+
+@app.route("/api/beneficiary/ping", methods=["POST"])
+def api_beneficiary_ping():
+    """تجديد الـ session — يُستدعى كل 2 دقيقة من الصفحة"""
+    import datetime
+    if not session.get("beneficiary_id"):
+        return jsonify({"ok": False}), 401
+    session["ben_last_active"] = datetime.datetime.utcnow().isoformat()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/beneficiary/login", methods=["POST"])
