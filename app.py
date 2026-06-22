@@ -313,6 +313,18 @@ def resequence(org_id):
 # ══════════════════════════════════════════
 # الصفحة الرئيسية
 # ══════════════════════════════════════════
+@app.route("/show-error")
+def show_error():
+    import traceback, subprocess
+    try:
+        log = subprocess.run(["tail", "-50",
+            "/var/log/malikmohs.pythonanywhere.com.error.log"],
+            capture_output=True, text=True).stdout
+    except Exception as e:
+        log = str(e)
+    return f"<pre style='direction:ltr;font-size:12px'>{log}</pre>"
+
+
 @app.route("/diag")
 def diag_route():
     import traceback, sys
@@ -5396,17 +5408,20 @@ def deploy_webhook():
 # ── Session timeout: 5 دقائق ──
 @app.before_request
 def check_beneficiary_session_timeout():
-    import datetime
-    if session.get("beneficiary_id"):
-        last = session.get("ben_last_active")
-        if last:
-            diff = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(last)).total_seconds()
-            if diff > 1800:  # 30 دقيقة
-                session.pop("beneficiary_id", None)
-                session.pop("beneficiary_name", None)
-                session.pop("ben_last_active", None)
-                return
-        session["ben_last_active"] = datetime.datetime.utcnow().isoformat()
+    try:
+        import datetime
+        if session.get("beneficiary_id"):
+            last = session.get("ben_last_active")
+            if last:
+                diff = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(last)).total_seconds()
+                if diff > 1800:  # 30 دقيقة
+                    session.pop("beneficiary_id", None)
+                    session.pop("beneficiary_name", None)
+                    session.pop("ben_last_active", None)
+                    return
+            session["ben_last_active"] = datetime.datetime.utcnow().isoformat()
+    except Exception:
+        pass
 
 
 @app.route("/api/beneficiary/ping", methods=["POST"])
