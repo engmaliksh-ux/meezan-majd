@@ -5157,7 +5157,8 @@ def camp_login():
                    render_template("camp_login.html"))
 
         c.execute("SELECT * FROM camp_entities WHERE LOWER(email)=? AND is_active=1", (email,))
-        entity = c.fetchone()
+        _row = c.fetchone()
+        entity = dict(_row) if _row else None
 
         # ── قفل الحساب ──
         if entity and entity.get("locked_until"):
