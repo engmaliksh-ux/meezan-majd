@@ -10,23 +10,41 @@ jobs:
     steps:
       - name: Run git pull via PA Console
         run: |
-          # أنشئ console bash
-          CONSOLE=$(curl -s -X POST \
-            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
-            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/" \
-            -d "executable=bash")
+          AUTH="Authorization: Token ${{ secrets.PA_API_TOKEN }}"
+          BASE="https://www.pythonanywhere.com/api/v0/user/MalikMohs"
+
+          # احذف جميع الـ consoles القديمة
+          OLD=$(curl -s -H "$AUTH" "$BASE/consoles/")
+          echo "$OLD" | python3 -c "
+          import sys,json,urllib.request,urllib.error
+          consoles=json.load(sys.stdin)
+          for c in consoles:
+              req=urllib.request.Request(
+                  'https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/'+str(c['id'])+'/',
+                  method='DELETE',
+                  headers={'Authorization':'Token ${{ secrets.PA_API_TOKEN }}'}
+              )
+              try: urllib.request.urlopen(req)
+              except: pass
+              print('Deleted console',c['id'])
+          " || true
+          sleep 2
+
+          # أنشئ console جديد
+          CONSOLE=$(curl -s -X POST -H "$AUTH" "$BASE/consoles/" -d "executable=bash")
+          echo "Console response: $CONSOLE"
           CONSOLE_ID=$(echo $CONSOLE | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
           echo "Console ID: $CONSOLE_ID"
           sleep 3
 
           # شغّل git pull
-          curl -s -X POST \
-            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
-            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/$CONSOLE_ID/send_input/" \
-            --data-urlencode "input=cd ~/meezan-majd && git pull && echo '===DONE==='\n"
+          curl -s -X POST -H "$AUTH" \
+            "$BASE/consoles/$CONSOLE_ID/send_input/" \
+            --data-urlencode "input=cd ~/meezan-majd && git pull && echo DONE\n"
+          sleep 25
 
-          # انتظر حتى ينتهي
-          sleep 20
+          # احذف الـ console بعد الانتهاء
+          curl -s -X DELETE -H "$AUTH" "$BASE/consoles/$CONSOLE_ID/" || true
 
       - name: Reload web app
         run: |
