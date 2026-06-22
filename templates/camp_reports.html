@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>التقارير — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.topbar-actions a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:5px;}
+.topbar-actions a:hover{color:#fff;}
+.wrap{max-width:1000px;margin:28px auto;padding:0 20px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center;border-top:3px solid var(--g6);}
+.stat-card .n{font-size:2rem;font-weight:900;color:var(--g7);}
+.stat-card .l{font-size:.78rem;color:var(--ink4);margin-top:4px;}
+.section{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.section-hd{font-size:.92rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;}
+table{width:100%;border-collapse:collapse;font-size:.84rem;}
+th{background:#f8f9fa;padding:9px 12px;text-align:right;font-weight:600;color:var(--ink6);font-size:.76rem;}
+td{padding:9px 12px;border-bottom:1px solid #f0f0e8;}
+tr:last-child td{border:none;}
+tr:hover td{background:#fafaf7;}
+.bar-wrap{background:#f0f0e8;border-radius:999px;height:8px;margin-top:6px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--g6);border-radius:999px;}
+.empty{text-align:center;color:var(--ink4);padding:24px;}
+.btn{padding:8px 16px;border-radius:10px;font-size:.82rem;font-weight:600;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.btn-outline{background:#fff;color:var(--g7);border:1.5px solid var(--g6);}
+.btn-outline:hover{background:#f0fdf4;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fas fa-balance-scale" style="color:var(--amber)"></i> {{ entity.name }} — التقارير</div>
+  <div class="topbar-actions">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fas fa-arrow-right"></i> العودة للوحة</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stats-row">
+    <div class="stat-card"><div class="n">{{ total_members }}</div><div class="l">إجمالي المستفيدين</div></div>
+    <div class="stat-card"><div class="n">{{ total_benefits }}</div><div class="l">إجمالي سجلات الاستفادة</div></div>
+    <div class="stat-card"><div class="n">{{ by_type|length }}</div><div class="l">أنواع الاستفادة</div></div>
+    <div class="stat-card"><div class="n">{{ entity.registered_families or 0 }}</div><div class="l">أسرة مسجلة</div></div>
+  </div>
+
+  <!-- توزيع حسب النوع -->
+  <div class="section">
+    <div class="section-hd"><i class="fas fa-chart-pie"></i> الاستفادة حسب النوع</div>
+    {% if by_type %}
+    {% set max_cnt = by_type[0].cnt %}
+    <table>
+      <thead><tr><th>نوع الاستفادة</th><th>عدد السجلات</th><th style="width:40%">النسبة</th></tr></thead>
+      <tbody>
+      {% for t in by_type %}
+      <tr>
+        <td><strong>{{ t.benefit_type }}</strong></td>
+        <td>{{ t.cnt }}</td>
+        <td>
+          <div class="bar-wrap"><div class="bar-fill" style="width:{{ (t.cnt/max_cnt*100)|int }}%"></div></div>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">لم يُسجَّل أي توزيع بعد</div>
+    {% endif %}
+  </div>
+
+  <!-- آخر 30 توزيع -->
+  <div class="section">
+    <div class="section-hd"><i class="fas fa-history"></i> آخر 30 توزيع</div>
+    {% if recent %}
+    <table>
+      <thead><tr><th>المستفيد</th><th>رقم الهوية</th><th>نوع الاستفادة</th><th>القيمة</th><th>الكمية</th><th>التاريخ</th><th>ملاحظات</th></tr></thead>
+      <tbody>
+      {% for r in recent %}
+      <tr>
+        <td><strong>{{ r.full_name }}</strong></td>
+        <td dir="ltr">{{ r.id_number or '—' }}</td>
+        <td>{{ r.benefit_type }}</td>
+        <td>{{ r.value or '—' }}</td>
+        <td>{{ r.quantity or '—' }}</td>
+        <td>{{ r.benefit_date or '—' }}</td>
+        <td>{{ r.notes or '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">لا توجد سجلات</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

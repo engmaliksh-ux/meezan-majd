@@ -599,6 +599,22 @@ def init_camp_tables():
         except Exception:
             pass
 
+    # ── جدول الاستفادة من المخيم ──
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS camp_benefits (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        beneficiary_id INTEGER NOT NULL,
+        benefit_type   TEXT NOT NULL,
+        value          TEXT,
+        quantity       TEXT,
+        notes          TEXT,
+        benefit_date   TEXT DEFAULT (date('now','localtime')),
+        created_at     TEXT DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
+
     # ── جدول بيانات الزوجة ──
     c.execute("""
     CREATE TABLE IF NOT EXISTS beneficiary_spouse (

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ ben.full_name }} — ميزان مجد</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.topbar-actions a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:5px;}
+.topbar-actions a:hover{color:#fff;}
+.wrap{max-width:900px;margin:28px auto;padding:0 20px;}
+.profile-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px;}
+.profile-hd{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0e8;}
+.avatar-circle{width:60px;height:60px;background:linear-gradient(135deg,var(--g7),var(--g5));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;font-weight:900;flex-shrink:0;}
+.profile-name{font-size:1.1rem;font-weight:800;color:var(--g9);}
+.profile-sub{font-size:.82rem;color:var(--ink4);margin-top:3px;}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+.info-item{background:#f8faf8;border-radius:10px;padding:12px 14px;}
+.info-item .lbl{font-size:.72rem;font-weight:700;color:var(--ink4);margin-bottom:3px;}
+.info-item .val{font-size:.88rem;font-weight:600;color:var(--ink);}
+.section{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.section-hd{font-size:.92rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;justify-content:space-between;}
+table{width:100%;border-collapse:collapse;font-size:.84rem;}
+th{background:#f8f9fa;padding:9px 12px;text-align:right;font-weight:600;color:var(--ink6);font-size:.76rem;}
+td{padding:9px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+tr:last-child td{border:none;}
+.btn{padding:8px 16px;border-radius:10px;font-size:.82rem;font-weight:600;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.btn-primary{background:var(--g6);color:#fff;}
+.btn-primary:hover{background:var(--g7);}
+.btn-danger{background:#fee2e2;color:#991b1b;}
+.btn-danger:hover{background:#fca5a5;}
+.btn-outline{background:#fff;color:var(--g7);border:1.5px solid var(--g6);}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px;}
+.fg label{font-size:.74rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select{padding:8px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.84rem;font-family:inherit;}
+.fg input:focus,.fg select:focus{border-color:var(--g6);outline:none;}
+.empty{text-align:center;color:var(--ink4);padding:24px;font-size:.88rem;}
+.flash{padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.84rem;font-weight:600;}
+.flash.success{background:#d1fae5;color:#065f46;}
+.flash.error{background:#fee2e2;color:#991b1b;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fas fa-balance-scale" style="color:var(--amber)"></i> ميزان مجد</div>
+  <div class="topbar-actions">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fas fa-arrow-right"></i> العودة للوحة</a>
+  </div>
+</div>
+
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- بطاقة المستفيد -->
+  <div class="profile-card">
+    <div class="profile-hd">
+      <div class="avatar-circle">{{ ben.full_name[0] if ben.full_name else '؟' }}</div>
+      <div>
+        <div class="profile-name">{{ ben.full_name }}</div>
+        <div class="profile-sub">رقم الهوية: {{ ben.id_number or '—' }} | {{ 'ذكر' if ben.gender=='male' else 'أنثى' }}</div>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-item"><div class="lbl">الجوال</div><div class="val">{{ ben.phone or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">حجم الأسرة</div><div class="val">{{ ben.family_size or 1 }} فرد</div></div>
+      <div class="info-item"><div class="lbl">المحافظة</div><div class="val">{{ ben.governorate or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">المدينة</div><div class="val">{{ ben.city or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">العنوان</div><div class="val">{{ ben.address or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">تاريخ الميلاد</div><div class="val">{{ ben.birth_date or '—' }}</div></div>
+    </div>
+  </div>
+
+  <!-- سجل الاستفادة -->
+  <div class="section">
+    <div class="section-hd">
+      <span><i class="fas fa-hand-holding-heart"></i> سجل الاستفادة ({{ benefits|length }})</span>
+    </div>
+
+    <!-- نموذج إضافة استفادة -->
+    <form method="POST" action="/camp/benefit/add">
+      <input type="hidden" name="beneficiary_id" value="{{ ben.id }}">
+      <div class="form-row">
+        <div class="fg">
+          <label>نوع الاستفادة *</label>
+          <select name="benefit_type" required>
+            <option value="">— النوع —</option>
+            <option>غذاء</option><option>دواء</option><option>ملابس</option>
+            <option>مساعدة مالية</option><option>مواد إيواء</option>
+            <option>خدمات طبية</option><option>تعليم</option>
+            <option>مياه ونظافة</option><option>أخرى</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>القيمة</label>
+          <input type="text" name="value" placeholder="مثال: 50$">
+        </div>
+        <div class="fg">
+          <label>الكمية</label>
+          <input type="text" name="quantity" placeholder="مثال: 3 كراتين">
+        </div>
+        <div class="fg">
+          <label>التاريخ</label>
+          <input type="date" name="benefit_date">
+        </div>
+        <div class="fg">
+          <label>ملاحظات</label>
+          <input type="text" name="notes" placeholder="اختياري">
+        </div>
+        <div class="fg" style="justify-content:flex-end;flex:0;min-width:auto;">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> إضافة</button>
+        </div>
+      </div>
+    </form>
+
+    <div style="margin-top:18px;">
+    {% if benefits %}
+    <table>
+      <thead><tr><th>نوع الاستفادة</th><th>القيمة</th><th>الكمية</th><th>التاريخ</th><th>ملاحظات</th><th></th></tr></thead>
+      <tbody>
+      {% for b in benefits %}
+      <tr>
+        <td>{{ b.benefit_type }}</td>
+        <td>{{ b.value or '—' }}</td>
+        <td>{{ b.quantity or '—' }}</td>
+        <td>{{ b.benefit_date or '—' }}</td>
+        <td>{{ b.notes or '—' }}</td>
+        <td>
+          <form method="POST" action="/camp/benefit/delete/{{ b.id }}" style="display:inline;" onsubmit="return confirm('حذف هذا السجل؟')">
+            <button class="btn btn-danger" style="padding:4px 10px;font-size:.74rem;"><i class="fas fa-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">لم يُسجَّل أي توزيع لهذا المستفيد بعد</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

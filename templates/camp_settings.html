@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>الإعدادات — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.topbar-actions a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:5px;}
+.topbar-actions a:hover{color:#fff;}
+.wrap{max-width:700px;margin:28px auto;padding:0 20px;}
+.section{background:#fff;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.section-hd{font-size:.95rem;font-weight:700;color:var(--g9);margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;gap:8px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:.76rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select{padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:var(--ink);}
+.fg input:focus,.fg select:focus{border-color:var(--g6);outline:none;box-shadow:0 0 0 3px rgba(45,138,80,.1);}
+.full{grid-column:1/-1;}
+.btn{padding:10px 20px;border-radius:10px;font-size:.85rem;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--g6);color:#fff;}
+.btn-primary:hover{background:var(--g7);}
+.flash{padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.84rem;font-weight:600;}
+.flash.success{background:#d1fae5;color:#065f46;}
+.flash.error{background:#fee2e2;color:#991b1b;}
+.info-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink6);margin-bottom:14px;}
+.info-row strong{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fas fa-balance-scale" style="color:var(--amber)"></i> {{ entity.name }} — الإعدادات</div>
+  <div class="topbar-actions">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fas fa-arrow-right"></i> العودة للوحة</a>
+  </div>
+</div>
+
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- بيانات الجهة -->
+  <div class="section">
+    <div class="section-hd"><i class="fas fa-building"></i> بيانات الجهة</div>
+    <div class="info-row"><i class="fas fa-envelope" style="color:var(--g6)"></i> البريد الإلكتروني: <strong>{{ entity.email }}</strong></div>
+    <form method="POST">
+      <input type="hidden" name="action" value="update_info">
+      <div class="form-grid">
+        <div class="fg">
+          <label>اسم الجهة *</label>
+          <input type="text" name="name" value="{{ entity.name }}" required>
+        </div>
+        <div class="fg">
+          <label>اسم المسؤول *</label>
+          <input type="text" name="manager_name" value="{{ entity.manager_name }}" required>
+        </div>
+        <div class="fg">
+          <label>رقم الجوال</label>
+          <input type="text" name="mobile" value="{{ entity.mobile or '' }}">
+        </div>
+        <div class="fg">
+          <label>واتساب</label>
+          <input type="text" name="whatsapp" value="{{ entity.whatsapp or '' }}">
+        </div>
+        <div class="fg">
+          <label>المحافظة</label>
+          <input type="text" name="governorate" value="{{ entity.governorate or '' }}">
+        </div>
+        <div class="fg">
+          <label>المدينة / المنطقة</label>
+          <input type="text" name="city" value="{{ entity.city or '' }}">
+        </div>
+        <div class="fg">
+          <label>العنوان التفصيلي</label>
+          <input type="text" name="street" value="{{ entity.street or '' }}">
+        </div>
+        <div class="fg">
+          <label>عدد الأسر المسجلة</label>
+          <input type="number" name="registered_families" value="{{ entity.registered_families or 0 }}" min="0">
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ البيانات</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- تغيير كلمة المرور -->
+  <div class="section">
+    <div class="section-hd"><i class="fas fa-lock"></i> تغيير كلمة المرور</div>
+    <form method="POST">
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-grid">
+        <div class="fg full">
+          <label>كلمة المرور الحالية *</label>
+          <input type="password" name="old_password" required>
+        </div>
+        <div class="fg">
+          <label>كلمة المرور الجديدة *</label>
+          <input type="password" name="new_password" required minlength="6">
+        </div>
+        <div class="fg">
+          <label>تأكيد كلمة المرور *</label>
+          <input type="password" name="new_password2" required minlength="6">
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> تغيير كلمة المرور</button>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

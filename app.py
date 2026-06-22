@@ -5313,11 +5313,17 @@ def camp_dashboard():
         ORDER BY full_name
     """, (camp_id,))
     members = [dict(r) for r in c.fetchall()]
+    # آخر 5 استفادات
+    c.execute("""SELECT cb.*, b.full_name FROM camp_benefits cb
+                 JOIN beneficiaries b ON cb.beneficiary_id=b.id
+                 WHERE cb.camp_entity_id=? ORDER BY cb.created_at DESC LIMIT 5""", (camp_id,))
+    recent_benefits = [dict(r) for r in c.fetchall()]
     conn.close()
     return render_template("camp_dashboard.html",
         entity=entity,
         requests_list=requests_list,
-        members=members)
+        members=members,
+        recent_benefits=recent_benefits)
 
 
 @app.route("/camp/join-request/<int:req_id>/<action>")
@@ -5374,6 +5380,140 @@ def camp_add_beneficiary():
         flash("تم إضافة المستفيد بنجاح", "success")
         return redirect(url_for("camp_dashboard"))
     return render_template("camp_add_beneficiary.html")
+
+# ══════════════════════════════════════════
+# لوحة تحكم المخيم — ميزات إضافية
+# ══════════════════════════════════════════
+
+@app.route("/camp/beneficiary/<int:ben_id>")
+@camp_login_required
+def camp_beneficiary_profile(ben_id):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""SELECT * FROM beneficiaries WHERE id=? AND camp_entity_id=?""", (ben_id, camp_id))
+    ben = c.fetchone()
+    if not ben:
+        conn.close()
+        flash("المستفيد غير موجود", "error")
+        return redirect(url_for("camp_dashboard"))
+    ben = dict(ben)
+    c.execute("""SELECT * FROM camp_benefits WHERE beneficiary_id=? AND camp_entity_id=?
+                 ORDER BY benefit_date DESC""", (ben_id, camp_id))
+    benefits = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_beneficiary.html", ben=ben, benefits=benefits)
+
+@app.route("/camp/benefit/add", methods=["POST"])
+@camp_login_required
+def camp_add_benefit():
+    camp_id    = session["camp_id"]
+    ben_id     = request.form.get("beneficiary_id","")
+    btype      = request.form.get("benefit_type","").strip()
+    value      = request.form.get("value","").strip()
+    quantity   = request.form.get("quantity","").strip()
+    notes      = request.form.get("notes","").strip()
+    bdate      = request.form.get("benefit_date","").strip()
+    if not ben_id or not btype:
+        flash("يرجى تعبئة الحقول المطلوبة", "error")
+        return redirect(url_for("camp_dashboard"))
+    from datetime import date as _date
+    if not bdate:
+        bdate = _date.today().isoformat()
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""INSERT INTO camp_benefits
+        (camp_entity_id, beneficiary_id, benefit_type, value, quantity, notes, benefit_date)
+        VALUES (?,?,?,?,?,?,?)""",
+        (camp_id, ben_id, btype, value, quantity, notes, bdate))
+    conn.commit(); conn.close()
+    flash("تم تسجيل الاستفادة بنجاح", "success")
+    return redirect(request.referrer or url_for("camp_dashboard"))
+
+@app.route("/camp/benefit/delete/<int:bid>", methods=["POST"])
+@camp_login_required
+def camp_delete_benefit(bid):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("DELETE FROM camp_benefits WHERE id=? AND camp_entity_id=?", (bid, camp_id))
+    conn.commit(); conn.close()
+    flash("تم حذف السجل", "success")
+    return redirect(request.referrer or url_for("camp_dashboard"))
+
+@app.route("/camp/settings", methods=["GET","POST"])
+@camp_login_required
+def camp_settings():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    if request.method == "POST":
+        action = request.form.get("action","")
+        if action == "update_info":
+            name        = request.form.get("name","").strip()
+            manager     = request.form.get("manager_name","").strip()
+            mobile      = request.form.get("mobile","").strip()
+            whatsapp    = request.form.get("whatsapp","").strip()
+            governorate = request.form.get("governorate","").strip()
+            city        = request.form.get("city","").strip()
+            street      = request.form.get("street","").strip()
+            families    = request.form.get("registered_families",0)
+            c.execute("""UPDATE camp_entities SET name=?,manager_name=?,mobile=?,whatsapp=?,
+                         governorate=?,city=?,street=?,registered_families=? WHERE id=?""",
+                      (name,manager,mobile,whatsapp,governorate,city,street,families or 0,camp_id))
+            conn.commit()
+            session["camp_name"] = name
+            flash("تم حفظ البيانات", "success")
+        elif action == "change_password":
+            old_pw  = request.form.get("old_password","")
+            new_pw  = request.form.get("new_password","")
+            new_pw2 = request.form.get("new_password2","")
+            c.execute("SELECT password FROM camp_entities WHERE id=?", (camp_id,))
+            row = c.fetchone()
+            if not row or not check_password_hash(row["password"], old_pw):
+                flash("كلمة المرور الحالية غير صحيحة", "error")
+            elif new_pw != new_pw2:
+                flash("كلمتا المرور الجديدتان غير متطابقتين", "error")
+            elif len(new_pw) < 6:
+                flash("كلمة المرور قصيرة جداً (6 أحرف على الأقل)", "error")
+            else:
+                c.execute("UPDATE camp_entities SET password=? WHERE id=?",
+                          (generate_password_hash(new_pw), camp_id))
+                conn.commit()
+                flash("تم تغيير كلمة المرور", "success")
+        conn.close()
+        return redirect(url_for("camp_settings"))
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    conn.close()
+    return render_template("camp_settings.html", entity=entity)
+
+@app.route("/camp/reports")
+@camp_login_required
+def camp_reports():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    # إجماليات الاستفادة حسب النوع
+    c.execute("""SELECT benefit_type, COUNT(*) as cnt
+                 FROM camp_benefits WHERE camp_entity_id=?
+                 GROUP BY benefit_type ORDER BY cnt DESC""", (camp_id,))
+    by_type = [dict(r) for r in c.fetchall()]
+    # آخر 30 توزيع
+    c.execute("""SELECT cb.*, b.full_name, b.id_number
+                 FROM camp_benefits cb
+                 JOIN beneficiaries b ON cb.beneficiary_id=b.id
+                 WHERE cb.camp_entity_id=?
+                 ORDER BY cb.created_at DESC LIMIT 30""", (camp_id,))
+    recent = [dict(r) for r in c.fetchall()]
+    # إجمالي المستفيدين
+    c.execute("SELECT COUNT(*) as cnt FROM beneficiaries WHERE camp_entity_id=? AND beneficiary_status='in_camp'", (camp_id,))
+    total_members = c.fetchone()["cnt"]
+    # إجمالي سجلات الاستفادة
+    c.execute("SELECT COUNT(*) as cnt FROM camp_benefits WHERE camp_entity_id=?", (camp_id,))
+    total_benefits = c.fetchone()["cnt"]
+    conn.close()
+    return render_template("camp_reports.html",
+        entity=entity, by_type=by_type, recent=recent,
+        total_members=total_members, total_benefits=total_benefits)
+
 
 # ══════════════════════════════════════════
 # Auto-Deploy Webhook

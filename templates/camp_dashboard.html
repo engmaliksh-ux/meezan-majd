@@ -2,111 +2,127 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>لوحة {{ entity.name }} — ميزان مجد</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--teal-900:#0f3d2e;--teal-700:#1a6b3a;--teal-600:#2d8a50;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;}
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
-body{background:var(--sand);color:var(--ink);}
-.topbar{background:linear-gradient(90deg,var(--teal-900),var(--teal-700));color:#fff;
-        padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
-.topbar h1{font-size:1rem;font-weight:800;}
-.topbar-right{display:flex;align-items:center;gap:16px;font-size:.85rem;}
-.topbar a{color:rgba(255,255,255,.8);text-decoration:none;}
-.topbar a:hover{color:#fff;}
-.container{max-width:1100px;margin:28px auto;padding:0 20px;}
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;}
-.stat-card{background:#fff;border-radius:14px;padding:20px;
-           box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center;}
-.stat-card .n{font-size:2rem;font-weight:900;color:var(--teal-700);}
-.stat-card .l{font-size:.8rem;color:#64748b;margin-top:4px;}
-.section{background:#fff;border-radius:16px;padding:24px;margin-bottom:20px;
-         box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.section-title{font-size:.95rem;font-weight:700;color:var(--teal-900);
-               margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;
-               display:flex;align-items:center;justify-content:space-between;}
-.badge{padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
-.badge-pending{background:#fef3c7;color:#92400e;}
-.badge-approved{background:#d1fae5;color:#065f46;}
-.badge-rejected{background:#fee2e2;color:#991b1b;}
-table{width:100%;border-collapse:collapse;font-size:.85rem;}
-th{background:#f8f9fa;padding:10px 12px;text-align:right;font-weight:600;color:#475569;font-size:.78rem;}
-td{padding:10px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+body{background:var(--sand);color:var(--ink);min-height:100vh;}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;
+        display:flex;align-items:center;justify-content:space-between;height:56px;
+        position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.brand-icon{width:32px;height:32px;background:var(--g5);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--amber);}
+.entity-badge{background:rgba(255,255,255,.15);border-radius:999px;padding:3px 12px;font-size:.78rem;}
+.topbar-actions{display:flex;align-items:center;gap:16px;font-size:.82rem;}
+.topbar-actions a{color:rgba(255,255,255,.8);text-decoration:none;display:flex;align-items:center;gap:5px;}
+.topbar-actions a:hover{color:#fff;}
+.tabs-bar{background:#fff;border-bottom:2px solid #e8e8e0;display:flex;gap:0;padding:0 24px;
+          position:sticky;top:56px;z-index:99;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.tab-btn{padding:14px 20px;border:none;background:none;font-size:.85rem;font-weight:600;
+         color:var(--ink6);cursor:pointer;border-bottom:2px solid transparent;
+         margin-bottom:-2px;transition:.15s;display:flex;align-items:center;gap:6px;}
+.tab-btn:hover{color:var(--g7);}
+.tab-btn.active{color:var(--g7);border-bottom-color:var(--g6);}
+.page{display:none;max-width:1100px;margin:0 auto;padding:24px 20px;}
+.page.active{display:block;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center;border-top:3px solid var(--g6);}
+.stat-card .n{font-size:2rem;font-weight:900;color:var(--g7);}
+.stat-card .l{font-size:.78rem;color:var(--ink4);margin-top:4px;}
+.section{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.section-hd{font-size:.92rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;justify-content:space-between;}
+table{width:100%;border-collapse:collapse;font-size:.84rem;}
+th{background:#f8f9fa;padding:9px 12px;text-align:right;font-weight:600;color:var(--ink6);font-size:.76rem;}
+td{padding:9px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
 tr:last-child td{border:none;}
-.btn-sm{padding:5px 12px;border-radius:8px;font-size:.78rem;font-weight:600;
-        border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+tr:hover td{background:#fafaf7;}
+.badge{padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+.b-pending{background:#fef3c7;color:#92400e;}
+.b-approved{background:#d1fae5;color:#065f46;}
+.b-rejected{background:#fee2e2;color:#991b1b;}
+.btn{padding:8px 16px;border-radius:10px;font-size:.82rem;font-weight:600;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;}
+.btn-primary:hover{background:var(--g7);}
 .btn-approve{background:#d1fae5;color:#065f46;}
 .btn-approve:hover{background:#a7f3d0;}
 .btn-reject{background:#fee2e2;color:#991b1b;}
 .btn-reject:hover{background:#fecaca;}
-.btn-primary{background:var(--teal-600);color:#fff;padding:9px 18px;border-radius:10px;
-             text-decoration:none;font-size:.85rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;}
-.btn-primary:hover{background:var(--teal-700);}
-.empty{text-align:center;color:#94a3b8;padding:24px;font-size:.88rem;}
+.btn-outline{background:#fff;color:var(--g7);border:1.5px solid var(--g6);}
+.btn-outline:hover{background:#f0fdf4;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid.cols3{grid-template-columns:1fr 1fr 1fr;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:.76rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select,.fg textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:var(--ink);transition:.15s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--g6);outline:none;box-shadow:0 0 0 3px rgba(45,138,80,.1);}
+.empty{text-align:center;color:var(--ink4);padding:30px;font-size:.88rem;}
+.empty i{font-size:2rem;display:block;margin-bottom:8px;opacity:.4;}
+.flash{padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.84rem;font-weight:600;}
+.flash.success{background:#d1fae5;color:#065f46;}
+.flash.error{background:#fee2e2;color:#991b1b;}
+.flash.warning{background:#fef3c7;color:#92400e;}
+.row-link{color:var(--g7);text-decoration:none;font-weight:600;font-size:.82rem;}
+.row-link:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
+
 <div class="topbar">
-  <h1><i class="fas fa-campground"></i> {{ entity.name }}</h1>
-  <div class="topbar-right">
-    <span>{{ entity.entity_type == 'camp' and 'مخيم' or entity.entity_type == 'committee' and 'لجنة' or 'عائلة' }}</span>
+  <div class="brand">
+    <div class="brand-icon"><i class="fas fa-balance-scale"></i></div>
+    <span>{{ entity.name }}</span>
+    <span class="entity-badge">{{ 'مخيم' if entity.entity_type=='camp' else 'لجنة' if 'committee' in entity.entity_type else 'عائلة' }}</span>
+  </div>
+  <div class="topbar-actions">
+    <a href="{{ url_for('camp_reports') }}"><i class="fas fa-chart-bar"></i> التقارير</a>
+    <a href="{{ url_for('camp_settings') }}"><i class="fas fa-cog"></i> الإعدادات</a>
     <a href="/camp/logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
   </div>
 </div>
 
-<div class="container">
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="showTab('overview',this)"><i class="fas fa-home"></i> الرئيسية</button>
+  <button class="tab-btn" onclick="showTab('members',this)"><i class="fas fa-users"></i> المستفيدون</button>
+  <button class="tab-btn" onclick="showTab('benefits',this)"><i class="fas fa-hand-holding-heart"></i> تسجيل الاستفادة</button>
+</div>
+
+<!-- ══ الرئيسية ══ -->
+<div id="tab-overview" class="page active">
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div style="padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem;
-                  background:{{ '#d1fae5' if cat=='success' else '#fee2e2' if cat=='error' else '#fef3c7' }};">
-        {{ msg }}
-      </div>
-    {% endfor %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
   {% endwith %}
 
   <div class="stats-row">
-    <div class="stat-card">
-      <div class="n">{{ members|length }}</div>
-      <div class="l">مستفيد مقبول</div>
-    </div>
-    <div class="stat-card">
-      <div class="n">{{ requests_list|selectattr('status','equalto','pending')|list|length }}</div>
-      <div class="l">طلب معلق</div>
-    </div>
-    <div class="stat-card">
-      <div class="n">{{ entity.registered_families or 0 }}</div>
-      <div class="l">أسرة مسجلة</div>
-    </div>
+    <div class="stat-card"><div class="n">{{ members|length }}</div><div class="l">مستفيد مقبول</div></div>
+    <div class="stat-card"><div class="n">{{ requests_list|selectattr('status','equalto','pending')|list|length }}</div><div class="l">طلب انضمام معلق</div></div>
+    <div class="stat-card"><div class="n">{{ entity.registered_families or 0 }}</div><div class="l">أسرة مسجلة</div></div>
+    <div class="stat-card"><div class="n">{{ recent_benefits|length }}</div><div class="l">آخر توزيعات</div></div>
   </div>
 
-  <!-- طلبات الانضمام -->
   <div class="section">
-    <div class="section-title">
+    <div class="section-hd">
       <span><i class="fas fa-user-clock"></i> طلبات الانضمام</span>
-      <span class="badge badge-pending">{{ requests_list|selectattr('status','equalto','pending')|list|length }} معلق</span>
+      <span class="badge b-pending">{{ requests_list|selectattr('status','equalto','pending')|list|length }} معلق</span>
     </div>
     {% if requests_list %}
     <table>
-      <thead><tr>
-        <th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>العنوان</th><th>الحالة</th><th>إجراء</th>
-      </tr></thead>
+      <thead><tr><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>الحالة</th><th>إجراء</th></tr></thead>
       <tbody>
       {% for r in requests_list %}
       <tr>
         <td><strong>{{ r.full_name }}</strong></td>
-        <td>{{ r.id_number or '—' }}</td>
+        <td dir="ltr">{{ r.id_number or '—' }}</td>
         <td>{{ r.phone or '—' }}</td>
-        <td>{{ r.address or '—' }}</td>
-        <td>
-          <span class="badge {{ 'badge-pending' if r.status=='pending' else 'badge-approved' if r.status=='approved' else 'badge-rejected' }}">
-            {{ 'معلق' if r.status=='pending' else 'مقبول' if r.status=='approved' else 'مرفوض' }}
-          </span>
-        </td>
+        <td><span class="badge {{ 'b-pending' if r.status=='pending' else 'b-approved' if r.status=='approved' else 'b-rejected' }}">
+          {{ 'معلق' if r.status=='pending' else 'مقبول' if r.status=='approved' else 'مرفوض' }}
+        </span></td>
         <td>
           {% if r.status == 'pending' %}
-          <a href="/camp/join-request/{{ r.id }}/approve" class="btn-sm btn-approve"><i class="fas fa-check"></i> قبول</a>
-          <a href="/camp/join-request/{{ r.id }}/reject" class="btn-sm btn-reject"><i class="fas fa-times"></i> رفض</a>
+          <a href="/camp/join-request/{{ r.id }}/approve" class="btn btn-approve"><i class="fas fa-check"></i> قبول</a>
+          <a href="/camp/join-request/{{ r.id }}/reject" class="btn btn-reject"><i class="fas fa-times"></i> رفض</a>
           {% endif %}
         </td>
       </tr>
@@ -114,38 +130,123 @@ tr:last-child td{border:none;}
       </tbody>
     </table>
     {% else %}
-    <div class="empty"><i class="fas fa-inbox"></i><br>لا توجد طلبات انضمام</div>
+    <div class="empty"><i class="fas fa-inbox"></i>لا توجد طلبات انضمام</div>
     {% endif %}
   </div>
 
-  <!-- قائمة المستفيدين -->
   <div class="section">
-    <div class="section-title">
-      <span><i class="fas fa-users"></i> المستفيدون المقبولون</span>
-      <a href="/camp/add-beneficiary" class="btn-primary"><i class="fas fa-user-plus"></i> إضافة مستفيد</a>
+    <div class="section-hd">
+      <span><i class="fas fa-history"></i> آخر التوزيعات</span>
+      <a href="{{ url_for('camp_reports') }}" class="btn btn-outline">كل التقارير</a>
     </div>
-    {% if members %}
+    {% if recent_benefits %}
     <table>
-      <thead><tr>
-        <th>#</th><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>الجنس</th><th>حجم الأسرة</th>
-      </tr></thead>
+      <thead><tr><th>المستفيد</th><th>نوع الاستفادة</th><th>القيمة/الكمية</th><th>التاريخ</th></tr></thead>
       <tbody>
-      {% for m in members %}
+      {% for b in recent_benefits %}
       <tr>
-        <td>{{ loop.index }}</td>
-        <td><strong>{{ m.full_name }}</strong></td>
-        <td>{{ m.id_number or '—' }}</td>
-        <td>{{ m.phone or '—' }}</td>
-        <td>{{ 'ذكر' if m.gender=='male' else 'أنثى' }}</td>
-        <td>{{ m.family_size or 1 }}</td>
+        <td><strong>{{ b.full_name }}</strong></td>
+        <td>{{ b.benefit_type }}</td>
+        <td>{{ b.value or '' }}{% if b.quantity %} / {{ b.quantity }}{% endif %}</td>
+        <td>{{ b.benefit_date or '—' }}</td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="empty"><i class="fas fa-users"></i><br>لا يوجد مستفيدون مقبولون بعد</div>
+    <div class="empty"><i class="fas fa-hand-holding-heart"></i>لم يُسجَّل أي توزيع بعد</div>
     {% endif %}
   </div>
 </div>
+
+<!-- ══ المستفيدون ══ -->
+<div id="tab-members" class="page">
+  <div class="section">
+    <div class="section-hd">
+      <span><i class="fas fa-users"></i> المستفيدون المقبولون ({{ members|length }})</span>
+      <a href="/camp/add-beneficiary" class="btn btn-primary"><i class="fas fa-user-plus"></i> إضافة مستفيد</a>
+    </div>
+    {% if members %}
+    <table>
+      <thead><tr><th>#</th><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>الجنس</th><th>حجم الأسرة</th><th>ملف</th></tr></thead>
+      <tbody>
+      {% for m in members %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><strong>{{ m.full_name }}</strong></td>
+        <td dir="ltr">{{ m.id_number or '—' }}</td>
+        <td>{{ m.phone or '—' }}</td>
+        <td>{{ 'ذكر' if m.gender=='male' else 'أنثى' }}</td>
+        <td>{{ m.family_size or 1 }}</td>
+        <td><a href="/camp/beneficiary/{{ m.id }}" class="row-link"><i class="fas fa-eye"></i> عرض</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><i class="fas fa-users"></i>لا يوجد مستفيدون مقبولون بعد</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ══ تسجيل الاستفادة ══ -->
+<div id="tab-benefits" class="page">
+  <div class="section">
+    <div class="section-hd"><span><i class="fas fa-plus-circle"></i> تسجيل استفادة جديدة</span></div>
+    {% if members %}
+    <form method="POST" action="/camp/benefit/add">
+      <div class="form-grid cols3">
+        <div class="fg">
+          <label>المستفيد *</label>
+          <select name="beneficiary_id" required>
+            <option value="">— اختر مستفيداً —</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>نوع الاستفادة *</label>
+          <select name="benefit_type" required>
+            <option value="">— اختر النوع —</option>
+            <option>غذاء</option><option>دواء</option><option>ملابس</option>
+            <option>مساعدة مالية</option><option>مواد إيواء</option>
+            <option>خدمات طبية</option><option>تعليم</option>
+            <option>مياه ونظافة</option><option>أخرى</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>التاريخ</label>
+          <input type="date" name="benefit_date">
+        </div>
+        <div class="fg">
+          <label>القيمة (مبلغ / وصف)</label>
+          <input type="text" name="value" placeholder="مثال: 50 دولار">
+        </div>
+        <div class="fg">
+          <label>الكمية</label>
+          <input type="text" name="quantity" placeholder="مثال: 3 كراتين">
+        </div>
+        <div class="fg">
+          <label>ملاحظات</label>
+          <input type="text" name="notes" placeholder="اختياري">
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> تسجيل الاستفادة</button>
+      </div>
+    </form>
+    {% else %}
+    <div class="empty"><i class="fas fa-users"></i>أضف مستفيدين أولاً لتتمكن من تسجيل الاستفادة</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function showTab(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
 </body>
 </html>
