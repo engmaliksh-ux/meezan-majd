@@ -19,7 +19,7 @@
 body{background:var(--sand);color:var(--ink);min-height:100vh;}
 .nav{background:var(--teal-900);padding:0 20px;display:flex;align-items:center;
      justify-content:space-between;position:sticky;top:0;z-index:200;
-     box-shadow:0 2px 16px rgba(0,0,0,.3);gap:12px;position:relative;}
+     box-shadow:0 2px 16px rgba(0,0,0,.3);gap:12px;}
 /* يمين: صورة + بيانات المستخدم */
 .nav-user{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .nav-avatar{width:44px;height:44px;border-radius:50%;background:var(--teal-600);
@@ -243,15 +243,12 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       <i class="fas fa-balance-scale"></i>
       <span>ميزان مجد</span>
     </a>
-    <!-- تبويبات في وسط حقيقي -->
-    <div style="display:flex;gap:6px;position:absolute;left:50%;transform:translateX(-50%);">
-      <button class="tab-btn active" onclick="switchTab('personal',this)">
-        <i class="fas fa-id-card"></i> <span>البيانات الشخصية</span>
-      </button>
-      <button class="tab-btn" onclick="switchTab('benefits',this)">
-        <i class="fas fa-hand-holding-heart"></i> <span>كشف الاستفادة</span>
-      </button>
-    </div>
+    <button class="tab-btn active" onclick="switchTab('personal',this)">
+      <i class="fas fa-id-card"></i> <span>البيانات الشخصية</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('benefits',this)">
+      <i class="fas fa-hand-holding-heart"></i> <span>كشف الاستفادة</span>
+    </button>
   </div>
 
   <!-- يسار: خروج -->
