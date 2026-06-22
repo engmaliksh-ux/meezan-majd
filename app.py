@@ -4530,14 +4530,156 @@ def beneficiary_portal():
     """, (ben["id"],))
     join_req = c.fetchone()
     conn.close()
-    return render_template("beneficiary_portal.html", ben=dict(ben), join_req=join_req)
+    # كشف الاستفادة
+    c.execute("""
+        SELECT pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
+               p.name as program_name, p.program_type,
+               o.name as org_name
+        FROM program_records pr
+        JOIN programs p ON pr.program_id = p.id
+        LEFT JOIN organizations o ON pr.org_id = o.id
+        WHERE pr.beneficiary_id = ?
+        ORDER BY pr.benefit_date DESC LIMIT 50
+    """, (ben["id"],))
+    benefits = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("beneficiary_portal.html",
+                           ben=dict(ben), join_req=join_req, benefits=benefits)
 
 
 @app.route("/beneficiary/logout")
 def beneficiary_logout():
     session.pop("beneficiary_id", None)
     session.pop("beneficiary_name", None)
+    session.pop("ben_last_active", None)
     return redirect(url_for("home"))
+
+
+# ── تحديث البيانات الشخصية ──
+@app.route("/api/beneficiary/update-profile", methods=["POST"])
+def api_ben_update_profile():
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data = request.get_json(force=True) or {}
+    phone      = data.get("phone", "").strip()
+    address    = data.get("address", "").strip()
+    address2   = data.get("address2", "").strip()
+    governorate= data.get("governorate", "").strip()
+    gender     = data.get("gender", "").strip()
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""UPDATE beneficiaries
+                 SET phone=?, address=?, address2=?, governorate=?, gender=?
+                 WHERE id=? AND self_registered=1""",
+              (phone, address, address2, governorate, gender, ben_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── تحديث بيانات الأسرة ──
+@app.route("/api/beneficiary/update-family", methods=["POST"])
+def api_ben_update_family():
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data = request.get_json(force=True) or {}
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""UPDATE beneficiaries
+                 SET marital_status=?, family_size=?, children_count=?,
+                     wife_pregnant=?, wife_nursing=?, has_orphans=?, orphans_count=?
+                 WHERE id=? AND self_registered=1""",
+              (data.get("marital_status",""),
+               int(data.get("family_size",1) or 1),
+               int(data.get("children_count",0) or 0),
+               1 if data.get("wife_pregnant") else 0,
+               1 if data.get("wife_nursing") else 0,
+               1 if data.get("has_orphans") else 0,
+               int(data.get("orphans_count",0) or 0),
+               ben_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── تغيير كلمة المرور ──
+@app.route("/api/beneficiary/change-password", methods=["POST"])
+def api_ben_change_password():
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data   = request.get_json(force=True) or {}
+    old_pw = data.get("old_password", "")
+    new_pw = data.get("new_password", "")
+    if not old_pw or not new_pw or len(new_pw) < 6:
+        return jsonify({"ok": False, "error": "كلمة المرور قصيرة (6 أحرف على الأقل)"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT self_reg_password FROM beneficiaries WHERE id=?", (ben_id,))
+    row = c.fetchone()
+    if not row or not check_password_hash(row["self_reg_password"], old_pw):
+        conn.close()
+        return jsonify({"ok": False, "error": "كلمة المرور الحالية غير صحيحة"})
+    c.execute("UPDATE beneficiaries SET self_reg_password=? WHERE id=?",
+              (generate_password_hash(new_pw), ben_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ── طلب تغيير البريد (إرسال OTP) ──
+@app.route("/api/beneficiary/request-email-change", methods=["POST"])
+def api_ben_request_email_change():
+    import datetime
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data     = request.get_json(force=True) or {}
+    new_email= data.get("email", "").strip().lower()
+    if not new_email or "@" not in new_email:
+        return jsonify({"ok": False, "error": "بريد غير صالح"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id FROM beneficiaries WHERE email=? AND id!=?", (new_email, ben_id))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "هذا البريد مستخدم بحساب آخر"})
+    code       = generate_verification_code()
+    expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("DELETE FROM verification_codes WHERE email=? AND purpose='ben_email_change'", (new_email,))
+    c.execute("INSERT INTO verification_codes (email,code,purpose,expires_at) VALUES (?,?,?,?)",
+              (new_email, code, "ben_email_change", expires_at))
+    conn.commit(); conn.close()
+    try:
+        send_org_verification(new_email, "تأكيد تغيير البريد الإلكتروني", "", code, "", "")
+    except Exception as e:
+        app.logger.error(f"Email change OTP error: {e}")
+        return jsonify({"ok": False, "error": "فشل إرسال الرمز"})
+    session["pending_email_change"] = new_email
+    return jsonify({"ok": True})
+
+
+# ── تأكيد تغيير البريد ──
+@app.route("/api/beneficiary/confirm-email-change", methods=["POST"])
+def api_ben_confirm_email_change():
+    import datetime
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    new_email = session.get("pending_email_change", "")
+    data = request.get_json(force=True) or {}
+    code = data.get("code", "").strip()
+    if not new_email or not code:
+        return jsonify({"ok": False, "error": "بيانات ناقصة"})
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""SELECT * FROM verification_codes
+                 WHERE email=? AND purpose='ben_email_change' AND used=0 AND expires_at>?
+                 ORDER BY id DESC LIMIT 1""", (new_email, now))
+    row = c.fetchone()
+    if not row or row["code"] != code:
+        conn.close()
+        return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
+    c.execute("UPDATE verification_codes SET used=1 WHERE id=?", (row["id"],))
+    c.execute("UPDATE beneficiaries SET email=? WHERE id=?", (new_email, ben_id))
+    conn.commit(); conn.close()
+    session.pop("pending_email_change", None)
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════════════════════

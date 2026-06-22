@@ -4,59 +4,151 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>بوابة المستفيد — ميزان مجد</title>
+<title>بوابتي — ميزان مجد</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--teal-900:#0f3d2e;--teal-800:#14532d;--teal-700:#1a6b3a;--teal-600:#2d8a50;
-      --amber:#e8a020;--sand:#fafaf7;}
+:root{
+  --teal-900:#0f3d2e;--teal-800:#14532d;--teal-700:#1a6b3a;
+  --teal-600:#2d8a50;--teal-500:#3aaa63;
+  --amber:#e8a020;--amber-lt:#fef3c7;
+  --sand:#fafaf7;--sand-100:#f4f4ee;--sand-200:#e5e5d8;
+  --ink:#1a1a2e;--ink-6:#475569;--ink-4:#94a3b8;
+  --red:#ef4444;--green:#10b981;
+}
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
-body{background:var(--sand);min-height:100vh;display:flex;flex-direction:column;}
-.nav{background:rgba(15,61,46,.97);padding:14px 24px;
-     display:flex;align-items:center;justify-content:space-between;
-     position:sticky;top:0;z-index:100;}
+body{background:var(--sand);color:var(--ink);min-height:100vh;}
+.nav{background:var(--teal-900);padding:13px 24px;display:flex;align-items:center;
+     justify-content:space-between;position:sticky;top:0;z-index:200;
+     box-shadow:0 2px 12px rgba(0,0,0,.25);}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .brand-icon{width:36px;height:36px;background:var(--teal-600);border-radius:10px;
-            display:inline-flex;align-items:center;justify-content:center;}
-.brand-icon i{color:var(--amber);font-size:.95rem;}
+            display:flex;align-items:center;justify-content:center;color:var(--amber);font-size:.95rem;}
 .brand-title{font-size:15px;font-weight:800;color:#fff;}
-.nav-actions{display:flex;align-items:center;gap:10px;}
-.nav-user{background:rgba(255,255,255,.12);color:#fff;padding:7px 14px;
-          border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;}
-.nav-logout{background:rgba(232,160,32,.2);color:var(--amber);padding:7px 14px;
-            border-radius:8px;font-size:.82rem;text-decoration:none;
-            display:flex;align-items:center;gap:6px;transition:.15s;}
-.nav-logout:hover{background:rgba(232,160,32,.35);}
-.hero-strip{background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
-            padding:28px 24px;text-align:center;color:#fff;}
-.hero-strip h1{font-size:1.3rem;font-weight:800;margin-bottom:6px;}
-.hero-strip p{font-size:.85rem;color:rgba(255,255,255,.75);}
-.container{max-width:720px;margin:28px auto;padding:0 20px 60px;width:100%;}
-.card{background:#fff;border-radius:16px;padding:24px;
-      box-shadow:0 2px 14px rgba(0,0,0,.07);margin-bottom:18px;}
-.card-title{font-size:.95rem;font-weight:700;color:var(--teal-900);
-            padding-bottom:12px;margin-bottom:16px;border-bottom:2px solid #f0f0e8;
-            display:flex;align-items:center;gap:8px;}
-.card-title i{color:var(--teal-600);}
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
-.info-row{display:flex;flex-direction:column;padding:10px 0;border-bottom:1px solid #f5f5ee;}
-.info-row:nth-child(odd){padding-left:16px;border-left:1px solid #f0f0e8;}
-.info-label{font-size:.75rem;color:#94a3b8;font-weight:600;margin-bottom:3px;}
-.info-val{font-size:.9rem;font-weight:700;color:#1e293b;}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.8rem;font-weight:700;}
-.badge-independent{background:#d1fae5;color:#065f46;}
-.badge-pending{background:#fef3c7;color:#92400e;}
-.badge-in_camp{background:#dbeafe;color:#1e40af;}
-.join-card{border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;border:1.5px solid;}
-.join-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;
-           justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0;}
-.join-info strong{display:block;font-size:.9rem;margin-bottom:3px;}
-.join-info span{font-size:.82rem;color:#64748b;}
-.empty-state{text-align:center;padding:28px 20px;}
-.empty-state i{font-size:2.5rem;color:#cbd5e1;margin-bottom:12px;display:block;}
-.empty-state p{font-size:.88rem;color:#94a3b8;line-height:1.7;}
-.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal-700);
-           font-size:.85rem;text-decoration:none;margin-bottom:20px;transition:.15s;}
-.back-link:hover{color:var(--teal-900);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.nav-badge{background:rgba(255,255,255,.1);color:#fff;padding:6px 14px;border-radius:8px;
+           font-size:.82rem;display:flex;align-items:center;gap:6px;}
+.nav-badge i{color:var(--amber);}
+.btn-logout{background:rgba(239,68,68,.15);color:#fca5a5;padding:6px 14px;border-radius:8px;
+            font-size:.82rem;text-decoration:none;display:flex;align-items:center;gap:6px;
+            border:none;cursor:pointer;transition:.15s;}
+.btn-logout:hover{background:rgba(239,68,68,.3);}
+.hero{background:linear-gradient(135deg,var(--teal-900) 0%,var(--teal-700) 60%,#1e5c3a 100%);
+      padding:36px 24px 0;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:24px 24px;pointer-events:none;}
+.hero-inner{max-width:960px;margin:0 auto;display:flex;align-items:flex-end;gap:24px;
+            position:relative;z-index:1;}
+.hero-avatar{width:78px;height:78px;border-radius:50%;background:var(--teal-600);
+             border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;
+             justify-content:center;font-size:2rem;color:#fff;flex-shrink:0;
+             box-shadow:0 4px 16px rgba(0,0,0,.3);}
+.hero-info{flex:1;padding-bottom:28px;}
+.hero-info h1{font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:4px;}
+.hero-info p{font-size:.83rem;color:rgba(255,255,255,.65);margin-bottom:10px;}
+.hero-tags{display:flex;gap:8px;flex-wrap:wrap;}
+.htag{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+      color:rgba(255,255,255,.85);padding:4px 12px;border-radius:20px;font-size:.73rem;}
+.htag.amber{background:rgba(232,160,32,.2);border-color:rgba(232,160,32,.4);color:var(--amber);}
+.hero-wave{display:block;width:100%;height:32px;margin-bottom:-2px;}
+.tab-bar{background:#fff;border-bottom:2px solid var(--sand-200);
+         position:sticky;top:62px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.tab-bar-inner{max-width:960px;margin:0 auto;padding:0 20px;
+               display:flex;overflow-x:auto;}
+.tab-bar-inner::-webkit-scrollbar{height:3px;}
+.tab-btn{padding:14px 20px;font-size:.85rem;font-weight:600;color:var(--ink-6);
+         border:none;background:transparent;cursor:pointer;
+         border-bottom:3px solid transparent;margin-bottom:-2px;
+         display:flex;align-items:center;gap:7px;white-space:nowrap;transition:.2s;}
+.tab-btn:hover{color:var(--teal-700);}
+.tab-btn.active{color:var(--teal-700);border-bottom-color:var(--teal-600);}
+.page-body{max-width:960px;margin:0 auto;padding:28px 20px 80px;}
+.tab-pane{display:none;animation:fadeUp .3s ease;}
+.tab-pane.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card{background:#fff;border-radius:18px;box-shadow:0 2px 16px rgba(0,0,0,.07);
+      margin-bottom:20px;overflow:hidden;}
+.card-head{padding:18px 22px;border-bottom:1px solid var(--sand-200);
+           display:flex;align-items:center;justify-content:space-between;}
+.card-head-left{display:flex;align-items:center;gap:10px;}
+.card-head-icon{width:38px;height:38px;border-radius:10px;background:#f0fdf4;
+                display:flex;align-items:center;justify-content:center;
+                font-size:1rem;color:var(--teal-600);}
+.card-head h3{font-size:.95rem;font-weight:800;color:var(--ink);}
+.card-head p{font-size:.75rem;color:var(--ink-4);margin-top:2px;}
+.card-body{padding:22px;}
+.btn-edit{background:var(--sand-100);color:var(--teal-700);border:1.5px solid var(--sand-200);
+          padding:7px 16px;border-radius:9px;font-size:.82rem;font-weight:600;
+          cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;}
+.btn-edit:hover{background:var(--teal-700);color:#fff;border-color:var(--teal-700);}
+.btn-save{background:var(--teal-600);color:#fff;border:none;padding:10px 24px;
+          border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;transition:.15s;}
+.btn-save:hover{background:var(--teal-700);}
+.btn-cancel{background:var(--sand-100);color:var(--ink-6);border:1.5px solid var(--sand-200);
+            padding:10px 18px;border-radius:10px;font-size:.88rem;cursor:pointer;transition:.15s;}
+.btn-cancel:hover{background:var(--sand-200);}
+.btn-row{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;}
+.view-mode{transition:.2s;}
+.edit-mode{display:none;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid.cols-1{grid-template-columns:1fr;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:.78rem;font-weight:600;color:var(--ink-6);}
+.fg input,.fg select,.fg textarea{
+  border:1.5px solid var(--sand-200);border-radius:9px;padding:10px 12px;
+  font-size:.88rem;color:var(--ink);background:#fff;transition:.15s;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{
+  border-color:var(--teal-500);outline:none;box-shadow:0 0 0 3px rgba(58,170,99,.12);}
+.info-list{display:flex;flex-direction:column;}
+.info-item{display:flex;justify-content:space-between;align-items:center;
+           padding:12px 0;border-bottom:1px solid var(--sand-200);}
+.info-item:last-child{border-bottom:none;}
+.info-lbl{font-size:.8rem;color:var(--ink-4);font-weight:600;}
+.info-val{font-size:.9rem;font-weight:700;color:var(--ink);}
+.info-val.muted{color:var(--ink-4);font-weight:400;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+       border-radius:20px;font-size:.75rem;font-weight:700;}
+.badge-yes{background:#dcfce7;color:#166534;}
+.badge-no{background:#f1f5f9;color:var(--ink-4);}
+.benefits-table{width:100%;border-collapse:collapse;}
+.benefits-table th{background:var(--sand-100);padding:10px 14px;font-size:.78rem;
+                    font-weight:700;color:var(--ink-6);text-align:right;
+                    border-bottom:2px solid var(--sand-200);}
+.benefits-table td{padding:11px 14px;font-size:.83rem;color:var(--ink);
+                    border-bottom:1px solid var(--sand-200);}
+.benefits-table tr:hover td{background:var(--sand-100);}
+.benefits-table tr:last-child td{border-bottom:none;}
+.tbl-wrap{overflow-x:auto;}
+.empty-box{text-align:center;padding:40px 20px;color:var(--ink-4);}
+.empty-box i{font-size:2.5rem;margin-bottom:12px;display:block;color:var(--sand-200);}
+.flash{padding:10px 14px;border-radius:9px;font-size:.84rem;font-weight:600;
+       margin-bottom:14px;display:none;align-items:center;gap:8px;}
+.flash.success{background:#dcfce7;color:#166534;display:flex;}
+.flash.error{background:#fee2e2;color:#991b1b;display:flex;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;
+            padding:10px 0;border-bottom:1px solid var(--sand-200);cursor:pointer;}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-lbl{display:flex;flex-direction:column;gap:2px;}
+.toggle-lbl strong{font-size:.87rem;color:var(--ink);}
+.toggle-lbl span{font-size:.75rem;color:var(--ink-4);}
+.sw{position:relative;width:44px;height:24px;flex-shrink:0;}
+.sw input{opacity:0;width:0;height:0;}
+.sw-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;cursor:pointer;transition:.3s;}
+.sw-slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;
+                   background:#fff;top:3px;right:3px;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.sw input:checked+.sw-slider{background:var(--teal-500);}
+.sw input:checked+.sw-slider::before{transform:translateX(-20px);}
+.otp-row{display:flex;gap:8px;direction:ltr;justify-content:center;margin:14px 0;}
+.otp-row input{width:44px;height:48px;text-align:center;font-size:1.2rem;font-weight:700;
+               border:1.5px solid var(--sand-200);border-radius:9px;transition:.15s;}
+.otp-row input:focus{border-color:var(--teal-500);outline:none;box-shadow:0 0 0 3px rgba(58,170,99,.12);}
+@media(max-width:640px){
+  .hero-inner{flex-direction:column;align-items:flex-start;}
+  .hero-avatar{width:60px;height:60px;font-size:1.5rem;}
+  .form-grid{grid-template-columns:1fr;}
+  .tab-btn{padding:12px 14px;font-size:.8rem;}
+  .tab-btn span{display:none;}
+}
 </style>
 </head>
 <body>
@@ -65,115 +157,413 @@ body{background:var(--sand);min-height:100vh;display:flex;flex-direction:column;
     <div class="brand-icon"><i class="fas fa-balance-scale"></i></div>
     <span class="brand-title">ميزان مجد</span>
   </a>
-  <div class="nav-actions">
-    <div class="nav-user"><i class="fas fa-user-circle"></i> {{ ben.full_name }}</div>
-    <a href="/beneficiary/logout" class="nav-logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
+  <div class="nav-right">
+    <div class="nav-badge"><i class="fas fa-user-circle"></i> {{ ben.full_name.split()[0] }}</div>
+    <a href="/beneficiary/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
   </div>
 </nav>
 
-<div class="hero-strip">
-  <h1><i class="fas fa-id-card" style="color:var(--amber);margin-left:8px;"></i> بوابتي كمستفيد</h1>
-  <p>عرض بياناتك وحالة ملفك في منظومة ميزان مجد</p>
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-avatar">
+      <i class="fas fa-user"></i>
+    </div>
+    <div class="hero-info">
+      <h1>{{ ben.full_name }}</h1>
+      <p>رقم الهوية: {{ ben.id_number }} &nbsp;·&nbsp; مستفيد منذ {{ ben.created_at[:10] if ben.created_at else '—' }}</p>
+      <div class="hero-tags">
+        {% if ben.beneficiary_status == 'in_camp' %}
+          <span class="htag amber"><i class="fas fa-campground"></i> {{ ben.camp_name or 'في مخيم' }}</span>
+        {% else %}
+          <span class="htag"><i class="fas fa-user-check"></i> مستفيد مستقل</span>
+        {% endif %}
+        {% if ben.email %}<span class="htag"><i class="fas fa-envelope"></i> {{ ben.email }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  <svg class="hero-wave" viewBox="0 0 1440 32" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0,20 C360,36 720,4 1080,20 C1260,28 1380,10 1440,16 L1440,32 L0,32 Z" fill="#fafaf7"/>
+  </svg>
 </div>
 
-<div class="container">
-  <a href="/" class="back-link"><i class="fas fa-arrow-right"></i> العودة للرئيسية</a>
-
-  {% with msgs = get_flashed_messages(with_categories=true) %}
-    {% for cat,msg in msgs %}
-    <div class="card" style="background:{% if cat=='error' %}#fee2e2{% else %}#d1fae5{% endif %};
-         color:{% if cat=='error' %}#991b1b{% else %}#065f46{% endif %};padding:12px 16px;">
-      <i class="fas fa-{% if cat=='error' %}exclamation-circle{% else %}check-circle{% endif %}"></i> {{ msg }}
-    </div>
-    {% endfor %}
-  {% endwith %}
-
-  <div class="card">
-    <div class="card-title"><i class="fas fa-user"></i> البيانات الشخصية</div>
-    <div class="info-grid">
-      <div class="info-row">
-        <span class="info-label">الاسم الكامل</span>
-        <span class="info-val">{{ ben.full_name or '—' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">رقم الهوية</span>
-        <span class="info-val">{{ ben.id_number or '—' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">رقم الجوال</span>
-        <span class="info-val">{{ ben.phone or '—' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">البريد الإلكتروني</span>
-        <span class="info-val" style="font-size:.82rem;">{{ ben.email or '—' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">اسم العائلة</span>
-        <span class="info-val">{{ ben.family_last_name or '—' }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">الحالة</span>
-        <span class="info-val">
-          {% if ben.beneficiary_status == 'in_camp' %}
-            <span class="badge badge-in_camp"><i class="fas fa-campground"></i> داخل مخيم</span>
-          {% elif ben.beneficiary_status == 'pending' %}
-            <span class="badge badge-pending"><i class="fas fa-clock"></i> طلب معلق</span>
-          {% else %}
-            <span class="badge badge-independent"><i class="fas fa-user-check"></i> مستفيد مستقل</span>
-          {% endif %}
-        </span>
-      </div>
-      {% if ben.address %}
-      <div class="info-row" style="grid-column:1/-1;">
-        <span class="info-label">العنوان</span>
-        <span class="info-val">{{ ben.address }}</span>
-      </div>
-      {% endif %}
-    </div>
+<div class="tab-bar">
+  <div class="tab-bar-inner">
+    <button class="tab-btn active" onclick="switchTab('personal',this)">
+      <i class="fas fa-id-card"></i> <span>البيانات الشخصية</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('family',this)">
+      <i class="fas fa-users"></i> <span>بيانات الأسرة</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('benefits',this)">
+      <i class="fas fa-hand-holding-heart"></i> <span>كشف الاستفادة</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('account',this)">
+      <i class="fas fa-cog"></i> <span>بيانات الحساب</span>
+    </button>
   </div>
-
-  {% if ben.camp_name %}
-  <div class="card">
-    <div class="card-title"><i class="fas fa-campground"></i> المخيم / اللجنة</div>
-    <div class="join-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#bbf7d0;">
-      <div class="join-icon" style="background:var(--teal-600);"><i class="fas fa-tent"></i></div>
-      <div class="join-info">
-        <strong style="color:var(--teal-900);">{{ ben.camp_name }}</strong>
-        <span>مسجل ضمن هذا المخيم</span>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if join_req %}
-  <div class="card">
-    <div class="card-title"><i class="fas fa-door-open"></i> طلب الانضمام</div>
-    <div class="join-card" style="background:{% if join_req.status=='approved' %}linear-gradient(135deg,#f0fdf4,#dcfce7){% elif join_req.status=='rejected' %}linear-gradient(135deg,#fff5f5,#fee2e2){% else %}linear-gradient(135deg,#fffbeb,#fef3c7){% endif %};border-color:{% if join_req.status=='approved' %}#bbf7d0{% elif join_req.status=='rejected' %}#fca5a5{% else %}#fde68a{% endif %};">
-      <div class="join-icon" style="background:{% if join_req.status=='approved' %}var(--teal-600){% elif join_req.status=='rejected' %}#dc2626{% else %}#d97706{% endif %};">
-        <i class="fas fa-{% if join_req.status=='approved' %}check{% elif join_req.status=='rejected' %}times{% else %}clock{% endif %}"></i>
-      </div>
-      <div class="join-info">
-        <strong style="color:var(--teal-900);">{{ join_req.camp_name }}</strong>
-        <span>
-          {% if join_req.status == 'approved' %}تم قبول طلبك ✓
-          {% elif join_req.status == 'rejected' %}تم رفض الطلب — أنت مسجل كمستفيد مستقل
-          {% else %}طلبك قيد المراجعة من إدارة المخيم…
-          {% endif %}
-        </span>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if not ben.camp_name and not join_req %}
-  <div class="card">
-    <div class="card-title"><i class="fas fa-campground"></i> الانضمام لمخيم</div>
-    <div class="empty-state">
-      <i class="fas fa-tent"></i>
-      <p>لست مرتبطاً بأي مخيم حالياً.<br>تواصل مع مشرف المخيم للانضمام إليه.</p>
-    </div>
-  </div>
-  {% endif %}
 </div>
+
+<div class="page-body">
+
+<!-- ═══ البيانات الشخصية ═══ -->
+<div id="tab-personal" class="tab-pane active">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-lock"></i></div>
+        <div><h3>البيانات الأساسية</h3><p>غير قابلة للتعديل</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-list">
+        <div class="info-item"><span class="info-lbl">الاسم الرباعي</span><span class="info-val">{{ ben.full_name }}</span></div>
+        <div class="info-item"><span class="info-lbl">رقم الهوية</span><span class="info-val" dir="ltr">{{ ben.id_number }}</span></div>
+        <div class="info-item"><span class="info-lbl">تاريخ التسجيل</span><span class="info-val">{{ ben.created_at[:10] if ben.created_at else '—' }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-user-edit"></i></div>
+        <div><h3>المعلومات الشخصية</h3><p>يمكنك تعديل هذه البيانات</p></div>
+      </div>
+      <button class="btn-edit" onclick="toggleEdit('profile')"><i class="fas fa-pen"></i> تعديل</button>
+    </div>
+    <div class="card-body">
+      <div id="flash-profile" class="flash"></div>
+      <div id="view-profile" class="view-mode">
+        <div class="info-list">
+          <div class="info-item"><span class="info-lbl">رقم الجوال</span><span class="info-val {% if not ben.phone %}muted{% endif %}">{{ ben.phone or 'غير محدد' }}</span></div>
+          <div class="info-item"><span class="info-lbl">الجنس</span><span class="info-val">{{ 'ذكر' if ben.gender == 'male' else 'أنثى' }}</span></div>
+          <div class="info-item"><span class="info-lbl">المحافظة</span><span class="info-val {% if not ben.governorate %}muted{% endif %}">{{ ben.governorate or 'غير محددة' }}</span></div>
+          <div class="info-item"><span class="info-lbl">العنوان الحالي</span><span class="info-val {% if not ben.address %}muted{% endif %}">{{ ben.address or 'غير محدد' }}</span></div>
+          <div class="info-item"><span class="info-lbl">العنوان الأصلي</span><span class="info-val {% if not ben.address2 %}muted{% endif %}">{{ ben.address2 or 'غير محدد' }}</span></div>
+        </div>
+      </div>
+      <div id="edit-profile" class="edit-mode">
+        <div class="form-grid">
+          <div class="fg"><label>رقم الجوال</label><input type="tel" id="p-phone" value="{{ ben.phone or '' }}" dir="ltr" placeholder="07xxxxxxxx"></div>
+          <div class="fg"><label>الجنس</label><select id="p-gender"><option value="male" {% if ben.gender=='male' %}selected{% endif %}>ذكر</option><option value="female" {% if ben.gender=='female' %}selected{% endif %}>أنثى</option></select></div>
+          <div class="fg"><label>المحافظة</label>
+            <select id="p-governorate">
+              <option value="">اختر</option>
+              {% for g in ['دمشق','ريف دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','إدلب','درعا','السويداء','القنيطرة','دير الزور','الرقة','الحسكة'] %}
+              <option value="{{ g }}" {% if ben.governorate==g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fg"><label>العنوان الحالي</label><input type="text" id="p-address" value="{{ ben.address or '' }}" placeholder="المدينة / الحي"></div>
+          <div class="fg" style="grid-column:1/-1"><label>العنوان الأصلي (قبل النزوح)</label><input type="text" id="p-address2" value="{{ ben.address2 or '' }}" placeholder="المنطقة الأصلية"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-cancel" onclick="toggleEdit('profile',true)">إلغاء</button>
+          <button class="btn-save" onclick="saveProfile()"><i class="fas fa-check"></i> حفظ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ بيانات الأسرة ═══ -->
+<div id="tab-family" class="tab-pane">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-users"></i></div>
+        <div><h3>معلومات الأسرة</h3><p>الحالة الاجتماعية وتفاصيل الأسرة</p></div>
+      </div>
+      <button class="btn-edit" onclick="toggleEdit('family')"><i class="fas fa-pen"></i> تعديل</button>
+    </div>
+    <div class="card-body">
+      <div id="flash-family" class="flash"></div>
+      <div id="view-family" class="view-mode">
+        <div class="info-list">
+          <div class="info-item"><span class="info-lbl">الحالة الاجتماعية</span>
+            <span class="info-val">{% if ben.marital_status=='married' %}متزوج{% elif ben.marital_status=='single' %}أعزب{% elif ben.marital_status=='divorced' %}مطلق{% elif ben.marital_status=='widowed' %}أرمل{% else %}{{ ben.marital_status or '—' }}{% endif %}</span>
+          </div>
+          <div class="info-item"><span class="info-lbl">حجم الأسرة</span><span class="info-val">{{ ben.family_size or 1 }} فرد</span></div>
+          <div class="info-item"><span class="info-lbl">عدد الأبناء</span><span class="info-val">{{ ben.children_count or 0 }}</span></div>
+          <div class="info-item"><span class="info-lbl">زوجة حامل</span>
+            <span class="badge {% if ben.wife_pregnant %}badge-yes{% else %}badge-no{% endif %}">{% if ben.wife_pregnant %}<i class="fas fa-check"></i> نعم{% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
+          </div>
+          <div class="info-item"><span class="info-lbl">زوجة مرضعة</span>
+            <span class="badge {% if ben.wife_nursing %}badge-yes{% else %}badge-no{% endif %}">{% if ben.wife_nursing %}<i class="fas fa-check"></i> نعم{% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
+          </div>
+          <div class="info-item"><span class="info-lbl">يُعيل أيتاماً</span>
+            <span class="badge {% if ben.has_orphans %}badge-yes{% else %}badge-no{% endif %}">{% if ben.has_orphans %}<i class="fas fa-check"></i> نعم ({{ ben.orphans_count }}){% else %}<i class="fas fa-minus"></i> لا{% endif %}</span>
+          </div>
+        </div>
+      </div>
+      <div id="edit-family" class="edit-mode">
+        <div class="form-grid">
+          <div class="fg"><label>الحالة الاجتماعية</label>
+            <select id="f-marital">
+              <option value="married" {% if ben.marital_status=='married' %}selected{% endif %}>متزوج</option>
+              <option value="single" {% if ben.marital_status=='single' %}selected{% endif %}>أعزب</option>
+              <option value="divorced" {% if ben.marital_status=='divorced' %}selected{% endif %}>مطلق</option>
+              <option value="widowed" {% if ben.marital_status=='widowed' %}selected{% endif %}>أرمل</option>
+            </select>
+          </div>
+          <div class="fg"><label>حجم الأسرة</label><input type="number" id="f-size" value="{{ ben.family_size or 1 }}" min="1" max="30"></div>
+          <div class="fg"><label>عدد الأبناء</label><input type="number" id="f-children" value="{{ ben.children_count or 0 }}" min="0" max="30"></div>
+          <div class="fg"><label>عدد الأيتام</label><input type="number" id="f-orphans" value="{{ ben.orphans_count or 0 }}" min="0" max="30"></div>
+        </div>
+        <div style="margin-top:16px;">
+          <label class="toggle-row">
+            <div class="toggle-lbl"><strong>زوجة حامل</strong></div>
+            <label class="sw"><input type="checkbox" id="f-pregnant" {% if ben.wife_pregnant %}checked{% endif %}><span class="sw-slider"></span></label>
+          </label>
+          <label class="toggle-row">
+            <div class="toggle-lbl"><strong>زوجة مرضعة</strong></div>
+            <label class="sw"><input type="checkbox" id="f-nursing" {% if ben.wife_nursing %}checked{% endif %}><span class="sw-slider"></span></label>
+          </label>
+          <label class="toggle-row">
+            <div class="toggle-lbl"><strong>يُعيل أيتاماً</strong></div>
+            <label class="sw"><input type="checkbox" id="f-orphans-chk" {% if ben.has_orphans %}checked{% endif %}><span class="sw-slider"></span></label>
+          </label>
+        </div>
+        <div class="btn-row">
+          <button class="btn-cancel" onclick="toggleEdit('family',true)">إلغاء</button>
+          <button class="btn-save" onclick="saveFamily()"><i class="fas fa-check"></i> حفظ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ كشف الاستفادة ═══ -->
+<div id="tab-benefits" class="tab-pane">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-hand-holding-heart"></i></div>
+        <div><h3>كشف الاستفادة</h3><p>جميع المساعدات والبرامج التي استفدت منها</p></div>
+      </div>
+    </div>
+    {% if benefits %}
+    <div class="tbl-wrap">
+      <table class="benefits-table">
+        <thead><tr><th>البرنامج</th><th>النوع</th><th>الكمية</th><th>التاريخ</th><th>ملاحظات</th></tr></thead>
+        <tbody>
+          {% for b in benefits %}
+          <tr>
+            <td><strong>{{ b.program_name }}</strong>{% if b.org_name %}<br><small style="color:var(--ink-4)">{{ b.org_name }}</small>{% endif %}</td>
+            <td>{{ b.benefit_type or '—' }}</td>
+            <td>{{ b.quantity or '—' }}</td>
+            <td>{{ b.benefit_date }}</td>
+            <td>{{ b.notes or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card-body">
+      <div class="empty-box"><i class="fas fa-box-open"></i><p>لا توجد سجلات استفادة بعد</p></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ═══ بيانات الحساب ═══ -->
+<div id="tab-account" class="tab-pane">
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-key"></i></div>
+        <div><h3>تغيير كلمة المرور</h3></div>
+      </div>
+      <button class="btn-edit" onclick="toggleEdit('pw')"><i class="fas fa-pen"></i> تغيير</button>
+    </div>
+    <div class="card-body">
+      <div id="flash-pw" class="flash"></div>
+      <div id="view-pw" class="view-mode">
+        <div class="info-item" style="border:none;padding:0;">
+          <span class="info-lbl">كلمة المرور</span><span class="info-val">••••••••</span>
+        </div>
+      </div>
+      <div id="edit-pw" class="edit-mode">
+        <div class="form-grid cols-1">
+          <div class="fg"><label>كلمة المرور الحالية</label><input type="password" id="pw-old" placeholder="أدخل كلمة المرور الحالية"></div>
+          <div class="fg"><label>كلمة المرور الجديدة</label><input type="password" id="pw-new" placeholder="6 أحرف على الأقل"></div>
+          <div class="fg"><label>تأكيد كلمة المرور</label><input type="password" id="pw-confirm" placeholder="أعد الكتابة"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-cancel" onclick="toggleEdit('pw',true)">إلغاء</button>
+          <button class="btn-save" onclick="changePassword()"><i class="fas fa-key"></i> تغيير</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-envelope"></i></div>
+        <div><h3>البريد الإلكتروني</h3><p>{{ ben.email or 'لم يُضف بعد' }}</p></div>
+      </div>
+      <button class="btn-edit" onclick="toggleEdit('email')"><i class="fas fa-pen"></i> تغيير</button>
+    </div>
+    <div class="card-body">
+      <div id="flash-email" class="flash"></div>
+      <div id="view-email" class="view-mode">
+        {% if ben.email %}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-check-circle" style="color:var(--green)"></i>
+          <span style="font-size:.88rem;color:var(--ink-6)">{{ ben.email }}</span>
+        </div>
+        {% else %}
+        <p style="font-size:.85rem;color:var(--ink-4);">لا يوجد بريد مضاف</p>
+        {% endif %}
+      </div>
+      <div id="edit-email" class="edit-mode">
+        <div id="email-step1">
+          <div class="fg"><label>البريد الإلكتروني الجديد</label><input type="email" id="em-new" dir="ltr" placeholder="example@mail.com" value="{{ ben.email or '' }}"></div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="toggleEdit('email',true)">إلغاء</button>
+            <button class="btn-save" onclick="requestEmailChange()"><i class="fas fa-paper-plane"></i> إرسال رمز</button>
+          </div>
+        </div>
+        <div id="email-step2" style="display:none;">
+          <p style="font-size:.83rem;color:var(--ink-6);margin-bottom:12px;text-align:center;">أدخل الرمز المرسل لـ <strong id="em-sent-to"></strong></p>
+          <div class="otp-row" id="em-otp-inputs">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+          </div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="document.getElementById('email-step1').style.display='';document.getElementById('email-step2').style.display='none'">رجوع</button>
+            <button class="btn-save" onclick="confirmEmailChange()"><i class="fas fa-check"></i> تأكيد</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <div class="card-head-icon"><i class="fas fa-info-circle"></i></div>
+        <div><h3>معلومات الحساب</h3></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-list">
+        <div class="info-item"><span class="info-lbl">حالة الحساب</span><span class="badge badge-yes"><i class="fas fa-check-circle"></i> نشط</span></div>
+        <div class="info-item"><span class="info-lbl">نوع الحساب</span><span class="info-val">مستفيد ذاتي</span></div>
+        <div class="info-item"><span class="info-lbl">انتماء المخيم</span><span class="info-val {% if not ben.camp_name %}muted{% endif %}">{{ ben.camp_name or 'مستقل' }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+function toggleEdit(key,cancel){
+  const view=document.getElementById('view-'+key);
+  const edit=document.getElementById('edit-'+key);
+  const fl=document.getElementById('flash-'+key);
+  if(cancel){
+    view&&(view.style.display='');
+    edit&&(edit.style.display='none');
+    fl&&(fl.className='flash');
+  } else {
+    view&&(view.style.display='none');
+    edit&&(edit.style.display='block');
+  }
+}
+function setFlash(id,msg,type){
+  const el=document.getElementById('flash-'+id);
+  if(!el)return;
+  el.textContent=msg;
+  el.className='flash '+type;
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(type==='success')setTimeout(()=>{el.className='flash';},4000);
+}
+async function saveProfile(){
+  const body={
+    phone:document.getElementById('p-phone').value.trim(),
+    gender:document.getElementById('p-gender').value,
+    governorate:document.getElementById('p-governorate').value,
+    address:document.getElementById('p-address').value.trim(),
+    address2:document.getElementById('p-address2').value.trim()
+  };
+  const r=await fetch('/api/beneficiary/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.ok){setFlash('profile','✅ تم الحفظ بنجاح','success');toggleEdit('profile',true);}
+  else setFlash('profile',d.error||'خطأ','error');
+}
+async function saveFamily(){
+  const body={
+    marital_status:document.getElementById('f-marital').value,
+    family_size:document.getElementById('f-size').value,
+    children_count:document.getElementById('f-children').value,
+    orphans_count:document.getElementById('f-orphans').value,
+    wife_pregnant:document.getElementById('f-pregnant').checked,
+    wife_nursing:document.getElementById('f-nursing').checked,
+    has_orphans:document.getElementById('f-orphans-chk').checked
+  };
+  const r=await fetch('/api/beneficiary/update-family',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.ok){setFlash('family','✅ تم الحفظ','success');toggleEdit('family',true);setTimeout(()=>location.reload(),1200);}
+  else setFlash('family',d.error||'خطأ','error');
+}
+async function changePassword(){
+  const oldPw=document.getElementById('pw-old').value;
+  const newPw=document.getElementById('pw-new').value;
+  const conf=document.getElementById('pw-confirm').value;
+  if(newPw!==conf){setFlash('pw','كلمتا المرور غير متطابقتين','error');return;}
+  if(newPw.length<6){setFlash('pw','كلمة المرور قصيرة جداً','error');return;}
+  const r=await fetch('/api/beneficiary/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:oldPw,new_password:newPw})});
+  const d=await r.json();
+  if(d.ok){setFlash('pw','✅ تم تغيير كلمة المرور','success');toggleEdit('pw',true);['pw-old','pw-new','pw-confirm'].forEach(id=>document.getElementById(id).value='');}
+  else setFlash('pw',d.error||'خطأ','error');
+}
+async function requestEmailChange(){
+  const email=document.getElementById('em-new').value.trim();
+  if(!email){setFlash('email','أدخل البريد الجديد','error');return;}
+  const r=await fetch('/api/beneficiary/request-email-change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  const d=await r.json();
+  if(d.ok){
+    document.getElementById('email-step1').style.display='none';
+    document.getElementById('email-step2').style.display='';
+    document.getElementById('em-sent-to').textContent=email;
+    setFlash('email','تم إرسال رمز التحقق','success');
+    initOTP('em-otp-inputs');
+  } else setFlash('email',d.error||'خطأ','error');
+}
+async function confirmEmailChange(){
+  const code=getOTP('em-otp-inputs');
+  if(code.length<6){setFlash('email','أدخل الرمز كاملاً','error');return;}
+  const r=await fetch('/api/beneficiary/confirm-email-change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+  const d=await r.json();
+  if(d.ok){setFlash('email','✅ تم تحديث البريد','success');toggleEdit('email',true);setTimeout(()=>location.reload(),1500);}
+  else setFlash('email',d.error||'رمز خاطئ','error');
+}
+function initOTP(rowId){
+  const all=document.getElementById(rowId).querySelectorAll('input');
+  all.forEach((inp,i)=>{
+    inp.value='';
+    inp.oninput=()=>{if(inp.value&&i<all.length-1)all[i+1].focus();};
+    inp.onkeydown=(e)=>{if(e.key==='Backspace'&&!inp.value&&i>0)all[i-1].focus();};
+  });
+  all[0].focus();
+}
+function getOTP(rowId){
+  return Array.from(document.getElementById(rowId).querySelectorAll('input')).map(i=>i.value).join('');
+}
+</script>
 </body>
 </html>
