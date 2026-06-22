@@ -573,9 +573,14 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
           <button class="mbtn mbtn-primary" onclick="benVerifyOTP()">
             <i class="fas fa-check-circle"></i> تأكيد الرمز
           </button>
-          <button class="mbtn mbtn-outline" onclick="benSendOTP()">
-            <i class="fas fa-redo"></i> إعادة الإرسال
-          </button>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="mbtn mbtn-outline" onclick="openEmailInbox()" style="flex:1">
+              <i class="fas fa-envelope-open-text"></i> افتح بريدك
+            </button>
+            <button class="mbtn mbtn-outline" onclick="benSendOTP()" style="flex:1">
+              <i class="fas fa-redo"></i> إعادة الإرسال
+            </button>
+          </div>
         </div>
 
         <!-- الخطوة 3: إكمال البيانات -->
@@ -749,6 +754,16 @@ async function benResetPassword(){
   } else {
     setFlash('ben-forgot-flash', data.error||'خطأ', 'error');
   }
+}
+
+// === فتح صندوق البريد ===
+function openEmailInbox(){
+  const email = (document.getElementById('br-email-display').textContent || '').trim();
+  let url = 'https://mail.google.com';
+  if(email.includes('@yahoo'))      url = 'https://mail.yahoo.com';
+  else if(email.includes('@outlook')||email.includes('@hotmail')||email.includes('@live')) url = 'https://outlook.live.com';
+  else if(email.includes('@icloud')) url = 'https://www.icloud.com/mail';
+  window.open(url,'_blank');
 }
 
 // === بوابة المستفيد ===
