@@ -152,6 +152,27 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 .otp-row input{width:44px;height:48px;text-align:center;font-size:1.2rem;font-weight:700;
                border:1.5px solid var(--sand-200);border-radius:9px;transition:.15s;}
 .otp-row input:focus{border-color:var(--teal-500);outline:none;box-shadow:0 0 0 3px rgba(58,170,99,.12);}
+/* ── مودال الحساب ── */
+.acc-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;
+              display:none;align-items:center;justify-content:center;padding:16px;
+              backdrop-filter:blur(4px);}
+.acc-modal-bg.open{display:flex;}
+.acc-modal{background:#fff;border-radius:20px;width:100%;max-width:500px;
+           max-height:90vh;overflow-y:auto;
+           box-shadow:0 20px 60px rgba(0,0,0,.3);animation:fadeUp .3s ease;}
+.acc-modal-head{background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
+                padding:20px 22px;display:flex;align-items:center;justify-content:space-between;
+                border-radius:20px 20px 0 0;}
+.acc-modal-head h2{font-size:1rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;}
+.acc-modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;
+                 width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.9rem;
+                 display:flex;align-items:center;justify-content:center;transition:.15s;}
+.acc-modal-close:hover{background:rgba(255,255,255,.3);}
+.acc-modal-body{padding:22px;}
+.acc-section{border-bottom:1px solid var(--sand-200);padding-bottom:18px;margin-bottom:18px;}
+.acc-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.acc-section-title{font-size:.8rem;font-weight:800;color:var(--teal-700);
+                   margin-bottom:12px;display:flex;align-items:center;gap:6px;}
 @media(max-width:768px){
   .nav-center{gap:4px;}
   .tab-btn span{display:none;}
@@ -167,18 +188,39 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 </head>
 <body>
 <nav class="nav">
-  <!-- يمين: صورة المستخدم + اسمه -->
+  <!-- يمين: صورة + معلومات المستفيد -->
   <div class="nav-user">
-    <div class="nav-avatar" onclick="document.getElementById('avatar-upload').click()" title="تغيير الصورة">
-      {% if ben.avatar_path %}
-        <img src="{{ ben.avatar_path }}" id="avatar-img">
-      {% else %}
-        <i class="fas fa-user" id="avatar-icon"></i>
-        <img src="" style="display:none;width:100%;height:100%;border-radius:50%;object-fit:cover;" id="avatar-img">
-      {% endif %}
+    <div style="position:relative;flex-shrink:0;">
+      <!-- ضغطة على الصورة → مودال الحساب -->
+      <div class="nav-avatar" onclick="openAccountModal()" title="بيانات الحساب" style="cursor:pointer;">
+        {% if ben.avatar_path %}
+          <img src="{{ ben.avatar_path }}" id="avatar-img" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+        {% else %}
+          <i class="fas fa-user" id="avatar-icon"></i>
+          <img src="" style="display:none;width:100%;height:100%;border-radius:50%;object-fit:cover;" id="avatar-img">
+        {% endif %}
+      </div>
+      <!-- زر الكاميرا البارز منفصل لتغيير الصورة -->
+      <button onclick="document.getElementById('avatar-upload').click()"
+        style="position:absolute;bottom:-3px;left:-3px;width:20px;height:20px;
+               background:var(--amber);border:2px solid var(--teal-900);border-radius:50%;
+               display:flex;align-items:center;justify-content:center;cursor:pointer;
+               font-size:.5rem;color:var(--teal-900);box-shadow:0 2px 8px rgba(0,0,0,.5);
+               padding:0;z-index:3;" title="تغيير الصورة">
+        <i class="fas fa-camera"></i>
+      </button>
       <input type="file" id="avatar-upload" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="uploadAvatar(this)">
     </div>
-
+    <!-- حالة المستفيد + تاريخ التسجيل -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <span style="font-size:.72rem;font-weight:700;color:var(--amber);display:flex;align-items:center;gap:4px;">
+        <i class="fas fa-user-check"></i>
+        {% if ben.beneficiary_status == 'in_camp' %}في مخيم{% else %}مستفيد مستقل{% endif %}
+      </span>
+      <span style="font-size:.67rem;color:rgba(255,255,255,.5);">
+        منذ {{ ben.created_at[:10] if ben.created_at else '—' }}
+      </span>
+    </div>
   </div>
 
   <!-- وسط: شعار + تبويبات -->
@@ -193,9 +235,7 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
     <button class="tab-btn" onclick="switchTab('benefits',this)">
       <i class="fas fa-hand-holding-heart"></i> <span>كشف الاستفادة</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('account',this)">
-      <i class="fas fa-cog"></i> <span>بيانات الحساب</span>
-    </button>
+
   </div>
 
   <!-- يسار: خروج -->
@@ -563,101 +603,6 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
   </div>
 </div>
 
-<!-- ═══ بيانات الحساب ═══ -->
-<div id="tab-account" class="tab-pane">
-
-  <div class="card">
-    <div class="card-head">
-      <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-key"></i></div>
-        <div><h3>تغيير كلمة المرور</h3></div>
-      </div>
-      <button class="btn-edit" onclick="toggleEdit('pw')"><i class="fas fa-pen"></i> تغيير</button>
-    </div>
-    <div class="card-body">
-      <div id="flash-pw" class="flash"></div>
-      <div id="view-pw" class="view-mode">
-        <div class="info-item" style="border:none;padding:0;">
-          <span class="info-lbl">كلمة المرور</span><span class="info-val">••••••••</span>
-        </div>
-      </div>
-      <div id="edit-pw" class="edit-mode">
-        <div class="form-grid cols-1">
-          <div class="fg"><label>كلمة المرور الحالية</label><input type="password" id="pw-old" placeholder="أدخل كلمة المرور الحالية"></div>
-          <div class="fg"><label>كلمة المرور الجديدة</label><input type="password" id="pw-new" placeholder="6 أحرف على الأقل"></div>
-          <div class="fg"><label>تأكيد كلمة المرور</label><input type="password" id="pw-confirm" placeholder="أعد الكتابة"></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn-cancel" onclick="toggleEdit('pw',true)">إلغاء</button>
-          <button class="btn-save" onclick="changePassword()"><i class="fas fa-key"></i> تغيير</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-envelope"></i></div>
-        <div><h3>البريد الإلكتروني</h3><p>{{ ben.email or 'لم يُضف بعد' }}</p></div>
-      </div>
-      <button class="btn-edit" onclick="toggleEdit('email')"><i class="fas fa-pen"></i> تغيير</button>
-    </div>
-    <div class="card-body">
-      <div id="flash-email" class="flash"></div>
-      <div id="view-email" class="view-mode">
-        {% if ben.email %}
-        <div style="display:flex;align-items:center;gap:8px;">
-          <i class="fas fa-check-circle" style="color:var(--green)"></i>
-          <span style="font-size:.88rem;color:var(--ink-6)">{{ ben.email }}</span>
-        </div>
-        {% else %}
-        <p style="font-size:.85rem;color:var(--ink-4);">لا يوجد بريد مضاف</p>
-        {% endif %}
-      </div>
-      <div id="edit-email" class="edit-mode">
-        <div id="email-step1">
-          <div class="fg"><label>البريد الإلكتروني الجديد</label><input type="email" id="em-new" dir="ltr" placeholder="example@mail.com" value="{{ ben.email or '' }}"></div>
-          <div class="btn-row">
-            <button class="btn-cancel" onclick="toggleEdit('email',true)">إلغاء</button>
-            <button class="btn-save" onclick="requestEmailChange()"><i class="fas fa-paper-plane"></i> إرسال رمز</button>
-          </div>
-        </div>
-        <div id="email-step2" style="display:none;">
-          <p style="font-size:.83rem;color:var(--ink-6);margin-bottom:12px;text-align:center;">أدخل الرمز المرسل لـ <strong id="em-sent-to"></strong></p>
-          <div class="otp-row" id="em-otp-inputs">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-            <input type="text" maxlength="1" inputmode="numeric">
-          </div>
-          <div class="btn-row">
-            <button class="btn-cancel" onclick="document.getElementById('email-step1').style.display='';document.getElementById('email-step2').style.display='none'">رجوع</button>
-            <button class="btn-save" onclick="confirmEmailChange()"><i class="fas fa-check"></i> تأكيد</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-info-circle"></i></div>
-        <div><h3>معلومات الحساب</h3></div>
-      </div>
-    </div>
-    <div class="card-body">
-      <div class="info-list">
-        <div class="info-item"><span class="info-lbl">حالة الحساب</span><span class="badge badge-yes"><i class="fas fa-check-circle"></i> نشط</span></div>
-        <div class="info-item"><span class="info-lbl">نوع الحساب</span><span class="info-val">مستفيد ذاتي</span></div>
-        <div class="info-item"><span class="info-lbl">انتماء المخيم</span><span class="info-val {% if not ben.camp_name %}muted{% endif %}">{{ ben.camp_name or 'مستقل' }}</span></div>
-      </div>
-    </div>
-  </div>
-</div>
 </div>
 
 <script>
@@ -955,6 +900,101 @@ function initOTP(rowId){
 }
 function getOTP(rowId){
   return Array.from(document.getElementById(rowId).querySelectorAll('input')).map(i=>i.value).join('');
+}
+</script>
+
+<!-- ══════════════════════════════════════
+     مودال بيانات الحساب
+══════════════════════════════════════ -->
+<div class="acc-modal-bg" id="account-modal" onclick="if(event.target===this)closeAccountModal()">
+  <div class="acc-modal">
+    <div class="acc-modal-head">
+      <h2><i class="fas fa-user-cog"></i> بيانات الحساب</h2>
+      <button class="acc-modal-close" onclick="closeAccountModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="acc-modal-body">
+
+      <div id="flash-pw" class="flash" style="margin-bottom:14px;"></div>
+      <div id="flash-email" class="flash" style="margin-bottom:14px;"></div>
+
+      <!-- معلومات الحساب -->
+      <div class="acc-section">
+        <div class="acc-section-title"><i class="fas fa-info-circle"></i> معلومات الحساب</div>
+        <div class="info-list">
+          <div class="info-item"><span class="info-lbl">حالة الحساب</span><span class="badge badge-yes"><i class="fas fa-check-circle"></i> نشط</span></div>
+          <div class="info-item"><span class="info-lbl">نوع الحساب</span><span class="info-val">مستفيد ذاتي</span></div>
+          <div class="info-item"><span class="info-lbl">الانتماء</span><span class="info-val {% if not ben.camp_name %}muted{% endif %}">{{ ben.camp_name or 'مستقل' }}</span></div>
+          <div class="info-item"><span class="info-lbl">البريد الإلكتروني</span><span class="info-val {% if not ben.email %}muted{% endif %}" dir="ltr">{{ ben.email or 'غير محدد' }}</span></div>
+        </div>
+      </div>
+
+      <!-- تغيير كلمة المرور -->
+      <div class="acc-section">
+        <div class="acc-section-title"><i class="fas fa-key"></i> تغيير كلمة المرور</div>
+        <div id="pw-view" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="color:var(--ink-4);font-size:.88rem;">••••••••</span>
+          <button class="btn-edit" onclick="document.getElementById('pw-view').style.display='none';document.getElementById('pw-form').style.display='block'">
+            <i class="fas fa-pen"></i> تغيير
+          </button>
+        </div>
+        <div id="pw-form" style="display:none;">
+          <div class="form-grid cols-1" style="margin-bottom:12px;">
+            <div class="fg"><label>كلمة المرور الحالية</label><input type="password" id="pw-old" placeholder="أدخل كلمة المرور الحالية"></div>
+            <div class="fg"><label>كلمة المرور الجديدة</label><input type="password" id="pw-new" placeholder="6 أحرف على الأقل"></div>
+            <div class="fg"><label>تأكيد كلمة المرور</label><input type="password" id="pw-confirm" placeholder="أعد الكتابة"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="document.getElementById('pw-view').style.display='flex';document.getElementById('pw-form').style.display='none'">إلغاء</button>
+            <button class="btn-save" onclick="changePassword()"><i class="fas fa-key"></i> تغيير</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- تغيير البريد الإلكتروني -->
+      <div class="acc-section">
+        <div class="acc-section-title"><i class="fas fa-envelope"></i> البريد الإلكتروني</div>
+        <div id="email-view" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="font-size:.85rem;color:var(--ink-6);direction:ltr;">{{ ben.email or 'لم يُضف بعد' }}</span>
+          <button class="btn-edit" onclick="document.getElementById('email-view').style.display='none';document.getElementById('email-step1').style.display='block'">
+            <i class="fas fa-pen"></i> تغيير
+          </button>
+        </div>
+        <div id="email-step1" style="display:none;">
+          <div class="fg" style="margin-bottom:12px;"><label>البريد الإلكتروني الجديد</label><input type="email" id="em-new" dir="ltr" placeholder="example@mail.com" value="{{ ben.email or '' }}"></div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="document.getElementById('email-view').style.display='flex';document.getElementById('email-step1').style.display='none'">إلغاء</button>
+            <button class="btn-save" onclick="requestEmailChange()"><i class="fas fa-paper-plane"></i> إرسال رمز</button>
+          </div>
+        </div>
+        <div id="email-step2" style="display:none;">
+          <p style="font-size:.83rem;color:var(--ink-6);margin-bottom:12px;text-align:center;">أدخل الرمز المرسل لـ <strong id="em-sent-to"></strong></p>
+          <div class="otp-row" id="em-otp-inputs">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+          </div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="document.getElementById('email-step1').style.display='block';document.getElementById('email-step2').style.display='none'">رجوع</button>
+            <button class="btn-save" onclick="confirmEmailChange()"><i class="fas fa-check"></i> تأكيد</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function openAccountModal(){
+  document.getElementById('account-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeAccountModal(){
+  document.getElementById('account-modal').classList.remove('open');
+  document.body.style.overflow='';
 }
 </script>
 </body>
