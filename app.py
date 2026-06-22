@@ -313,6 +313,18 @@ def resequence(org_id):
 # ══════════════════════════════════════════
 # الصفحة الرئيسية
 # ══════════════════════════════════════════
+@app.route("/diag")
+def diag_route():
+    import traceback, sys
+    try:
+        conn = get_connection()
+        conn.close()
+        db_ok = "OK"
+    except Exception as e:
+        db_ok = str(e)
+    return f"<pre>DB:{db_ok}\nPY:{sys.version}\n</pre>"
+
+
 @app.route("/")
 def home():
     total_benef = total_camps = total_orgs = 0
