@@ -152,15 +152,20 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 .otp-row input{width:44px;height:48px;text-align:center;font-size:1.2rem;font-weight:700;
                border:1.5px solid var(--sand-200);border-radius:9px;transition:.15s;}
 .otp-row input:focus{border-color:var(--teal-500);outline:none;box-shadow:0 0 0 3px rgba(58,170,99,.12);}
-/* ── بطاقة الانتماء ── */
-.affil-opts{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
-.affil-opt{flex:1;min-width:120px;border:2px solid var(--sand-200);border-radius:12px;
-           padding:12px 10px;cursor:pointer;text-align:center;transition:.2s;background:#fff;}
-.affil-opt:hover{border-color:var(--teal-500);background:#f0fdf4;}
-.affil-opt.selected{border-color:var(--teal-600);background:#f0fdf4;color:var(--teal-700);}
-.affil-opt i{display:block;font-size:1.4rem;margin-bottom:6px;color:var(--teal-600);}
-.affil-opt span{font-size:.78rem;font-weight:700;}
-.affil-sub{padding:14px;background:var(--sand-100);border-radius:10px;margin-top:2px;}
+/* ── الانتماء (نسخة sidebar) ── */
+.affil-tab{flex:1;padding:7px 4px;font-size:.75rem;font-weight:700;border:1.5px solid var(--sand-200);
+           border-radius:8px;background:#fff;cursor:pointer;color:var(--ink-6);transition:.2s;}
+.affil-tab:hover{border-color:var(--teal-400);color:var(--teal-700);}
+.affil-tab.affil-active{background:var(--teal-600);color:#fff;border-color:var(--teal-600);}
+.affil-radio-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+                  border:1.5px solid var(--sand-200);cursor:pointer;font-size:.78rem;
+                  background:#fff;transition:.15s;}
+.affil-radio-item:hover{border-color:var(--teal-400);background:#f0fdf4;}
+.affil-radio-item.selected{border-color:var(--teal-600);background:#f0fdf4;color:var(--teal-700);font-weight:700;}
+.affil-radio-item input{accent-color:var(--teal-600);}
+@media(max-width:640px){
+  #tab-benefits > div{grid-template-columns:1fr !important;}
+}
 /* ── مودال الحساب ── */
 .acc-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;
               display:none;align-items:center;justify-content:center;padding:16px;
@@ -580,131 +585,14 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 
 <!-- ═══ كشف الاستفادة ═══ -->
 <div id="tab-benefits" class="tab-pane">
+<div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start;">
 
-  <!-- بطاقة الانتماء -->
-  <div class="card" style="margin-bottom:16px;">
-    <div class="card-head">
-      <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-map-marker-alt"></i></div>
-        <div>
-          <h3>انتماء المستفيد</h3>
-          <p>
-            {% if ben.beneficiary_status == 'pending_camp' %}<span style="color:#d97706;font-weight:700;"><i class="fas fa-clock"></i> طلب انضمام معلق — {{ ben.camp_name or '' }}</span>
-            {% elif ben.beneficiary_status == 'in_camp' %}داخل مخيم — {{ ben.camp_name or 'غير محدد' }}
-            {% elif ben.beneficiary_status == 'in_shelter' %}داخل إيواء — {{ ben.camp_name or 'غير محدد' }}
-            {% else %}مستفيد مستقل{% endif %}
-          </p>
-        </div>
-      </div>
-      {% if ben.beneficiary_status != 'pending_camp' %}
-      <button class="btn-edit" onclick="toggleAffil()"><i class="fas fa-pen"></i> تحديث</button>
-      {% endif %}
-    </div>
-
-    <!-- حالة الطلب المعلق -->
-    {% if ben.beneficiary_status == 'pending_camp' %}
-    <div style="padding:16px 22px;background:#fffbeb;border-top:1px solid #fde68a;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <i class="fas fa-hourglass-half" style="color:#d97706;font-size:1.1rem;"></i>
-        <div>
-          <div style="font-size:.85rem;font-weight:700;color:#92400e;">بانتظار موافقة إدارة المخيم</div>
-          <div style="font-size:.75rem;color:#b45309;margin-top:2px;">سيتم إعلامك عند قبول الطلب أو رفضه</div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- نموذج التحديث -->
-    <div id="affil-edit" style="display:none;padding:18px 22px;">
-      <div id="flash-affil" class="flash" style="margin-bottom:12px;"></div>
-
-      <!-- خطوة 1: اختر المحافظة لفلترة المخيمات -->
-      <div class="fg" style="margin-bottom:14px;">
-        <label style="font-size:.8rem;font-weight:700;color:var(--teal-700);"><i class="fas fa-map"></i> أولاً: حدد محافظتك</label>
-        <select id="affil-gov" onchange="filterCampsByGov()" style="border:1.5px solid var(--teal-400);">
-          <option value="">— اختر المحافظة —</option>
-          {% for gov in ['شمال غزة','غزة','الوسطى','الجنوب','رفح'] %}
-          <option value="{{ gov }}" {% if ben.governorate==gov %}selected{% endif %}>{{ gov }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- 3 خيارات الانتماء -->
-      <label style="font-size:.8rem;font-weight:700;color:var(--teal-700);"><i class="fas fa-sitemap"></i> ثانياً: نوع الانتماء</label>
-      <div class="affil-opts" style="margin-top:8px;">
-        <div class="affil-opt {% if ben.beneficiary_status in ['independent',''] or not ben.beneficiary_status %}selected{% endif %}"
-             onclick="selectAffil('independent',this)">
-          <i class="fas fa-user-check"></i><span>مستقل</span>
-        </div>
-        <div class="affil-opt {% if ben.beneficiary_status in ['in_camp','pending_camp'] %}selected{% endif %}"
-             onclick="selectAffil('in_camp',this)">
-          <i class="fas fa-campground"></i><span>داخل مخيم</span>
-        </div>
-        <div class="affil-opt {% if ben.beneficiary_status=='in_shelter' %}selected{% endif %}"
-             onclick="selectAffil('in_shelter',this)">
-          <i class="fas fa-building"></i><span>داخل إيواء</span>
-        </div>
-      </div>
-
-      <!-- قسم المخيم: قائمة مفلترة بالمنطقة -->
-      <div id="sub-in_camp" class="affil-sub" style="display:{% if ben.beneficiary_status in ['in_camp','pending_camp'] %}block{% else %}none{% endif %};">
-        <div class="fg" style="margin-bottom:10px;">
-          <label><i class="fas fa-campground"></i> المخيمات في منطقتك</label>
-          <select id="affil-camp-id" onchange="onCampSelect(this)">
-            <option value="">— اختر محافظتك أولاً —</option>
-            {% for camp in camps %}
-            <option value="{{ camp.id }}"
-                    data-gov="{{ camp.governorate or '' }}"
-                    {% if ben.camp_entity_id==camp.id %}selected{% endif %}>
-              {{ camp.name }}{% if camp.city %} — {{ camp.city }}{% endif %}
-            </option>
-            {% endfor %}
-            <option value="__manual__">مخيمي غير موجود في القائمة</option>
-          </select>
-          <span id="camp-count-info" style="font-size:.72rem;color:var(--ink-4);margin-top:4px;"></span>
-        </div>
-        <div id="camp-manual-wrap" style="display:none;">
-          <div class="fg">
-            <label>اسم المخيم</label>
-            <input type="text" id="affil-camp-manual" placeholder="أدخل اسم المخيم">
-          </div>
-          <p style="font-size:.73rem;color:var(--amber);margin-top:6px;background:#fffbeb;padding:6px 10px;border-radius:7px;">
-            <i class="fas fa-magic"></i> إن كان المخيم مسجلاً بنفس الاسم سيتم إرسال طلب الانضمام تلقائياً
-          </p>
-        </div>
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:.78rem;color:#166534;">
-          <i class="fas fa-info-circle"></i>
-          سيتم إرسال <strong>طلب انضمام</strong> لإدارة المخيم — ستُضاف تلقائياً بعد الموافقة
-        </div>
-      </div>
-
-      <!-- قسم الإيواء -->
-      <div id="sub-in_shelter" class="affil-sub" style="display:{% if ben.beneficiary_status=='in_shelter' %}block{% else %}none{% endif %};">
-        <div class="fg">
-          <label><i class="fas fa-building"></i> اسم أو موقع الإيواء</label>
-          <input type="text" id="affil-shelter-name" placeholder="مثال: مدرسة الأونروا — شارع النصر"
-                 value="{{ ben.camp_name if ben.beneficiary_status=='in_shelter' else '' }}">
-        </div>
-      </div>
-
-      <!-- قسم المستقل -->
-      <div id="sub-independent" class="affil-sub" style="display:{% if ben.beneficiary_status in ['independent',''] or not ben.beneficiary_status %}block{% else %}none{% endif %};">
-        <p style="font-size:.82rem;color:var(--ink-6);"><i class="fas fa-check-circle" style="color:var(--teal-600);"></i> مستفيد مستقل — لا انتماء لمخيم أو إيواء</p>
-      </div>
-
-      <div class="btn-row" style="margin-top:14px;">
-        <button class="btn-cancel" onclick="toggleAffil(true)">إلغاء</button>
-        <button class="btn-save" id="affil-save-btn" onclick="saveAffil()"><i class="fas fa-paper-plane"></i> إرسال طلب الانضمام</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- جدول الاستفادة -->
+  <!-- ── عمود الكشف ── -->
   <div class="card">
     <div class="card-head">
       <div class="card-head-left">
         <div class="card-head-icon"><i class="fas fa-hand-holding-heart"></i></div>
-        <div><h3>كشف الاستفادة</h3><p>جميع المساعدات والبرامج التي استفدت منها</p></div>
+        <div><h3>كشف الاستفادة</h3><p>جميع المساعدات التي استفدت منها</p></div>
       </div>
     </div>
     {% if benefits %}
@@ -730,8 +618,119 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
     </div>
     {% endif %}
   </div>
-</div>
 
+  <!-- ── عمود الانتماء ── -->
+  <div class="card" style="position:sticky;top:80px;">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--sand-200);">
+      <div style="font-size:.88rem;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:7px;">
+        <i class="fas fa-map-marker-alt" style="color:var(--teal-600);"></i> الانتماء
+      </div>
+      <!-- الحالة الحالية -->
+      {% if ben.beneficiary_status == 'pending_camp' %}
+      <div style="margin-top:8px;background:#fffbeb;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#92400e;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-hourglass-half" style="color:#d97706;"></i>
+        طلب معلق — <strong>{{ ben.camp_name or '' }}</strong>
+      </div>
+      {% elif ben.beneficiary_status == 'in_camp' %}
+      <div style="margin-top:8px;background:#f0fdf4;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#166534;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-check-circle"></i> مخيم — <strong>{{ ben.camp_name or '' }}</strong>
+      </div>
+      {% elif ben.beneficiary_status == 'in_shelter' %}
+      <div style="margin-top:8px;background:#f0f9ff;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#0369a1;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-building"></i> إيواء — <strong>{{ ben.camp_name or '' }}</strong>
+      </div>
+      {% else %}
+      <div style="margin-top:8px;font-size:.75rem;color:var(--ink-4);">مستفيد مستقل</div>
+      {% endif %}
+    </div>
+
+    <div style="padding:14px 16px;" id="affil-panel">
+      <div id="flash-affil" class="flash" style="margin-bottom:10px;font-size:.78rem;"></div>
+
+      {% if ben.beneficiary_status == 'pending_camp' %}
+      <!-- طلب معلق — لا تعديل -->
+      <div style="text-align:center;padding:10px 0;font-size:.78rem;color:var(--ink-4);">
+        <i class="fas fa-lock" style="font-size:1.2rem;color:var(--sand-200);display:block;margin-bottom:6px;"></i>
+        لا يمكن التعديل أثناء انتظار الموافقة
+      </div>
+      {% else %}
+
+      <!-- 3 اختيارات -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="affil-tab {% if ben.beneficiary_status in ['independent',''] or not ben.beneficiary_status %}affil-active{% endif %}"
+                onclick="pickAffil('independent',this)">مستقل</button>
+        <button class="affil-tab {% if ben.beneficiary_status in ['in_camp','pending_camp'] %}affil-active{% endif %}"
+                onclick="pickAffil('camp',this)">مخيم</button>
+        <button class="affil-tab {% if ben.beneficiary_status in ['in_shelter'] %}affil-active{% endif %}"
+                onclick="pickAffil('committee',this)">لجنة</button>
+      </div>
+
+      <!-- قائمة المخيمات -->
+      <div id="affil-list-camp" style="display:{% if ben.beneficiary_status in ['in_camp','pending_camp'] %}block{% else %}none{% endif %};">
+        <div style="font-size:.72rem;color:var(--ink-4);margin-bottom:6px;">
+          {% if ben.city %}المخيمات في {{ ben.city }}{% elif ben.governorate %}المخيمات في {{ ben.governorate }}{% else %}المخيمات المتاحة{% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;" id="camp-radio-list">
+          {% for camp in camps %}
+          <label class="affil-radio-item {% if ben.camp_entity_id==camp.id %}selected{% endif %}">
+            <input type="radio" name="affil_camp" value="{{ camp.id }}"
+                   {% if ben.camp_entity_id==camp.id %}checked{% endif %}>
+            <span>{{ camp.name }}{% if camp.city %}<small style="color:var(--ink-4);"> — {{ camp.city }}</small>{% endif %}</span>
+          </label>
+          {% endfor %}
+          {% if not camps %}
+          <div style="font-size:.75rem;color:var(--ink-4);text-align:center;padding:8px;">لا توجد مخيمات في منطقتك</div>
+          {% endif %}
+        </div>
+        <div style="margin-top:8px;border-top:1px dashed var(--sand-200);padding-top:8px;">
+          <div style="font-size:.72rem;color:var(--ink-4);margin-bottom:4px;">مخيمي غير موجود:</div>
+          <input type="text" id="camp-manual-name" placeholder="أدخل اسم المخيم"
+                 style="width:100%;border:1.5px solid var(--sand-200);border-radius:8px;padding:7px 10px;font-size:.8rem;"
+                 oninput="document.querySelectorAll('[name=affil_camp]').forEach(r=>r.checked=false)">
+        </div>
+      </div>
+
+      <!-- قائمة اللجان -->
+      <div id="affil-list-committee" style="display:{% if ben.beneficiary_status=='in_shelter' %}block{% else %}none{% endif %};">
+        <div style="font-size:.72rem;color:var(--ink-4);margin-bottom:6px;">
+          {% if ben.city %}اللجان في {{ ben.city }}{% elif ben.governorate %}اللجان في {{ ben.governorate }}{% else %}اللجان المتاحة{% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;">
+          {% for com in committees %}
+          <label class="affil-radio-item {% if ben.camp_entity_id==com.id %}selected{% endif %}">
+            <input type="radio" name="affil_committee" value="{{ com.id }}"
+                   {% if ben.camp_entity_id==com.id %}checked{% endif %}>
+            <span>{{ com.name }}{% if com.city %}<small style="color:var(--ink-4);"> — {{ com.city }}</small>{% endif %}</span>
+          </label>
+          {% endfor %}
+          {% if not committees %}
+          <div style="font-size:.75rem;color:var(--ink-4);text-align:center;padding:8px;">لا توجد لجان في منطقتك</div>
+          {% endif %}
+        </div>
+        <div style="margin-top:8px;border-top:1px dashed var(--sand-200);padding-top:8px;">
+          <div style="font-size:.72rem;color:var(--ink-4);margin-bottom:4px;">لجنتي غير موجودة:</div>
+          <input type="text" id="committee-manual-name" placeholder="أدخل اسم اللجنة"
+                 style="width:100%;border:1.5px solid var(--sand-200);border-radius:8px;padding:7px 10px;font-size:.8rem;"
+                 oninput="document.querySelectorAll('[name=affil_committee]').forEach(r=>r.checked=false)">
+        </div>
+      </div>
+
+      <!-- مستقل -->
+      <div id="affil-list-independent" style="display:{% if ben.beneficiary_status in ['independent',''] or not ben.beneficiary_status %}block{% else %}none{% endif %};">
+        <div style="text-align:center;padding:12px 0;font-size:.78rem;color:var(--ink-6);">
+          <i class="fas fa-user-check" style="font-size:1.4rem;color:var(--teal-500);display:block;margin-bottom:6px;"></i>
+          مستفيد بدون انتماء لمخيم أو لجنة
+        </div>
+      </div>
+
+      <button class="btn-save" id="affil-save-btn" onclick="saveAffil()" style="width:100%;margin-top:10px;font-size:.82rem;padding:9px;">
+        <i class="fas fa-paper-plane"></i> <span id="affil-btn-text">إرسال طلب</span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 </div>
 
 <script>
@@ -1127,89 +1126,63 @@ function closeAccountModal(){
 }
 
 /* ── انتماء المستفيد ── */
-let _affilStatus = '{{ ben.beneficiary_status or "independent" }}';
+let _affilType = '{% if ben.beneficiary_status in ["in_camp","pending_camp"] %}camp{% elif ben.beneficiary_status=="in_shelter" %}committee{% else %}independent{% endif %}';
 
-function toggleAffil(close){
-  const el = document.getElementById('affil-edit');
-  el.style.display = (close || el.style.display!=='none') ? 'none' : 'block';
-  if(!close && el.style.display==='block'){
-    // فلتر تلقائي حسب محافظة المستفيد عند فتح النموذج
-    const gov = document.getElementById('affil-gov');
-    if(gov && gov.value) filterCampsByGov();
-    updateAffilBtn();
-  }
-}
-
-function selectAffil(status, el){
-  _affilStatus = status;
-  document.querySelectorAll('.affil-opt').forEach(o=>o.classList.remove('selected'));
-  el.classList.add('selected');
-  ['independent','in_camp','in_shelter'].forEach(s=>{
-    const sec = document.getElementById('sub-'+s);
-    if(sec) sec.style.display = (s===status)?'block':'none';
+function pickAffil(type, btn){
+  _affilType = type;
+  document.querySelectorAll('.affil-tab').forEach(b=>b.classList.remove('affil-active'));
+  btn.classList.add('affil-active');
+  ['camp','committee','independent'].forEach(t=>{
+    const el = document.getElementById('affil-list-'+t);
+    if(el) el.style.display = t===type ? 'block' : 'none';
   });
-  updateAffilBtn();
+  const saveBtn = document.getElementById('affil-save-btn');
+  const txt     = document.getElementById('affil-btn-text');
+  if(type==='independent'){ txt.textContent='حفظ كمستقل'; }
+  else { txt.textContent='إرسال طلب الانضمام'; }
 }
 
-function updateAffilBtn(){
-  const btn = document.getElementById('affil-save-btn');
-  if(!btn) return;
-  if(_affilStatus==='in_camp'){
-    btn.innerHTML='<i class="fas fa-paper-plane"></i> إرسال طلب الانضمام';
-  } else {
-    btn.innerHTML='<i class="fas fa-save"></i> حفظ';
-  }
-}
-
-function filterCampsByGov(){
-  const gov = document.getElementById('affil-gov').value;
-  const sel = document.getElementById('affil-camp-id');
-  if(!sel) return;
-  const opts = sel.querySelectorAll('option');
-  let visible = 0;
-  opts.forEach(opt=>{
-    if(!opt.value || opt.value==='__manual__'){ opt.style.display=''; return; }
-    const match = !gov || (opt.dataset.gov||'') === gov;
-    opt.style.display = match ? '' : 'none';
-    if(match) visible++;
-  });
-  const info = document.getElementById('camp-count-info');
-  if(info) info.textContent = gov ? `${visible} مخيم في ${gov}` : '';
-  // صفّر الاختيار لو مش من نفس المنطقة
-  const cur = sel.options[sel.selectedIndex];
-  if(cur && cur.dataset.gov && gov && cur.dataset.gov !== gov) sel.value='';
-}
-
-function onCampSelect(sel){
-  document.getElementById('camp-manual-wrap').style.display =
-    sel.value==='__manual__' ? 'block' : 'none';
-  if(sel.value!=='__manual__'){
-    const manual = document.getElementById('affil-camp-manual');
-    if(manual) manual.value='';
-  }
-}
+// لما يختار راديو → شيل الـ manual
+document.addEventListener('change', e=>{
+  if(e.target.name==='affil_camp')
+    document.getElementById('camp-manual-name').value='';
+  if(e.target.name==='affil_committee')
+    document.getElementById('committee-manual-name').value='';
+});
+// لما يكتب manual → شيل الراديو
+document.addEventListener('input', e=>{
+  if(e.target.id==='camp-manual-name' && e.target.value)
+    document.querySelectorAll('[name=affil_camp]').forEach(r=>r.checked=false);
+  if(e.target.id==='committee-manual-name' && e.target.value)
+    document.querySelectorAll('[name=affil_committee]').forEach(r=>r.checked=false);
+});
 
 async function saveAffil(){
-  const body = {status: _affilStatus};
-  if(_affilStatus==='in_camp'){
-    const sel = document.getElementById('affil-camp-id');
-    if(sel.value && sel.value!=='__manual__') body.entity_id = parseInt(sel.value);
-    else {
-      const manual = (document.getElementById('affil-camp-manual')?.value||'').trim();
-      if(!manual){ alert('أدخل اسم المخيم'); return; }
-      body.manual_name = manual;
-    }
-  } else if(_affilStatus==='in_shelter'){
-    body.shelter_name = document.getElementById('affil-shelter-name')?.value.trim()||'';
+  const body = {};
+  if(_affilType==='independent'){
+    body.status='independent';
+  } else if(_affilType==='camp'){
+    body.status='in_camp';
+    const checked = document.querySelector('[name=affil_camp]:checked');
+    const manual  = (document.getElementById('camp-manual-name')?.value||'').trim();
+    if(checked) body.entity_id = parseInt(checked.value);
+    else if(manual) body.manual_name = manual;
+    else { setFlash('affil','اختر مخيماً أو أدخل اسمه','error'); return; }
+  } else if(_affilType==='committee'){
+    body.status='in_shelter';   // نستخدم in_shelter لتمثيل اللجنة مؤقتاً
+    const checked = document.querySelector('[name=affil_committee]:checked');
+    const manual  = (document.getElementById('committee-manual-name')?.value||'').trim();
+    if(checked) body.entity_id = parseInt(checked.value);
+    else if(manual) body.manual_name = manual;
+    else { setFlash('affil','اختر لجنة أو أدخل اسمها','error'); return; }
   }
   const r = await fetch('/api/beneficiary/update-affiliation',{method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
   if(r.ok){
-    const msg = r.msg || '✅ تم الحفظ';
-    setFlash('affil', msg, 'success');
-    setTimeout(()=>location.reload(), 2000);
+    setFlash('affil', r.msg||'✅ تم الحفظ','success');
+    setTimeout(()=>location.reload(),2000);
   } else {
-    setFlash('affil', r.error||'خطأ في الحفظ', 'error');
+    setFlash('affil', r.error||'خطأ','error');
   }
 }
 </script>

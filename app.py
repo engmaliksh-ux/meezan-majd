@@ -4564,13 +4564,27 @@ def beneficiary_portal():
     except Exception:
         benefits = []
     conn.close()
-    # قائمة المخيمات واللجان النشطة
-    c2 = get_connection().cursor()
+    # قائمة المخيمات واللجان — مفلترة حسب محافظة/مدينة المستفيد
+    ben_dict = dict(ben)
+    ben_gov  = ben_dict.get("governorate") or ""
+    ben_city = ben_dict.get("city") or ""
+    conn2 = get_connection(); c2 = conn2.cursor()
     c2.execute("""SELECT id, name, entity_type, governorate, city
                   FROM camp_entities WHERE is_active=1 ORDER BY entity_type, name""")
     all_entities = [dict(r) for r in c2.fetchall()]
-    camps       = [e for e in all_entities if e['entity_type'] == 'camp']
-    committees  = [e for e in all_entities if e['entity_type'] != 'camp']
+    conn2.close()
+    def _match(e):
+        eg = (e.get("governorate") or "").strip()
+        ec = (e.get("city") or "").strip()
+        if not eg: return True          # بدون محافظة → يظهر للكل
+        if eg != ben_gov: return False
+        if ec and ben_city and ec != ben_city: return False
+        return True
+    camps      = [e for e in all_entities if e["entity_type"] == "camp"      and _match(e)]
+    committees = [e for e in all_entities if e["entity_type"] != "camp"      and _match(e)]
+    # لو ما في نتائج في منطقته اعرض كل المخيمات (fallback)
+    if not camps:      camps      = [e for e in all_entities if e["entity_type"] == "camp"]
+    if not committees: committees = [e for e in all_entities if e["entity_type"] != "camp"]
     return render_template("beneficiary_portal.html",
                            ben=dict(ben), join_req=join_req, benefits=benefits,
                            spouse=spouse, children=children, health=health,
