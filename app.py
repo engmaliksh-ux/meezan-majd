@@ -4529,19 +4529,21 @@ def beneficiary_portal():
         ORDER BY cjr.id DESC LIMIT 1
     """, (ben["id"],))
     join_req = c.fetchone()
-    conn.close()
     # كشف الاستفادة
-    c.execute("""
-        SELECT pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
-               p.name as program_name, p.program_type,
-               o.name as org_name
-        FROM program_records pr
-        JOIN programs p ON pr.program_id = p.id
-        LEFT JOIN organizations o ON pr.org_id = o.id
-        WHERE pr.beneficiary_id = ?
-        ORDER BY pr.benefit_date DESC LIMIT 50
-    """, (ben["id"],))
-    benefits = [dict(r) for r in c.fetchall()]
+    try:
+        c.execute("""
+            SELECT pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
+                   p.name as program_name, p.program_type,
+                   o.name as org_name
+            FROM program_records pr
+            JOIN programs p ON pr.program_id = p.id
+            LEFT JOIN organizations o ON pr.org_id = o.id
+            WHERE pr.beneficiary_id = ?
+            ORDER BY pr.benefit_date DESC LIMIT 50
+        """, (ben["id"],))
+        benefits = [dict(r) for r in c.fetchall()]
+    except Exception:
+        benefits = []
     conn.close()
     return render_template("beneficiary_portal.html",
                            ben=dict(ben), join_req=join_req, benefits=benefits)
