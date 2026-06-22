@@ -5205,7 +5205,14 @@ def api_camp_forgot_password():
               (email, code, "camp_reset", expires))
     conn.commit(); conn.close()
     try:
-        send_org_verification(email, entity["name"], code)
+        send_org_verification(
+            email,
+            entity["name"],   # org_name
+            entity["name"],   # admin_name (نفس الاسم كبديل)
+            code,
+            "",               # org_code (غير مطلوب لإعادة التعيين)
+            email             # username
+        )
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": f"خطأ في الإرسال: {str(e)}"})
