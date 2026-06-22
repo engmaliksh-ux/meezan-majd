@@ -1,0 +1,131 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>جلسة توزيع جديدة — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.wrap{max-width:780px;margin:0 auto;padding:32px 20px;}
+.page-hd{margin-bottom:28px;}
+.page-hd h1{font-size:1.3rem;font-weight:800;color:var(--g9);display:flex;align-items:center;gap:10px;}
+.page-hd p{color:var(--ink6);font-size:.85rem;margin-top:6px;}
+.card{background:#fff;border-radius:16px;padding:26px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-hd{font-size:.9rem;font-weight:700;color:var(--g9);margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;gap:8px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.fg{display:flex;flex-direction:column;gap:6px;}
+.fg label{font-size:.76rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select,.fg textarea{padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:var(--ink);}
+.fg input:focus,.fg select:focus{border-color:var(--g6);outline:none;box-shadow:0 0 0 3px rgba(45,138,80,.1);}
+.filter-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;}
+.filter-opt{position:relative;}
+.filter-opt input[type=radio]{position:absolute;opacity:0;width:0;}
+.filter-opt label{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border:2px solid #e2e8f0;border-radius:12px;cursor:pointer;transition:.15s;text-align:center;font-size:.78rem;}
+.filter-opt label i{font-size:1.4rem;color:var(--ink4);}
+.filter-opt input:checked+label{border-color:var(--g6);background:#f0fdf4;color:var(--g7);}
+.filter-opt input:checked+label i{color:var(--g6);}
+.filter-extra{display:none;margin-top:12px;}
+.filter-extra.show{display:block;}
+.preview-box{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px;margin-top:12px;font-size:.84rem;}
+.preview-box strong{color:var(--g7);}
+.btn{padding:11px 22px;border-radius:10px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;width:100%;justify-content:center;margin-top:8px;}
+.btn-primary:hover{background:var(--g7);}
+.btn-back{background:#fff;color:var(--ink6);border:1.5px solid #e2e8f0;margin-bottom:20px;}
+.step{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--g6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;}
+.step-label{font-size:.85rem;font-weight:600;color:var(--g9);}
+.member-count-badge{display:inline-flex;align-items:center;gap:6px;background:#dbeafe;color:#1e40af;padding:6px 14px;border-radius:999px;font-size:.8rem;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-plus-circle" style="color:var(--amber)"></i> جلسة توزيع جديدة — {{ entity.name }}</div>
+  <a href="{{ url_for('camp_distributions') }}" style="color:rgba(255,255,255,.8);text-decoration:none;font-size:.82rem"><i class="fa fa-arrow-right"></i> العودة</a>
+</div>
+<div class="wrap">
+  <div class="page-hd">
+    <h1><i class="fa fa-calendar-plus" style="color:var(--g6)"></i> إنشاء جلسة توزيع جديدة</h1>
+    <p>حدد نطاق التوزيع والمستفيدين وسيتم إنشاء الكشف تلقائياً</p>
+    <div style="margin-top:10px" class="member-count-badge"><i class="fa fa-users"></i> {{ total }} عضو في {{ entity.name }}</div>
+  </div>
+  <form method="POST" id="distForm">
+    <!-- الخطوة 1: معلومات التوزيع -->
+    <div class="card">
+      <div class="step"><div class="step-num">١</div><div class="step-label">معلومات الجلسة</div></div>
+      <div class="form-grid">
+        <div class="fg" style="grid-column:1/-1"><label>عنوان التوزيع *</label><input name="title" required placeholder="مثال: توزيع المساعدات الغذائية — يونيو 2025"></div>
+        <div class="fg"><label>تاريخ التوزيع *</label><input name="distribution_date" type="date" required></div>
+        <div class="fg"><label>الجهة المانحة</label><input name="donor_name" placeholder="اسم الجهة أو المتبرع"></div>
+      </div>
+    </div>
+
+    <!-- الخطوة 2: المادة الموزعة -->
+    <div class="card">
+      <div class="step"><div class="step-num">٢</div><div class="step-label">المادة الموزعة</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>اسم المادة / المساعدة</label><input name="item_name" placeholder="مثال: طرد غذائي، بطانية..."></div>
+        <div class="fg"><label>الكمية للمستفيد الواحد</label><input name="quantity" placeholder="مثال: 1 طرد، 5 كيلو..."></div>
+        <div class="fg" style="grid-column:1/-1"><label>القيمة التقديرية (اختياري)</label><input name="value" placeholder="مثال: 50,000 ل.س"></div>
+      </div>
+    </div>
+
+    <!-- الخطوة 3: التصنيف والفلترة -->
+    <div class="card">
+      <div class="step"><div class="step-num">٣</div><div class="step-label">اختر فئة المستفيدين</div></div>
+      <div class="filter-options">
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-all" value="all" checked>
+          <label for="f-all"><i class="fa fa-users"></i><strong>جميع الأسر</strong><span style="color:var(--ink4)">{{ total }} أسرة</span></label>
+        </div>
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-count" value="count">
+          <label for="f-count"><i class="fa fa-sort-numeric-up"></i><strong>عدد محدد</strong><span style="color:var(--ink4)">الأقل استفادة أولاً</span></label>
+        </div>
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-orphans" value="orphans">
+          <label for="f-orphans"><i class="fa fa-child"></i><strong>أسر الأيتام</strong><span style="color:var(--ink4)">فقط الأسر التي تضم أيتام</span></label>
+        </div>
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-pregnant" value="pregnant">
+          <label for="f-pregnant"><i class="fa fa-heart"></i><strong>حوامل / مرضعات</strong><span style="color:var(--ink4)">أسر تضم أماً حاملاً أو مرضعة</span></label>
+        </div>
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-sick" value="sick">
+          <label for="f-sick"><i class="fa fa-procedures"></i><strong>مرضى / ذوو احتياجات</strong><span style="color:var(--ink4)">أمراض مزمنة أو إعاقة</span></label>
+        </div>
+        <div class="filter-opt">
+          <input type="radio" name="filter_type" id="f-least" value="least_received">
+          <label for="f-least"><i class="fa fa-balance-scale"></i><strong>الأقل استفادة</strong><span style="color:var(--ink4)">توزيع عادل تلقائي</span></label>
+        </div>
+      </div>
+      <div class="filter-extra" id="extra-count">
+        <div class="fg"><label>عدد الأسر المستهدفة</label><input name="filter_value" id="fv-count" type="number" min="1" max="{{ total }}" placeholder="{{ total }}"></div>
+        <div class="preview-box">سيتم اختيار الأسر <strong>الأقل استفادة</strong> من التوزيعات السابقة أولاً</div>
+      </div>
+      <div class="filter-extra" id="extra-least">
+        <div class="fg"><label>عدد الأسر (اختياري)</label><input name="filter_value2" type="number" min="1" max="{{ total }}" placeholder="اتركه فارغاً للجميع"></div>
+        <div class="preview-box">سيتم ترتيب الأسر تلقائياً من <strong>الأقل استفادة إلى الأكثر</strong></div>
+      </div>
+      <div class="fg" style="margin-top:16px"><label>ملاحظات</label><textarea name="notes" rows="2" placeholder="تفاصيل إضافية عن هذه الجلسة..."></textarea></div>
+    </div>
+
+    <button type="submit" class="btn btn-primary"><i class="fa fa-magic"></i> إنشاء الجلسة وتوليد الكشف تلقائياً</button>
+  </form>
+</div>
+<script>
+document.querySelectorAll('input[name=filter_type]').forEach(r=>{
+  r.addEventListener('change',function(){
+    document.querySelectorAll('.filter-extra').forEach(e=>e.classList.remove('show'));
+    if(this.value==='count') document.getElementById('extra-count').classList.add('show');
+    if(this.value==='least_received') document.getElementById('extra-least').classList.add('show');
+  });
+});
+// sync filter_value fields
+document.getElementById('fv-count')?.addEventListener('input',function(){
+  document.querySelector('input[name=filter_value]').value = this.value;
+});
+</script>
+</body></html>

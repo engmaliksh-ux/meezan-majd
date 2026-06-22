@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>كشف توزيع — {{ dist.title }}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff;direction:rtl;}
+.header{text-align:center;margin-bottom:16px;border-bottom:3px double #000;padding-bottom:12px;}
+.header h1{font-size:18pt;font-weight:bold;}
+.header h2{font-size:13pt;margin-top:4px;}
+.header p{font-size:10pt;margin-top:6px;color:#444;}
+.meta-box{display:flex;justify-content:space-between;margin:14px 0;font-size:10pt;}
+.meta-item{display:flex;gap:6px;}
+.meta-item strong{min-width:80px;}
+.stats-bar{display:flex;gap:24px;background:#f3f4f6;padding:8px 16px;border-radius:6px;margin-bottom:14px;font-size:10pt;}
+table{width:100%;border-collapse:collapse;font-size:10pt;}
+th{background:#1a6b3a;color:#fff;padding:8px 10px;font-weight:bold;text-align:right;border:1px solid #1a6b3a;}
+td{padding:7px 10px;border:1px solid #ccc;vertical-align:middle;}
+tr:nth-child(even) td{background:#f9f9f6;}
+.sig-row{display:flex;justify-content:space-between;margin-top:40px;}
+.sig-box{border-top:1.5px solid #000;padding-top:8px;text-align:center;width:180px;font-size:10pt;}
+.footer{text-align:center;font-size:9pt;color:#666;margin-top:20px;border-top:1px solid #ccc;padding-top:8px;}
+@media print{
+  .no-print{display:none!important;}
+  body{font-size:11pt;}
+  .page-break{page-break-after:always;}
+}
+.print-btn{background:#1a6b3a;color:#fff;border:none;padding:10px 24px;font-size:13pt;border-radius:6px;cursor:pointer;margin-bottom:16px;}
+.received-mark{color:#1a6b3a;font-weight:bold;}
+.unreceived-mark{color:#666;}
+</style>
+</head>
+<body>
+<div class="no-print" style="padding:12px;background:#f0fdf4;border-bottom:2px solid #a7f3d0;">
+  <button class="print-btn" onclick="window.print()"><i>🖨️</i> طباعة الكشف</button>
+  <a href="{{ url_for('camp_distribution_detail', dist_id=dist.id) }}" style="margin-right:12px;color:#1a6b3a;font-size:11pt;">← العودة</a>
+</div>
+
+<div class="header">
+  <h1>منظومة ميزان مجد للمساعدات الإنسانية</h1>
+  <h2>كشف توزيع مساعدات — {{ entity.name }}</h2>
+  <p>{{ dist.title }}</p>
+</div>
+
+<div class="meta-box">
+  <div>
+    <div class="meta-item"><strong>تاريخ التوزيع:</strong> {{ dist.distribution_date }}</div>
+    <div class="meta-item" style="margin-top:4px"><strong>الجهة المانحة:</strong> {{ dist.donor_name or 'غير محدد' }}</div>
+  </div>
+  <div>
+    <div class="meta-item"><strong>نوع التصنيف:</strong>
+      {% if dist.filter_type=='all' %}جميع الأسر
+      {% elif dist.filter_type=='orphans' %}أسر الأيتام
+      {% elif dist.filter_type=='pregnant' %}حوامل ومرضعات
+      {% elif dist.filter_type=='sick' %}مرضى وذوو احتياجات
+      {% elif dist.filter_type=='least_received' %}الأقل استفادة
+      {% else %}{{ dist.filter_type }}{% endif %}
+    </div>
+    <div class="meta-item" style="margin-top:4px"><strong>حالة الجلسة:</strong> {{ 'مكتملة' if dist.status=='completed' else 'جارية' }}</div>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <span>إجمالي المستفيدين: <strong>{{ records|length }}</strong></span>
+  <span>استلموا: <strong>{{ records|selectattr('received','eq',1)|list|length }}</strong></span>
+  <span>لم يستلموا: <strong>{{ records|rejectattr('received','eq',1)|list|length }}</strong></span>
+</div>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>اسم المستفيد</th><th>رقم الهوية</th><th>أفراد الأسرة</th><th>العنوان</th><th>المادة</th><th>الكمية</th><th>الاستلام</th><th>التوقيع</th></tr>
+  </thead>
+  <tbody>
+  {% for i,r in records|enumerate %}
+  <tr>
+    <td style="text-align:center">{{ i+1 }}</td>
+    <td><strong>{{ r.full_name }}</strong></td>
+    <td>{{ r.id_number or '—' }}</td>
+    <td style="text-align:center">{{ r.family_size or '—' }}</td>
+    <td style="font-size:9pt">{{ r.address or '—' }}</td>
+    <td>{{ r.item_name or '—' }}</td>
+    <td>{{ r.quantity or '—' }}</td>
+    <td style="text-align:center">
+      {% if r.received %}<span class="received-mark">✓ استلم</span>
+      {% else %}<span class="unreceived-mark">□</span>{% endif %}
+    </td>
+    <td style="min-width:80px"></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="sig-row">
+  <div class="sig-box">مسؤول التوزيع</div>
+  <div class="sig-box">مدير {{ entity.name }}</div>
+  <div class="sig-box">مراقب / شاهد</div>
+</div>
+
+<div class="footer">تم إنشاء هذا الكشف من خلال منظومة ميزان مجد — التاريخ: {{ dist.distribution_date }}</div>
+</body></html>

@@ -144,8 +144,37 @@ tr:last-child td{border:none;}
       </tbody>
     </table>
     {% else %}
-    <div class="empty">لم يُسجَّل أي توزيع لهذا المستفيد بعد</div>
+    <div class="empty">لم يُسجَّل أي توزيع يدوي لهذا المستفيد بعد</div>
     {% endif %}
+    </div>
+
+    <!-- سجل جلسات التوزيع الرسمية -->
+    <div class="section" style="margin-top:16px">
+      <div class="section-hd" style="display:flex;align-items:center;justify-content:space-between">
+        <span><i class="fas fa-boxes" style="color:var(--g6)"></i> جلسات التوزيع الرسمية</span>
+        <a href="{{ url_for('camp_distributions') }}" style="font-size:.78rem;color:var(--g7);text-decoration:none">كل الجلسات ←</a>
+      </div>
+      {% if dist_records %}
+      <table>
+        <thead><tr><th>الجلسة</th><th>المادة</th><th>الكمية</th><th>حالة الاستلام</th><th>تاريخ الاستلام</th></tr></thead>
+        <tbody>
+        {% for dr in dist_records %}
+        <tr>
+          <td><strong>{{ dr.dist_title }}</strong><br><span style="font-size:.74rem;color:var(--ink4)">{{ dr.distribution_date }}</span></td>
+          <td>{{ dr.item_name or '—' }}</td>
+          <td>{{ dr.quantity or '—' }}</td>
+          <td>
+            {% if dr.received %}<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:999px;font-size:.74rem;font-weight:700">✓ استلم</span>
+            {% else %}<span style="background:#f3f4f6;color:#6b7280;padding:3px 10px;border-radius:999px;font-size:.74rem">لم يستلم</span>{% endif %}
+          </td>
+          <td style="font-size:.78rem;color:var(--ink4)">{{ dr.received_at or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty" style="padding:24px">لا توجد جلسات توزيع مرتبطة بهذا المستفيد بعد</div>
+      {% endif %}
     </div>
   </div>
 </div>

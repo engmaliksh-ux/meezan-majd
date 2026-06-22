@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>جلسات التوزيع — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;transition:.15s;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.page-hd h1{font-size:1.3rem;font-weight:800;color:var(--g9);}
+.btn{padding:9px 18px;border-radius:10px;font-size:.84rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;}.btn-primary:hover{background:var(--g7);}
+.dist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+.dist-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-right:4px solid var(--g6);transition:.15s;}
+.dist-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1);}
+.dist-card.completed{border-right-color:#94a3b8;}
+.dist-title{font-size:.95rem;font-weight:800;color:var(--g9);margin-bottom:6px;}
+.dist-meta{font-size:.78rem;color:var(--ink6);margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;}
+.dist-meta span{display:flex;align-items:center;gap:4px;}
+.progress-bar{background:#e5e7eb;border-radius:999px;height:8px;margin:12px 0;}
+.progress-fill{background:linear-gradient(90deg,var(--g5),var(--g7));border-radius:999px;height:8px;transition:width .4s;}
+.progress-label{font-size:.76rem;color:var(--ink6);display:flex;justify-content:space-between;}
+.dist-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.btn-sm{padding:6px 12px;font-size:.77rem;}
+.badge{padding:4px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+.b-active{background:#d1fae5;color:#065f46;}
+.b-draft{background:#fef3c7;color:#92400e;}
+.b-done{background:#f3f4f6;color:#374151;}
+.filter-badge{font-size:.72rem;padding:3px 8px;border-radius:6px;background:#dbeafe;color:#1e40af;display:inline-flex;align-items:center;gap:3px;}
+.empty{text-align:center;padding:64px;color:var(--ink4);}
+.empty i{font-size:3rem;display:block;margin-bottom:16px;color:#d1d5db;}
+.empty .cta{margin-top:20px;}
+.flash{padding:12px 18px;border-radius:10px;margin-bottom:16px;font-size:.85rem;}
+.flash-success{background:#d1fae5;color:#065f46;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-boxes" style="color:var(--amber)"></i> جلسات التوزيع — {{ entity.name }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+    <a href="{{ url_for('camp_inventory') }}"><i class="fa fa-warehouse"></i> المستودع</a>
+    <a href="{{ url_for('camp_activities_route') }}"><i class="fa fa-calendar-alt"></i> الأنشطة</a>
+    <a href="{{ url_for('camp_smart_classify') }}"><i class="fa fa-brain"></i> التصنيف الذكي</a>
+    <a href="{{ url_for('camp_reports') }}"><i class="fa fa-chart-bar"></i> التقارير</a>
+  </div>
+</div>
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash flash-{{cat}}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <div class="page-hd">
+    <h1><i class="fa fa-boxes" style="color:var(--g6)"></i> جلسات التوزيع</h1>
+    <a href="{{ url_for('camp_distribution_new') }}" class="btn btn-primary"><i class="fa fa-plus"></i> جلسة توزيع جديدة</a>
+  </div>
+
+  {% if dists %}
+  <div class="dist-grid">
+    {% for d in dists %}
+    {% set pct = ((d.done / d.total * 100)|int) if d.total > 0 else 0 %}
+    <div class="dist-card {{ 'completed' if d.status == 'completed' else '' }}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <span class="badge {{ 'b-done' if d.status=='completed' else 'b-active' if d.status=='active' else 'b-draft' }}">
+          {{ 'مكتملة' if d.status=='completed' else 'جارية' if d.status=='active' else 'مسودة' }}
+        </span>
+        {% if d.filter_type != 'all' %}
+        <span class="filter-badge">
+          <i class="fa fa-filter"></i>
+          {% if d.filter_type=='orphans' %}أيتام
+          {% elif d.filter_type=='pregnant' %}حوامل ومرضعات
+          {% elif d.filter_type=='sick' %}مرضى وذوو احتياجات
+          {% elif d.filter_type=='large_family' %}أسر كبيرة
+          {% elif d.filter_type=='least_received' %}الأقل استفادة
+          {% elif d.filter_type=='count' %}{{ d.filter_value }} أسرة
+          {% else %}{{ d.filter_type }}{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <div class="dist-title">{{ d.title }}</div>
+      <div class="dist-meta">
+        <span><i class="fa fa-calendar"></i> {{ d.distribution_date }}</span>
+        {% if d.donor_name %}<span><i class="fa fa-hands-helping"></i> {{ d.donor_name }}</span>{% endif %}
+        <span><i class="fa fa-users"></i> {{ d.total }} مستفيد</span>
+      </div>
+      <div class="progress-label"><span>استُلم: {{ d.done }}</span><span>{{ pct }}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%"></div></div>
+      <div class="dist-actions">
+        <a href="{{ url_for('camp_distribution_detail', dist_id=d.id) }}" class="btn btn-primary btn-sm"><i class="fa fa-eye"></i> التفاصيل</a>
+        <a href="{{ url_for('camp_distribution_print', dist_id=d.id) }}" class="btn btn-sm" style="background:#f0fdf4;color:var(--g7);border:1.5px solid var(--g6)" target="_blank"><i class="fa fa-print"></i> طباعة</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <i class="fa fa-boxes"></i>
+    <p>لا توجد جلسات توزيع بعد</p>
+    <div class="cta"><a href="{{ url_for('camp_distribution_new') }}" class="btn btn-primary"><i class="fa fa-plus"></i> إنشاء جلسة توزيع جديدة</a></div>
+  </div>
+  {% endif %}
+</div>
+</body></html>

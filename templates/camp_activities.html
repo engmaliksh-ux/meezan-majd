@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>أرشيف الأنشطة — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:4px;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.page-hd h1{font-size:1.3rem;font-weight:800;color:var(--g9);display:flex;align-items:center;gap:10px;}
+.layout{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
+@media(max-width:800px){.layout{grid-template-columns:1fr;}}
+.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-hd{font-size:.9rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.fg label{font-size:.75rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select,.fg textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.84rem;font-family:inherit;color:var(--ink);}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--g6);outline:none;}
+.btn{padding:9px 18px;border-radius:10px;font-size:.84rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.15s;width:100%;justify-content:center;}
+.btn-primary{background:var(--g6);color:#fff;}.btn-primary:hover{background:var(--g7);}
+/* Activity Cards */
+.act-list{display:flex;flex-direction:column;gap:12px;}
+.act-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-right:4px solid #e2e8f0;transition:.15s;}
+.act-card:hover{border-right-color:var(--g5);transform:translateX(-2px);}
+.act-card.general{border-right-color:#6366f1;}
+.act-card.health{border-right-color:#ef4444;}
+.act-card.education{border-right-color:#f59e0b;}
+.act-card.distribution{border-right-color:var(--g6);}
+.act-card.meeting{border-right-color:#8b5cf6;}
+.act-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.act-title{font-size:.92rem;font-weight:700;color:var(--g9);}
+.act-meta{display:flex;gap:10px;margin-top:6px;font-size:.76rem;color:var(--ink6);}
+.act-desc{font-size:.82rem;color:var(--ink6);margin-top:8px;line-height:1.5;}
+.act-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.attach-count{font-size:.76rem;color:var(--g6);display:flex;align-items:center;gap:4px;}
+.act-actions{display:flex;gap:6px;}
+.btn-sm{padding:5px 10px;font-size:.75rem;border-radius:7px;}
+.btn-view{background:#f0fdf4;color:var(--g7);border:1px solid #bbf7d0;}
+.btn-danger{background:#fee2e2;color:#991b1b;}
+.type-badge{font-size:.7rem;padding:3px 8px;border-radius:999px;font-weight:700;}
+.t-general{background:#ede9fe;color:#6d28d9;}
+.t-health{background:#fee2e2;color:#991b1b;}
+.t-education{background:#fef3c7;color:#92400e;}
+.t-distribution{background:#d1fae5;color:#065f46;}
+.t-meeting{background:#f3e8ff;color:#7c3aed;}
+.t-other{background:#f3f4f6;color:#374151;}
+.empty{text-align:center;padding:48px;color:var(--ink4);}
+.empty i{font-size:2.5rem;display:block;margin-bottom:12px;color:#d1d5db;}
+.flash{padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:.85rem;}
+.flash-success{background:#d1fae5;color:#065f46;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-calendar-alt" style="color:var(--amber)"></i> أرشيف الأنشطة — {{ entity.name }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+    <a href="{{ url_for('camp_distributions') }}"><i class="fa fa-boxes"></i> التوزيعات</a>
+    <a href="{{ url_for('camp_inventory') }}"><i class="fa fa-warehouse"></i> المستودع</a>
+    <a href="{{ url_for('camp_alerts_route') }}"><i class="fa fa-bell"></i> التنبيهات</a>
+  </div>
+</div>
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash flash-{{cat}}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <div class="page-hd">
+    <h1><i class="fa fa-calendar-alt" style="color:var(--g6)"></i> أرشيف الأنشطة اليومية</h1>
+    <span style="font-size:.84rem;color:var(--ink6)">{{ activities|length }} نشاط مسجل</span>
+  </div>
+  <div class="layout">
+    <!-- نموذج إضافة نشاط -->
+    <div>
+      <div class="card">
+        <div class="card-hd"><i class="fa fa-plus-circle" style="color:var(--g6)"></i> تسجيل نشاط جديد</div>
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="add">
+          <div class="fg"><label>عنوان النشاط *</label><input name="title" required placeholder="ورشة، اجتماع، توزيع..."></div>
+          <div class="fg"><label>تاريخ النشاط *</label><input name="activity_date" type="date" required></div>
+          <div class="fg"><label>نوع النشاط</label>
+            <select name="activity_type">
+              <option value="general">عام</option>
+              <option value="health">صحي / طبي</option>
+              <option value="education">تعليمي / توعوي</option>
+              <option value="distribution">توزيع مساعدات</option>
+              <option value="meeting">اجتماع</option>
+              <option value="other">أخرى</option>
+            </select>
+          </div>
+          <div class="fg"><label>تفاصيل / وصف</label><textarea name="description" rows="3" placeholder="اكتب تفاصيل النشاط..."></textarea></div>
+          <div class="fg"><label><i class="fa fa-paperclip"></i> مرفقات (صور / وثائق)</label><input type="file" name="attachments" multiple accept="image/*,.pdf"></div>
+          <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ النشاط</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- قائمة الأنشطة -->
+    <div>
+      {% if activities %}
+      <div class="act-list">
+        {% for act in activities %}
+        <div class="act-card {{ act.activity_type }}">
+          <div class="act-header">
+            <div>
+              <div class="act-title">{{ act.title }}</div>
+              <div class="act-meta">
+                <span><i class="fa fa-calendar"></i> {{ act.activity_date }}</span>
+                <span class="type-badge t-{{ act.activity_type }}">
+                  {% if act.activity_type=='health' %}🏥 صحي
+                  {% elif act.activity_type=='education' %}📚 تعليمي
+                  {% elif act.activity_type=='distribution' %}📦 توزيع
+                  {% elif act.activity_type=='meeting' %}🤝 اجتماع
+                  {% elif act.activity_type=='general' %}📋 عام
+                  {% else %}📌 أخرى{% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+          {% if act.description %}
+          <div class="act-desc">{{ act.description }}</div>
+          {% endif %}
+          <div class="act-footer">
+            <span class="attach-count">
+              {% if act.attach_count > 0 %}<i class="fa fa-paperclip"></i> {{ act.attach_count }} مرفق{% endif %}
+            </span>
+            <div class="act-actions">
+              <a href="{{ url_for('camp_activity_detail', act_id=act.id) }}" class="btn btn-sm btn-view"><i class="fa fa-eye"></i> التفاصيل</a>
+              <form method="POST" onsubmit="return confirm('حذف هذا النشاط؟')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="activity_id" value="{{ act.id }}">
+                <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-trash"></i></button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card"><div class="empty"><i class="fa fa-calendar-times"></i><p>لا توجد أنشطة مسجلة بعد</p></div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</body></html>

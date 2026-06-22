@@ -1,0 +1,176 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ dist.title }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:4px;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+.dist-header{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.dist-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.dist-title{font-size:1.2rem;font-weight:800;color:var(--g9);}
+.dist-meta-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:.82rem;color:var(--ink6);}
+.dist-meta-row span{display:flex;align-items:center;gap:5px;}
+.progress-wrap{margin-top:16px;}
+.progress-label{display:flex;justify-content:space-between;font-size:.8rem;color:var(--ink6);margin-bottom:6px;}
+.progress-bar{background:#e5e7eb;border-radius:999px;height:10px;}
+.progress-fill{background:linear-gradient(90deg,var(--g5),var(--g7));border-radius:999px;height:10px;transition:width .4s;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+@media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr;}}
+.stat{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+.stat .n{font-size:1.6rem;font-weight:900;color:var(--g7);}
+.stat .l{font-size:.73rem;color:var(--ink4);margin-top:3px;}
+.toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.btn{padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-decoration:none;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;}.btn-primary:hover{background:var(--g7);}
+.btn-print{background:#fff;color:var(--g7);border:1.5px solid var(--g6);}
+.btn-complete{background:#fef3c7;color:#92400e;}
+.search-box{flex:1;min-width:200px;}
+.search-box input{width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.84rem;}
+.search-box input:focus{border-color:var(--g6);outline:none;}
+.card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:.84rem;}
+thead{background:var(--g9);color:#fff;}
+th{padding:11px 13px;text-align:right;font-weight:600;font-size:.76rem;}
+td{padding:11px 13px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+tr:last-child td{border:none;}
+tr:hover td{background:#fafaf7;}
+.check-btn{width:34px;height:34px;border-radius:50%;border:2px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;font-size:.9rem;}
+.check-btn.received{background:var(--g5);border-color:var(--g6);color:#fff;}
+.check-btn:hover{border-color:var(--g6);}
+.badge{padding:4px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+.b-yes{background:#d1fae5;color:#065f46;}
+.b-no{background:#f3f4f6;color:#6b7280;}
+.rec-time{font-size:.72rem;color:var(--ink4);}
+.filter-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.chip{padding:5px 12px;border-radius:999px;font-size:.76rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:.15s;}
+.chip-all{background:#dbeafe;color:#1e40af;}
+.chip-done{background:#d1fae5;color:#065f46;}
+.chip-pending{background:#fee2e2;color:#991b1b;}
+.chip.active{border-color:currentColor;}
+.flash{padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:.85rem;}
+.flash-success{background:#d1fae5;color:#065f46;}
+.completed-banner{background:#d1fae5;border:1.5px solid #a7f3d0;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-size:.88rem;color:#065f46;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-clipboard-list" style="color:var(--amber)"></i> {{ dist.title }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_distributions') }}"><i class="fa fa-arrow-right"></i> التوزيعات</a>
+    <a href="{{ url_for('camp_distribution_print', dist_id=dist.id) }}" target="_blank"><i class="fa fa-print"></i> طباعة</a>
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+  </div>
+</div>
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash flash-{{cat}}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  {% if dist.status == 'completed' %}
+  <div class="completed-banner"><i class="fa fa-check-circle fa-lg"></i> هذه الجلسة مكتملة ومغلقة — {{ done }}/{{ total }} استلموا</div>
+  {% endif %}
+
+  <!-- Header -->
+  <div class="dist-header">
+    <div class="dist-title-row">
+      <div>
+        <div class="dist-title">{{ dist.title }}</div>
+        <div class="dist-meta-row">
+          <span><i class="fa fa-calendar"></i> {{ dist.distribution_date }}</span>
+          {% if dist.donor_name %}<span><i class="fa fa-hands-helping"></i> {{ dist.donor_name }}</span>{% endif %}
+          {% if dist.notes %}<span><i class="fa fa-sticky-note"></i> {{ dist.notes }}</span>{% endif %}
+        </div>
+      </div>
+      {% if dist.status != 'completed' %}
+      <form method="POST" onsubmit="return confirm('إغلاق الجلسة نهائياً؟ لن تتمكن من تعديلها.')">
+        <input type="hidden" name="action" value="complete">
+        <button type="submit" class="btn btn-complete"><i class="fa fa-lock"></i> إغلاق الجلسة</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>استلم: <strong>{{ done }}</strong> من {{ total }}</span><span>{{ ((done/total*100)|int) if total>0 else 0 }}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:{{ ((done/total*100)|int) if total>0 else 0 }}%"></div></div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="n">{{ total }}</div><div class="l">إجمالي المستفيدين</div></div>
+    <div class="stat"><div class="n" style="color:var(--g6)">{{ done }}</div><div class="l">استلموا</div></div>
+    <div class="stat"><div class="n" style="color:#dc2626">{{ total - done }}</div><div class="l">لم يستلموا بعد</div></div>
+    <div class="stat"><div class="n">{{ dist.filter_type }}</div><div class="l">نوع التصنيف</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filter-chips">
+      <span class="chip chip-all active" onclick="filterTable('all',this)">الكل ({{ total }})</span>
+      <span class="chip chip-done" onclick="filterTable('done',this)">استلموا ({{ done }})</span>
+      <span class="chip chip-pending" onclick="filterTable('pending',this)">لم يستلموا ({{ total-done }})</span>
+    </div>
+    <div class="search-box"><input type="text" id="searchInp" placeholder="🔍 ابحث باسم المستفيد..." oninput="searchTable()"></div>
+    <a href="{{ url_for('camp_distribution_print', dist_id=dist.id) }}" target="_blank" class="btn btn-print"><i class="fa fa-print"></i> طباعة الكشف</a>
+  </div>
+
+  <div class="card">
+    <table id="mainTable">
+      <thead><tr><th>#</th><th>اسم المستفيد</th><th>رقم الهوية</th><th>أفراد الأسرة</th><th>الهاتف</th><th>المادة</th><th>الكمية</th><th>الحالة</th><th>وقت الاستلام</th><th>تسجيل</th></tr></thead>
+      <tbody>
+      {% for i,r in records|enumerate %}
+      <tr data-status="{{ 'done' if r.received else 'pending' }}" data-name="{{ r.full_name }}">
+        <td style="color:var(--ink4);font-size:.78rem">{{ i+1 }}</td>
+        <td><strong>{{ r.full_name }}</strong></td>
+        <td style="font-size:.8rem;color:var(--ink6)">{{ r.id_number or '—' }}</td>
+        <td style="text-align:center">{{ r.family_size or '—' }}</td>
+        <td style="font-size:.8rem">{{ r.phone or '—' }}</td>
+        <td>{{ r.item_name or dist.notes or '—' }}</td>
+        <td>{{ r.quantity or '—' }}</td>
+        <td>
+          {% if r.received %}<span class="badge b-yes"><i class="fa fa-check"></i> استلم</span>
+          {% else %}<span class="badge b-no">لم يستلم</span>{% endif %}
+        </td>
+        <td><span class="rec-time">{{ r.received_at or '—' }}</span></td>
+        <td>
+          {% if dist.status != 'completed' %}
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="action" value="toggle">
+            <input type="hidden" name="record_id" value="{{ r.id }}">
+            <button type="submit" class="check-btn {{ 'received' if r.received else '' }}" title="{{ 'إلغاء الاستلام' if r.received else 'تأكيد الاستلام' }}">
+              <i class="fa {{ 'fa-check' if r.received else 'fa-circle' }}"></i>
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+let activeFilter='all';
+function filterTable(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+function searchTable(){applyFilters();}
+function applyFilters(){
+  const q=document.getElementById('searchInp').value.trim().toLowerCase();
+  document.querySelectorAll('#mainTable tbody tr').forEach(row=>{
+    const status=row.dataset.status;
+    const name=row.dataset.name.toLowerCase();
+    const statusOk=activeFilter==='all'||(activeFilter==='done'&&status==='done')||(activeFilter==='pending'&&status==='pending');
+    const nameOk=!q||name.includes(q);
+    row.style.display=(statusOk&&nameOk)?'':'none';
+  });
+}
+</script>
+</body></html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>التنبيهات — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:4px;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:900px;margin:0 auto;padding:24px 20px;}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+@media(max-width:750px){.layout{grid-template-columns:1fr;}}
+.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-hd{font-size:.9rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.fg label{font-size:.75rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.84rem;font-family:inherit;color:var(--ink);}
+.fg input:focus,.fg textarea:focus{border-color:var(--g6);outline:none;}
+.btn{padding:9px 18px;border-radius:10px;font-size:.84rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;width:100%;justify-content:center;}
+.btn-primary{background:var(--g6);color:#fff;}.btn-primary:hover{background:var(--g7);}
+.alert-list{display:flex;flex-direction:column;gap:12px;}
+.alert-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-right:4px solid var(--amber);}
+.alert-title{font-size:.95rem;font-weight:700;color:var(--g9);display:flex;align-items:center;gap:8px;}
+.alert-title i{color:var(--amber);}
+.alert-body{font-size:.84rem;color:var(--ink6);margin-top:8px;line-height:1.6;}
+.alert-meta{font-size:.72rem;color:var(--ink4);margin-top:8px;display:flex;justify-content:space-between;align-items:center;}
+.btn-danger-sm{background:none;border:none;color:#dc2626;cursor:pointer;font-size:.78rem;padding:4px 8px;border-radius:6px;}
+.btn-danger-sm:hover{background:#fee2e2;}
+.empty{text-align:center;padding:48px;color:var(--ink4);}
+.empty i{font-size:2.5rem;display:block;margin-bottom:12px;color:#d1d5db;}
+.flash{padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:.85rem;}
+.flash-success{background:#d1fae5;color:#065f46;}
+.info-box{background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;font-size:.82rem;color:#92400e;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-bell" style="color:var(--amber)"></i> التنبيهات والإشعارات — {{ entity.name }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+    <a href="{{ url_for('camp_activities_route') }}"><i class="fa fa-calendar-alt"></i> الأنشطة</a>
+    <a href="{{ url_for('camp_distributions') }}"><i class="fa fa-boxes"></i> التوزيعات</a>
+  </div>
+</div>
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash flash-{{cat}}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <h1 style="font-size:1.3rem;font-weight:800;color:var(--g9);display:flex;align-items:center;gap:10px"><i class="fa fa-bell" style="color:var(--amber)"></i> التنبيهات والإشعارات</h1>
+  </div>
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="card-hd"><i class="fa fa-plus-circle" style="color:var(--g6)"></i> إرسال تنبيه جديد</div>
+        <div class="info-box"><i class="fa fa-info-circle"></i> التنبيهات تظهر لأعضاء {{ entity.name }} عند دخولهم للبوابة</div>
+        <form method="POST">
+          <input type="hidden" name="action" value="add">
+          <div class="fg"><label>عنوان التنبيه *</label><input name="title" required placeholder="مثال: ورشة غداً في تمام العاشرة..."></div>
+          <div class="fg"><label>التفاصيل</label><textarea name="body" rows="4" placeholder="اكتب تفاصيل التنبيه هنا..."></textarea></div>
+          <button type="submit" class="btn btn-primary"><i class="fa fa-paper-plane"></i> إرسال التنبيه</button>
+        </form>
+      </div>
+    </div>
+    <div>
+      {% if alerts %}
+      <div class="alert-list">
+        {% for a in alerts %}
+        <div class="alert-card">
+          <div class="alert-title"><i class="fa fa-bell"></i> {{ a.title }}</div>
+          {% if a.body %}<div class="alert-body">{{ a.body }}</div>{% endif %}
+          <div class="alert-meta">
+            <span><i class="fa fa-clock"></i> {{ a.created_at[:16] if a.created_at else '' }}</span>
+            <form method="POST" onsubmit="return confirm('حذف هذا التنبيه؟')">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="alert_id" value="{{ a.id }}">
+              <button type="submit" class="btn-danger-sm"><i class="fa fa-trash"></i> حذف</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card"><div class="empty"><i class="fa fa-bell-slash"></i><p>لا توجد تنبيهات نشطة</p></div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</body></html>

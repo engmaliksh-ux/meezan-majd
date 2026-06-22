@@ -1,0 +1,147 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مستودع الاستلام — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);min-height:100vh;}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:800;}
+.topbar-nav{display:flex;gap:16px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;transition:.15s;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.topbar-nav a.active{color:#fff;background:rgba(255,255,255,.15);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.page-hd h1{font-size:1.3rem;font-weight:800;color:var(--g9);display:flex;align-items:center;gap:10px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center;border-top:3px solid var(--g6);}
+.stat-card .n{font-size:2rem;font-weight:900;color:var(--g7);}
+.stat-card .l{font-size:.78rem;color:var(--ink4);margin-top:4px;}
+.card{background:#fff;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-hd{font-size:.92rem;font-weight:700;color:var(--g9);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #f0f0e8;display:flex;align-items:center;justify-content:space-between;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:.76rem;font-weight:700;color:var(--ink6);}
+.fg input,.fg select,.fg textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:var(--ink);}
+.fg input:focus,.fg select:focus{border-color:var(--g6);outline:none;box-shadow:0 0 0 3px rgba(45,138,80,.1);}
+.btn{padding:9px 18px;border-radius:10px;font-size:.84rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;}.btn-primary:hover{background:var(--g7);}
+.btn-danger{background:#fee2e2;color:#991b1b;font-size:.75rem;padding:5px 10px;}.btn-danger:hover{background:#fecaca;}
+table{width:100%;border-collapse:collapse;font-size:.84rem;}
+th{background:#f8f9fa;padding:9px 12px;text-align:right;font-weight:600;color:var(--ink6);font-size:.76rem;}
+td{padding:10px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+tr:last-child td{border:none;}
+tr:hover td{background:#fafaf7;}
+.badge{padding:4px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+.b-org{background:#dbeafe;color:#1e40af;}
+.b-vol{background:#d1fae5;color:#065f46;}
+.b-gov{background:#f3e8ff;color:#6b21a8;}
+.b-oth{background:#f3f4f6;color:#374151;}
+.flash{padding:12px 18px;border-radius:10px;margin-bottom:16px;font-size:.85rem;}
+.flash-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;}
+.flash-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
+.proof-thumb{width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;}
+.empty{text-align:center;padding:48px;color:var(--ink4);}
+.empty i{font-size:2.5rem;display:block;margin-bottom:12px;color:#d1d5db;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-warehouse" style="color:var(--amber)"></i> مستودع الاستلام — {{ entity.name }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+    <a href="{{ url_for('camp_distributions') }}"><i class="fa fa-boxes"></i> التوزيعات</a>
+    <a href="{{ url_for('camp_activities_route') }}"><i class="fa fa-calendar-alt"></i> الأنشطة</a>
+    <a href="{{ url_for('camp_smart_classify') }}"><i class="fa fa-brain"></i> التصنيف الذكي</a>
+    <a href="{{ url_for('camp_reports') }}"><i class="fa fa-chart-bar"></i> التقارير</a>
+  </div>
+</div>
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash flash-{{cat}}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <div class="page-hd">
+    <h1><i class="fa fa-warehouse" style="color:var(--g6)"></i> مستودع الاستلام</h1>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="n">{{ items|length }}</div><div class="l">إجمالي عمليات الاستلام</div></div>
+    <div class="stat-card"><div class="n" style="font-size:1.3rem">{{ stats.s|default(0)|round(1) }}</div><div class="l">مجموع الكميات المستلمة</div></div>
+    <div class="stat-card"><div class="n">{{ items|selectattr('donor_type','eq','organization')|list|length }}</div><div class="l">من مؤسسات</div></div>
+    <div class="stat-card"><div class="n">{{ items|selectattr('donor_type','eq','volunteer')|list|length }}</div><div class="l">من فرق تطوعية</div></div>
+  </div>
+
+  <!-- نموذج الاستلام -->
+  <div class="card">
+    <div class="card-hd"><span><i class="fa fa-plus-circle" style="color:var(--g6)"></i> تسجيل استلام جديد</span></div>
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="add">
+      <div class="form-grid">
+        <div class="fg"><label>اسم الجهة المانحة *</label><input name="donor_name" required placeholder="اسم المنظمة أو الشخص"></div>
+        <div class="fg"><label>نوع الجهة</label>
+          <select name="donor_type">
+            <option value="organization">مؤسسة / منظمة</option>
+            <option value="volunteer">فريق تطوعي</option>
+            <option value="government">جهة حكومية</option>
+            <option value="individual">متبرع فردي</option>
+            <option value="other">أخرى</option>
+          </select>
+        </div>
+        <div class="fg"><label>اسم المساعدة / المادة *</label><input name="item_name" required placeholder="مثال: طرود غذائية، بطانيات..."></div>
+        <div class="fg"><label>الكمية</label><input name="quantity" type="number" step="0.5" min="0" placeholder="0" value="1"></div>
+        <div class="fg"><label>الوحدة</label>
+          <select name="unit">
+            <option>طرد</option><option>كرتون</option><option>كيلو</option><option>لتر</option>
+            <option>قطعة</option><option>بطانية</option><option>مجموعة</option><option>وحدة</option>
+          </select>
+        </div>
+        <div class="fg"><label>تاريخ الاستلام *</label><input name="receive_date" type="date" required value="{{ now().strftime('%Y-%m-%d') if now else '' }}"></div>
+        <div class="fg" style="grid-column:1/-1"><label>ملاحظات</label><input name="notes" placeholder="تفاصيل إضافية..."></div>
+        <div class="fg" style="grid-column:1/-1"><label>صورة إثبات / وصل الاستلام</label><input name="proof_image" type="file" accept="image/*"></div>
+      </div>
+      <div style="margin-top:16px"><button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ الاستلام</button></div>
+    </form>
+  </div>
+
+  <!-- جدول الاستلامات -->
+  <div class="card">
+    <div class="card-hd"><span>سجل الاستلامات ({{ items|length }})</span></div>
+    {% if items %}
+    <table>
+      <thead><tr><th>التاريخ</th><th>الجهة المانحة</th><th>النوع</th><th>المادة</th><th>الكمية</th><th>الوحدة</th><th>ملاحظات</th><th>إثبات</th><th></th></tr></thead>
+      <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.receive_date }}</td>
+        <td><strong>{{ item.donor_name }}</strong></td>
+        <td>
+          {% if item.donor_type == 'organization' %}<span class="badge b-org">مؤسسة</span>
+          {% elif item.donor_type == 'volunteer' %}<span class="badge b-vol">تطوعي</span>
+          {% elif item.donor_type == 'government' %}<span class="badge" style="background:#f3e8ff;color:#6b21a8">حكومي</span>
+          {% elif item.donor_type == 'individual' %}<span class="badge b-oth">فردي</span>
+          {% else %}<span class="badge b-oth">أخرى</span>{% endif %}
+        </td>
+        <td>{{ item.item_name }}</td>
+        <td><strong>{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }}</strong></td>
+        <td>{{ item.unit }}</td>
+        <td style="color:var(--ink6);font-size:.8rem">{{ item.notes or '—' }}</td>
+        <td>{% if item.proof_image %}<img src="/static/uploads/{{ item.proof_image }}" class="proof-thumb" onclick="window.open(this.src)">{% else %}—{% endif %}</td>
+        <td>
+          <form method="POST" onsubmit="return confirm('حذف هذا السجل؟')">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <button type="submit" class="btn btn-danger"><i class="fa fa-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><i class="fa fa-inbox"></i><p>لا توجد استلامات مسجلة بعد</p></div>
+    {% endif %}
+  </div>
+</div>
+</body></html>

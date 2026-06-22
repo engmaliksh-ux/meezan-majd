@@ -669,4 +669,65 @@ def init_camp_tables():
     )""")
 
     conn.commit()
+
+    # ══ نظام إدارة المخيم الكامل ══
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        donor_name TEXT NOT NULL,
+        donor_type TEXT DEFAULT 'organization',
+        item_name TEXT NOT NULL,
+        quantity REAL NOT NULL DEFAULT 0,
+        unit TEXT DEFAULT 'وحدة',
+        receive_date TEXT NOT NULL,
+        notes TEXT, proof_image TEXT,
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_distributions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        distribution_date TEXT NOT NULL,
+        donor_name TEXT,
+        filter_type TEXT DEFAULT 'all',
+        filter_value TEXT,
+        status TEXT DEFAULT 'draft',
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_dist_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        distribution_id INTEGER NOT NULL,
+        camp_entity_id INTEGER NOT NULL,
+        beneficiary_id INTEGER NOT NULL,
+        item_name TEXT, quantity TEXT, value TEXT,
+        received INTEGER DEFAULT 0,
+        received_at TEXT, notes TEXT,
+        UNIQUE(distribution_id, beneficiary_id))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_activities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        activity_date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        activity_type TEXT DEFAULT 'general',
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_activity_attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        activity_id INTEGER NOT NULL,
+        file_path TEXT NOT NULL,
+        file_type TEXT DEFAULT 'image',
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_alerts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        title TEXT NOT NULL, body TEXT,
+        target_type TEXT DEFAULT 'all',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    conn.commit()
     conn.close()

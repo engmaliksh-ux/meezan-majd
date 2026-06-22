@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ act.title }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;font-size:.82rem;display:flex;align-items:center;gap:4px;}
+.wrap{max-width:900px;margin:0 auto;padding:28px 20px;}
+.act-card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.act-title{font-size:1.4rem;font-weight:800;color:var(--g9);margin-bottom:8px;}
+.act-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:var(--ink6);margin-bottom:20px;}
+.act-meta span{display:flex;align-items:center;gap:5px;}
+.act-desc{font-size:.92rem;line-height:1.7;color:var(--ink);padding:16px;background:#fafaf7;border-radius:10px;margin-bottom:24px;}
+.section-hd{font-size:.88rem;font-weight:700;color:var(--g9);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #f0f0e8;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+.img-grid img{width:100%;height:160px;object-fit:cover;border-radius:10px;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.img-grid img:hover{transform:scale(1.02);}
+.no-attach{color:var(--ink4);font-size:.85rem;text-align:center;padding:24px;}
+.btn-back{display:inline-flex;align-items:center;gap:6px;color:var(--g7);text-decoration:none;font-size:.84rem;font-weight:600;margin-bottom:18px;background:#f0fdf4;padding:7px 14px;border-radius:8px;}
+/* Lightbox */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;align-items:center;justify-content:center;}
+#lightbox.open{display:flex;}
+#lightbox img{max-width:90%;max-height:90%;border-radius:8px;}
+#lightbox-close{position:absolute;top:20px;left:20px;color:#fff;font-size:2rem;cursor:pointer;background:none;border:none;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-calendar-check" style="color:var(--amber)"></i> {{ act.title }}</div>
+  <a href="{{ url_for('camp_activities_route') }}" class="topbar-nav a" style="color:rgba(255,255,255,.8);text-decoration:none;font-size:.82rem;padding:5px 10px;border-radius:7px;"><i class="fa fa-arrow-right"></i> أرشيف الأنشطة</a>
+</div>
+<div class="wrap">
+  <a href="{{ url_for('camp_activities_route') }}" class="btn-back"><i class="fa fa-arrow-right"></i> العودة للأرشيف</a>
+  <div class="act-card">
+    <div class="act-title">{{ act.title }}</div>
+    <div class="act-meta">
+      <span><i class="fa fa-calendar"></i> {{ act.activity_date }}</span>
+      <span><i class="fa fa-tag"></i>
+        {% if act.activity_type=='health' %}🏥 نشاط صحي
+        {% elif act.activity_type=='education' %}📚 نشاط تعليمي
+        {% elif act.activity_type=='distribution' %}📦 توزيع مساعدات
+        {% elif act.activity_type=='meeting' %}🤝 اجتماع
+        {% elif act.activity_type=='general' %}📋 نشاط عام
+        {% else %}📌 أخرى{% endif %}
+      </span>
+      <span><i class="fa fa-building"></i> {{ entity.name }}</span>
+    </div>
+    {% if act.description %}
+    <div class="section-hd">تفاصيل النشاط</div>
+    <div class="act-desc">{{ act.description }}</div>
+    {% endif %}
+
+    <div class="section-hd"><i class="fa fa-images" style="color:var(--g6)"></i> المرفقات ({{ attachments|length }})</div>
+    {% if attachments %}
+    <div class="img-grid">
+      {% for att in attachments %}
+      <img src="/static/uploads/{{ att.file_path }}" alt="مرفق" onclick="openLightbox(this.src)">
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-attach"><i class="fa fa-image" style="font-size:2rem;display:block;margin-bottom:8px;color:#d1d5db"></i>لا توجد مرفقات لهذا النشاط</div>
+    {% endif %}
+  </div>
+</div>
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="">
+</div>
+<script>
+function openLightbox(src){document.getElementById('lightbox').classList.add('open');document.getElementById('lightbox-img').src=src;}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
+</script>
+</body></html>

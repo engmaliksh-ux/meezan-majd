@@ -81,6 +81,10 @@ def validate_csrf():
     return True
 
 app.jinja_env.globals["csrf_token"] = generate_csrf
+# مساعدات Jinja2 للقوالب
+app.jinja_env.globals["enumerate"] = enumerate
+from datetime import datetime as _DT
+app.jinja_env.globals["now"] = _DT.now
 
 # ══════════════════════════════════════════
 # 5. Security Headers لكل الردود
@@ -5400,8 +5404,15 @@ def camp_beneficiary_profile(ben_id):
     c.execute("""SELECT * FROM camp_benefits WHERE beneficiary_id=? AND camp_entity_id=?
                  ORDER BY benefit_date DESC""", (ben_id, camp_id))
     benefits = [dict(r) for r in c.fetchall()]
+    # جلسات التوزيع الرسمية المرتبطة بهذا المستفيد
+    c.execute("""SELECT dr.*, d.title as dist_title, d.distribution_date, d.donor_name
+                 FROM camp_dist_records dr
+                 JOIN camp_distributions d ON dr.distribution_id=d.id
+                 WHERE dr.beneficiary_id=? AND dr.camp_entity_id=?
+                 ORDER BY d.distribution_date DESC""", (ben_id, camp_id))
+    dist_records = [dict(r) for r in c.fetchall()]
     conn.close()
-    return render_template("camp_beneficiary.html", ben=ben, benefits=benefits)
+    return render_template("camp_beneficiary.html", ben=ben, benefits=benefits, dist_records=dist_records)
 
 @app.route("/camp/benefit/add", methods=["POST"])
 @camp_login_required
@@ -5830,3 +5841,334 @@ def api_beneficiary_register():
     session["beneficiary_id"]   = new_id
     session["beneficiary_name"] = full_name
     return jsonify({"ok": True})
+
+# ══════════════════════════════════════════════════════════════════
+# نظام إدارة المخيم الكامل — مستودع / توزيع / أرشيف / تنبيهات
+# ══════════════════════════════════════════════════════════════════
+
+# ── مساعد: جلب المستفيدين مع تصنيفاتهم ──
+def get_classified_members(camp_id, conn):
+    c = conn.cursor()
+    c.execute("""SELECT b.*,
+        (SELECT COUNT(*) FROM camp_dist_records dr WHERE dr.beneficiary_id=b.id AND dr.received=1) as total_received,
+        (SELECT MAX(d.distribution_date) FROM camp_dist_records dr2
+         JOIN camp_distributions d ON dr2.distribution_id=d.id
+         WHERE dr2.beneficiary_id=b.id AND dr2.received=1) as last_received_date
+        FROM beneficiaries b
+        WHERE b.camp_entity_id=? AND b.beneficiary_status='in_camp'
+        ORDER BY b.full_name""", (camp_id,))
+    return [dict(r) for r in c.fetchall()]
+
+# ── مستودع الاستلام ──
+@app.route("/camp/inventory", methods=["GET","POST"])
+@camp_login_required
+def camp_inventory():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    if request.method == "POST":
+        action = request.form.get("action","add")
+        if action == "add":
+            donor    = request.form.get("donor_name","").strip()
+            dtype    = request.form.get("donor_type","organization")
+            item     = request.form.get("item_name","").strip()
+            qty      = request.form.get("quantity","0")
+            unit     = request.form.get("unit","وحدة").strip()
+            rdate    = request.form.get("receive_date","")
+            notes    = request.form.get("notes","").strip()
+            proof    = None
+            if 'proof_image' in request.files:
+                f = request.files['proof_image']
+                if f and f.filename:
+                    import os, uuid
+                    ext = f.filename.rsplit('.',1)[-1].lower()
+                    fname = f"inv_{uuid.uuid4().hex[:8]}.{ext}"
+                    fpath = os.path.join(os.path.dirname(__file__),'static','uploads','inventory')
+                    os.makedirs(fpath, exist_ok=True)
+                    f.save(os.path.join(fpath, fname))
+                    proof = f"inventory/{fname}"
+            if donor and item and rdate:
+                c.execute("""INSERT INTO camp_inventory
+                    (camp_entity_id,donor_name,donor_type,item_name,quantity,unit,receive_date,notes,proof_image)
+                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (camp_id,donor,dtype,item,float(qty or 0),unit,rdate,notes,proof))
+                conn.commit()
+                flash("تم تسجيل الاستلام","success")
+        elif action == "delete":
+            iid = request.form.get("item_id")
+            c.execute("DELETE FROM camp_inventory WHERE id=? AND camp_entity_id=?",(iid,camp_id))
+            conn.commit()
+            flash("تم الحذف","success")
+        conn.close()
+        return redirect(url_for("camp_inventory"))
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    c.execute("""SELECT * FROM camp_inventory WHERE camp_entity_id=? ORDER BY receive_date DESC""",(camp_id,))
+    items = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT COUNT(*) as n, SUM(quantity) as s FROM camp_inventory WHERE camp_entity_id=?",(camp_id,))
+    stats = dict(c.fetchone())
+    conn.close()
+    return render_template("camp_inventory.html", entity=entity, items=items, stats=stats)
+
+# ── التوزيعات — قائمة ──
+@app.route("/camp/distributions")
+@camp_login_required
+def camp_distributions():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    c.execute("""SELECT d.*,
+        (SELECT COUNT(*) FROM camp_dist_records dr WHERE dr.distribution_id=d.id) as total,
+        (SELECT COUNT(*) FROM camp_dist_records dr WHERE dr.distribution_id=d.id AND dr.received=1) as done
+        FROM camp_distributions d WHERE d.camp_entity_id=? ORDER BY d.distribution_date DESC""",(camp_id,))
+    dists = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_distributions.html", entity=entity, dists=dists)
+
+# ── توزيع جديد ──
+@app.route("/camp/distribution/new", methods=["GET","POST"])
+@camp_login_required
+def camp_distribution_new():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    if request.method == "POST":
+        title   = request.form.get("title","").strip()
+        ddate   = request.form.get("distribution_date","")
+        donor   = request.form.get("donor_name","").strip()
+        ftype   = request.form.get("filter_type","all")
+        fval    = request.form.get("filter_value","").strip()
+        item    = request.form.get("item_name","").strip()
+        qty     = request.form.get("quantity","").strip()
+        value   = request.form.get("value","").strip()
+        notes   = request.form.get("notes","").strip()
+        if not title or not ddate:
+            flash("العنوان والتاريخ مطلوبان","error")
+        else:
+            c.execute("""INSERT INTO camp_distributions
+                (camp_entity_id,title,distribution_date,donor_name,filter_type,filter_value,status,notes)
+                VALUES(?,?,?,?,?,?,'active',?)""",
+                (camp_id,title,ddate,donor,ftype,fval,notes))
+            dist_id = c.lastrowid
+            # جلب المستفيدين حسب التصنيف
+            members = get_classified_members(camp_id, conn)
+            filtered = _apply_filter(members, ftype, fval)
+            for m in filtered:
+                c.execute("""INSERT OR IGNORE INTO camp_dist_records
+                    (distribution_id,camp_entity_id,beneficiary_id,item_name,quantity,value)
+                    VALUES(?,?,?,?,?,?)""",
+                    (dist_id,camp_id,m["id"],item,qty,value))
+            conn.commit()
+            conn.close()
+            flash(f"تم إنشاء جلسة التوزيع — {len(filtered)} مستفيد","success")
+            return redirect(url_for("camp_distribution_detail", dist_id=dist_id))
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    members = get_classified_members(camp_id, conn)
+    conn.close()
+    return render_template("camp_distribution_new.html", entity=entity, members=members, total=len(members))
+
+def _apply_filter(members, ftype, fval):
+    if ftype == "all":
+        return members
+    elif ftype == "count":
+        try: n = int(fval)
+        except: n = len(members)
+        # الأقل استفادة أولاً
+        return sorted(members, key=lambda m: (m.get("total_received") or 0, m.get("last_received_date") or ""))[:n]
+    elif ftype == "orphans":
+        return [m for m in members if m.get("has_orphans") or m.get("is_orphan")]
+    elif ftype == "pregnant":
+        return [m for m in members if m.get("wife_pregnant") or m.get("wife_nursing")]
+    elif ftype == "sick":
+        return [m for m in members if m.get("has_chronic_disease") or m.get("has_disability")]
+    elif ftype == "large_family":
+        try: n = int(fval or 5)
+        except: n = 5
+        return [m for m in members if (m.get("family_size") or 1) >= n]
+    elif ftype == "least_received":
+        # من لم يستلم أو استلم الأقل
+        try: n = int(fval or len(members))
+        except: n = len(members)
+        return sorted(members, key=lambda m: (m.get("total_received") or 0))[:n]
+    return members
+
+# ── تفاصيل التوزيع ──
+@app.route("/camp/distribution/<int:dist_id>", methods=["GET","POST"])
+@camp_login_required
+def camp_distribution_detail(dist_id):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_distributions WHERE id=? AND camp_entity_id=?",(dist_id,camp_id))
+    dist = c.fetchone()
+    if not dist:
+        conn.close(); flash("الجلسة غير موجودة","error"); return redirect(url_for("camp_distributions"))
+    dist = dict(dist)
+    if request.method == "POST":
+        action = request.form.get("action","")
+        if action == "toggle":
+            rec_id = request.form.get("record_id")
+            from datetime import datetime as _dtm
+            c.execute("SELECT received FROM camp_dist_records WHERE id=? AND camp_entity_id=?",(rec_id,camp_id))
+            row = c.fetchone()
+            if row:
+                new_val = 0 if row["received"] else 1
+                ts = _dtm.now().strftime("%Y-%m-%d %H:%M") if new_val else None
+                c.execute("UPDATE camp_dist_records SET received=?,received_at=? WHERE id=?",(new_val,ts,rec_id))
+                conn.commit()
+        elif action == "complete":
+            c.execute("UPDATE camp_distributions SET status='completed' WHERE id=?",(dist_id,))
+            conn.commit()
+            flash("تم إغلاق جلسة التوزيع","success")
+        conn.close()
+        return redirect(url_for("camp_distribution_detail", dist_id=dist_id))
+    c.execute("""SELECT dr.*,b.full_name,b.id_number,b.phone,b.family_size,b.gender,
+                        b.has_orphans,b.wife_pregnant,b.wife_nursing
+                 FROM camp_dist_records dr
+                 JOIN beneficiaries b ON dr.beneficiary_id=b.id
+                 WHERE dr.distribution_id=? ORDER BY b.full_name""",(dist_id,))
+    records = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    done = sum(1 for r in records if r["received"])
+    conn.close()
+    return render_template("camp_distribution_detail.html",
+        entity=entity, dist=dist, records=records,
+        done=done, total=len(records))
+
+# ── طباعة كشف التوزيع ──
+@app.route("/camp/distribution/<int:dist_id>/print")
+@camp_login_required
+def camp_distribution_print(dist_id):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_distributions WHERE id=? AND camp_entity_id=?",(dist_id,camp_id))
+    dist = dict(c.fetchone())
+    c.execute("""SELECT dr.*,b.full_name,b.id_number,b.phone,b.family_size,b.address,b.gender
+                 FROM camp_dist_records dr JOIN beneficiaries b ON dr.beneficiary_id=b.id
+                 WHERE dr.distribution_id=? ORDER BY b.full_name""",(dist_id,))
+    records = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    conn.close()
+    return render_template("camp_distribution_print.html", entity=entity, dist=dist, records=records)
+
+# ── أرشيف الأنشطة ──
+@app.route("/camp/activities", methods=["GET","POST"])
+@camp_login_required
+def camp_activities_route():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    if request.method == "POST":
+        action = request.form.get("action","add")
+        if action == "add":
+            title  = request.form.get("title","").strip()
+            adate  = request.form.get("activity_date","")
+            atype  = request.form.get("activity_type","general")
+            desc   = request.form.get("description","").strip()
+            if title and adate:
+                c.execute("""INSERT INTO camp_activities(camp_entity_id,activity_date,title,description,activity_type)
+                    VALUES(?,?,?,?,?)""",(camp_id,adate,title,desc,atype))
+                act_id = c.lastrowid
+                # رفع مرفقات
+                import os, uuid
+                for f in request.files.getlist("attachments"):
+                    if f and f.filename:
+                        ext = f.filename.rsplit('.',1)[-1].lower()
+                        fname = f"act_{uuid.uuid4().hex[:8]}.{ext}"
+                        fdir = os.path.join(os.path.dirname(__file__),'static','uploads','activities')
+                        os.makedirs(fdir, exist_ok=True)
+                        f.save(os.path.join(fdir, fname))
+                        c.execute("INSERT INTO camp_activity_attachments(activity_id,file_path) VALUES(?,?)",
+                                  (act_id, f"activities/{fname}"))
+                conn.commit()
+                flash("تم إضافة النشاط","success")
+        elif action == "delete":
+            aid = request.form.get("activity_id")
+            c.execute("DELETE FROM camp_activities WHERE id=? AND camp_entity_id=?",(aid,camp_id))
+            c.execute("DELETE FROM camp_activity_attachments WHERE activity_id=?",(aid,))
+            conn.commit()
+            flash("تم الحذف","success")
+        conn.close()
+        return redirect(url_for("camp_activities_route"))
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    c.execute("""SELECT a.*,
+        (SELECT COUNT(*) FROM camp_activity_attachments att WHERE att.activity_id=a.id) as attach_count
+        FROM camp_activities a WHERE a.camp_entity_id=? ORDER BY a.activity_date DESC""",(camp_id,))
+    activities = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_activities.html", entity=entity, activities=activities)
+
+# ── تفاصيل نشاط ──
+@app.route("/camp/activity/<int:act_id>")
+@camp_login_required
+def camp_activity_detail(act_id):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_activities WHERE id=? AND camp_entity_id=?",(act_id,camp_id))
+    act = c.fetchone()
+    if not act:
+        conn.close(); return redirect(url_for("camp_activities_route"))
+    c.execute("SELECT * FROM camp_activity_attachments WHERE activity_id=?",(act_id,))
+    attachments = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    conn.close()
+    return render_template("camp_activity_detail.html", entity=entity, act=dict(act), attachments=attachments)
+
+# ── تنبيهات المخيم ──
+@app.route("/camp/alerts", methods=["GET","POST"])
+@camp_login_required
+def camp_alerts_route():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    if request.method == "POST":
+        action = request.form.get("action","add")
+        if action == "add":
+            title = request.form.get("title","").strip()
+            body  = request.form.get("body","").strip()
+            if title:
+                c.execute("INSERT INTO camp_alerts(camp_entity_id,title,body) VALUES(?,?,?)",(camp_id,title,body))
+                conn.commit()
+                flash("تم إرسال التنبيه","success")
+        elif action == "delete":
+            aid = request.form.get("alert_id")
+            c.execute("DELETE FROM camp_alerts WHERE id=? AND camp_entity_id=?",(aid,camp_id))
+            conn.commit()
+        conn.close()
+        return redirect(url_for("camp_alerts_route"))
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    c.execute("SELECT * FROM camp_alerts WHERE camp_entity_id=? ORDER BY created_at DESC",(camp_id,))
+    alerts = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_alerts.html", entity=entity, alerts=alerts)
+
+# ── تصنيف ذكي: من لم يستفد كفاية ──
+@app.route("/camp/smart-classify")
+@camp_login_required
+def camp_smart_classify():
+    camp_id = session["camp_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
+    entity = dict(c.fetchone())
+    # آخر 3 جلسات توزيع
+    c.execute("""SELECT id FROM camp_distributions WHERE camp_entity_id=? AND status='completed'
+                 ORDER BY distribution_date DESC LIMIT 3""",(camp_id,))
+    last3 = [r["id"] for r in c.fetchall()]
+    members = get_classified_members(camp_id, conn)
+    for m in members:
+        if last3:
+            c.execute("""SELECT COUNT(*) as n FROM camp_dist_records
+                         WHERE beneficiary_id=? AND distribution_id IN ({})
+                         AND received=1""".format(','.join('?'*len(last3))),
+                      [m["id"]]+last3)
+            m["last3_received"] = c.fetchone()["n"]
+        else:
+            m["last3_received"] = 0
+    # ترتيب: من استفاد أقل أولاً
+    members_sorted = sorted(members, key=lambda m: (m.get("total_received") or 0, m.get("last3_received") or 0))
+    conn.close()
+    return render_template("camp_smart_classify.html", entity=entity, members=members_sorted, last3=len(last3))
+

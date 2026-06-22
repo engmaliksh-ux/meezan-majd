@@ -77,8 +77,13 @@ tr:hover td{background:#fafaf7;}
     <span class="entity-badge">{{ 'مخيم' if entity.entity_type=='camp' else 'لجنة' if 'committee' in entity.entity_type else 'عائلة' }}</span>
   </div>
   <div class="topbar-actions">
+    <a href="{{ url_for('camp_inventory') }}"><i class="fas fa-warehouse"></i> المستودع</a>
+    <a href="{{ url_for('camp_distributions') }}"><i class="fas fa-boxes"></i> التوزيعات</a>
+    <a href="{{ url_for('camp_activities_route') }}"><i class="fas fa-calendar-alt"></i> الأنشطة</a>
+    <a href="{{ url_for('camp_smart_classify') }}"><i class="fas fa-brain"></i> تصنيف ذكي</a>
+    <a href="{{ url_for('camp_alerts_route') }}"><i class="fas fa-bell"></i> تنبيهات</a>
     <a href="{{ url_for('camp_reports') }}"><i class="fas fa-chart-bar"></i> التقارير</a>
-    <a href="{{ url_for('camp_settings') }}"><i class="fas fa-cog"></i> الإعدادات</a>
+    <a href="{{ url_for('camp_settings') }}"><i class="fas fa-cog"></i> إعدادات</a>
     <a href="/camp/logout"><i class="fas fa-sign-out-alt"></i> خروج</a>
   </div>
 </div>
@@ -86,7 +91,7 @@ tr:hover td{background:#fafaf7;}
 <div class="tabs-bar">
   <button class="tab-btn active" onclick="showTab('overview',this)"><i class="fas fa-home"></i> الرئيسية</button>
   <button class="tab-btn" onclick="showTab('members',this)"><i class="fas fa-users"></i> المستفيدون</button>
-  <button class="tab-btn" onclick="showTab('benefits',this)"><i class="fas fa-hand-holding-heart"></i> تسجيل الاستفادة</button>
+  <button class="tab-btn" onclick="showTab('benefits',this)"><i class="fas fa-hand-holding-heart"></i> تسجيل استفادة</button>
 </div>
 
 <!-- ══ الرئيسية ══ -->
@@ -100,6 +105,45 @@ tr:hover td{background:#fafaf7;}
     <div class="stat-card"><div class="n">{{ requests_list|selectattr('status','equalto','pending')|list|length }}</div><div class="l">طلب انضمام معلق</div></div>
     <div class="stat-card"><div class="n">{{ entity.registered_families or 0 }}</div><div class="l">أسرة مسجلة</div></div>
     <div class="stat-card"><div class="n">{{ recent_benefits|length }}</div><div class="l">آخر توزيعات</div></div>
+  </div>
+
+  <!-- شبكة الخدمات السريعة -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:22px;">
+    <a href="{{ url_for('camp_inventory') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #6366f1;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-warehouse" style="font-size:1.6rem;color:#6366f1;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">المستودع</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">استلام المساعدات</div>
+    </a>
+    <a href="{{ url_for('camp_distributions') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #2d8a50;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-boxes" style="font-size:1.6rem;color:#2d8a50;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">التوزيعات</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">جلسات التوزيع</div>
+    </a>
+    <a href="{{ url_for('camp_distribution_new') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #e8a020;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-plus-circle" style="font-size:1.6rem;color:#e8a020;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">توزيع جديد</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">إنشاء جلسة</div>
+    </a>
+    <a href="{{ url_for('camp_smart_classify') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #8b5cf6;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-brain" style="font-size:1.6rem;color:#8b5cf6;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">تصنيف ذكي</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">أولويات التوزيع</div>
+    </a>
+    <a href="{{ url_for('camp_activities_route') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #0ea5e9;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-calendar-alt" style="font-size:1.6rem;color:#0ea5e9;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">الأنشطة</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">الأرشيف اليومي</div>
+    </a>
+    <a href="{{ url_for('camp_alerts_route') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #ef4444;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-bell" style="font-size:1.6rem;color:#ef4444;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">التنبيهات</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">إشعارات للأعضاء</div>
+    </a>
+    <a href="{{ url_for('camp_reports') }}" style="background:#fff;border-radius:14px;padding:18px;text-align:center;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:3px solid #10b981;transition:.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+      <i class="fas fa-chart-bar" style="font-size:1.6rem;color:#10b981;display:block;margin-bottom:8px"></i>
+      <div style="font-size:.8rem;font-weight:700;color:#1a1a2e">التقارير</div>
+      <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">إحصاءات شاملة</div>
+    </a>
   </div>
 
   <div class="section">

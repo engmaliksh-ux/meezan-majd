@@ -1,0 +1,176 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>التصنيف الذكي — {{ entity.name }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:4px;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px;}
+.page-hd{margin-bottom:20px;}
+.page-hd h1{font-size:1.3rem;font-weight:800;color:var(--g9);display:flex;align-items:center;gap:10px;}
+.page-hd p{font-size:.84rem;color:var(--ink6);margin-top:6px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+.stat{background:#fff;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.06);}
+.stat .n{font-size:1.8rem;font-weight:900;color:var(--g7);}
+.stat .l{font-size:.74rem;color:var(--ink4);margin-top:4px;}
+.toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-box input{padding:9px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.84rem;min-width:240px;}
+.search-box input:focus{border-color:var(--g6);outline:none;}
+.filter-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{padding:5px 14px;border-radius:999px;font-size:.76rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:.15s;}
+.chip-all{background:#dbeafe;color:#1e40af;}
+.chip-urgent{background:#fee2e2;color:#991b1b;}
+.chip-orphan{background:#f3e8ff;color:#7c3aed;}
+.chip-sick{background:#fef3c7;color:#92400e;}
+.chip-pregnant{background:#fce7f3;color:#9d174d;}
+.chip.active{border-color:currentColor;font-weight:800;}
+.card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:.83rem;}
+thead{background:var(--g9);color:#fff;}
+th{padding:11px 12px;text-align:right;font-weight:600;font-size:.75rem;}
+td{padding:11px 12px;border-bottom:1px solid #f0f0e8;vertical-align:middle;}
+tr:last-child td{border:none;}
+tr:hover td{background:#fafaf7;}
+.priority-bar{width:80px;height:8px;border-radius:999px;background:#e5e7eb;display:inline-block;position:relative;vertical-align:middle;}
+.priority-fill{height:8px;border-radius:999px;position:absolute;right:0;}
+.p-low{background:var(--g5);}
+.p-med{background:var(--amber);}
+.p-high{background:#ef4444;}
+.badge{padding:3px 8px;border-radius:999px;font-size:.7rem;font-weight:700;}
+.b-orphan{background:#f3e8ff;color:#7c3aed;}
+.b-pregnant{background:#fce7f3;color:#9d174d;}
+.b-sick{background:#fee2e2;color:#991b1b;}
+.b-large{background:#dbeafe;color:#1e40af;}
+.b-zero{background:#fee2e2;color:#991b1b;}
+.b-low{background:#fef3c7;color:#92400e;}
+.b-ok{background:#d1fae5;color:#065f46;}
+.btn{padding:7px 14px;border-radius:8px;font-size:.78rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-decoration:none;transition:.15s;}
+.btn-primary{background:var(--g6);color:#fff;}
+.btn-primary:hover{background:var(--g7);}
+.info-banner{background:linear-gradient(135deg,#0f3d2e,#1a6b3a);color:#fff;border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+.info-banner .icon{font-size:2rem;opacity:.8;}
+.info-banner h3{font-size:.95rem;font-weight:700;margin-bottom:4px;}
+.info-banner p{font-size:.8rem;opacity:.85;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa fa-brain" style="color:var(--amber)"></i> التصنيف الذكي — {{ entity.name }}</div>
+  <div class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fa fa-home"></i> الرئيسية</a>
+    <a href="{{ url_for('camp_distributions') }}"><i class="fa fa-boxes"></i> التوزيعات</a>
+    <a href="{{ url_for('camp_distribution_new') }}"><i class="fa fa-plus"></i> توزيع جديد</a>
+    <a href="{{ url_for('camp_reports') }}"><i class="fa fa-chart-bar"></i> التقارير</a>
+  </div>
+</div>
+<div class="wrap">
+  <div class="page-hd">
+    <h1><i class="fa fa-brain" style="color:var(--g6)"></i> التصنيف الذكي للمستفيدين</h1>
+    <p>مرتبون من الأقل استفادة إلى الأكثر — مع تحديد الأولويات والاحتياجات الخاصة</p>
+  </div>
+
+  <div class="info-banner">
+    <div class="icon"><i class="fa fa-lightbulb"></i></div>
+    <div>
+      <h3>كيف يعمل التصنيف الذكي؟</h3>
+      <p>يُحلل النظام سجلات توزيع آخر <strong>{{ last3 }} جلسة</strong> ويرتب الأسر حسب عدد مرات الاستفادة — الأقل استفادة يظهر أولاً. كما يُميّز الحالات الخاصة: الأيتام، الحوامل، المرضى.</p>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="n">{{ members|length }}</div><div class="l">إجمالي الأسر</div></div>
+    <div class="stat"><div class="n" style="color:#dc2626">{{ members|selectattr('total_received','eq',0)|list|length }}</div><div class="l">لم يستلموا قط</div></div>
+    <div class="stat"><div class="n" style="color:var(--amber)">{{ members|selectattr('last3_received','lt',1)|list|length }}</div><div class="l">غائبون عن آخر {{ last3 }} توزيعات</div></div>
+    <div class="stat"><div class="n" style="color:var(--g6)">{{ members|selectattr('has_orphans')|list|length }}</div><div class="l">أسر تضم أيتام</div></div>
+    <div class="stat"><div class="n" style="color:#9d174d">{{ members|selectattr('wife_pregnant')|list|length }}</div><div class="l">حوامل / مرضعات</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box"><input id="searchInp" placeholder="🔍 ابحث بالاسم..." oninput="applyFilters()"></div>
+    <div class="filter-chips">
+      <span class="chip chip-all active" onclick="setFilter('all',this)">الكل</span>
+      <span class="chip chip-urgent" onclick="setFilter('zero',this)">🆘 لم يستلموا قط</span>
+      <span class="chip chip-orphan" onclick="setFilter('orphan',this)">👶 أيتام</span>
+      <span class="chip chip-pregnant" onclick="setFilter('pregnant',this)">💛 حوامل</span>
+      <span class="chip chip-sick" onclick="setFilter('sick',this)">🏥 مرضى</span>
+    </div>
+    <a href="{{ url_for('camp_distribution_new') }}" class="btn btn-primary"><i class="fa fa-magic"></i> بدء توزيع من هذا التصنيف</a>
+  </div>
+
+  <div class="card">
+    <table id="mainTable">
+      <thead><tr>
+        <th>الأولوية</th><th>الاسم</th><th>أفراد الأسرة</th>
+        <th>استفاد إجمالاً</th><th>من آخر {{ last3}}</th><th>الحالات الخاصة</th>
+        <th>آخر استفادة</th><th>الإجراء</th>
+      </tr></thead>
+      <tbody>
+      {% for i,m in members|enumerate %}
+      {% set pct = [m.total_received * 25, 100]|min %}
+      {% set is_urgent = m.total_received == 0 %}
+      {% set is_orphan = m.has_orphans %}
+      {% set is_pregnant = m.wife_pregnant or m.wife_nursing %}
+      {% set is_sick = m.has_chronic_disease or m.has_disability %}
+      <tr data-filter="{{ 'zero' if is_urgent else '' }} {{ 'orphan' if is_orphan else '' }} {{ 'pregnant' if is_pregnant else '' }} {{ 'sick' if is_sick else '' }}"
+          data-name="{{ m.full_name }}">
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:.8rem;font-weight:800;color:{{ '#dc2626' if is_urgent else 'var(--amber)' if m.last3_received==0 else 'var(--g6)' }}">
+              {{ i+1 }}
+            </span>
+            <div class="priority-bar"><div class="priority-fill {{ 'p-high' if is_urgent else 'p-med' if m.last3_received < last3 else 'p-low' }}" style="width:{{ [100 - pct, 10]|max }}%"></div></div>
+          </div>
+        </td>
+        <td><a href="{{ url_for('camp_beneficiary_profile', ben_id=m.id) }}" style="color:var(--g7);font-weight:700;text-decoration:none">{{ m.full_name }}</a></td>
+        <td style="text-align:center">{{ m.family_size or '—' }}</td>
+        <td style="text-align:center">
+          {% if m.total_received == 0 %}<span class="badge b-zero">لم يستلم</span>
+          {% else %}<span class="badge b-ok">{{ m.total_received }} مرة</span>{% endif %}
+        </td>
+        <td style="text-align:center">
+          {% if m.last3_received == 0 %}<span class="badge b-zero">0 / {{ last3 }}</span>
+          {% elif m.last3_received < last3 %}<span class="badge b-low">{{ m.last3_received }} / {{ last3 }}</span>
+          {% else %}<span class="badge b-ok">{{ m.last3_received }} / {{ last3 }}</span>{% endif %}
+        </td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            {% if is_orphan %}<span class="badge b-orphan">👶 يتيم</span>{% endif %}
+            {% if is_pregnant %}<span class="badge b-pregnant">💛 حامل</span>{% endif %}
+            {% if is_sick %}<span class="badge b-sick">🏥 مريض</span>{% endif %}
+            {% if m.family_size and m.family_size >= 6 %}<span class="badge b-large">👨‍👩‍👧‍👦 أسرة كبيرة</span>{% endif %}
+          </div>
+        </td>
+        <td style="font-size:.76rem;color:var(--ink4)">{{ m.last_received_date or 'لم يستلم' }}</td>
+        <td><a href="{{ url_for('camp_beneficiary_profile', ben_id=m.id) }}" class="btn btn-primary" style="font-size:.73rem;padding:5px 10px"><i class="fa fa-user"></i> الملف</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+let activeFilter='all';
+function setFilter(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+function applyFilters(){
+  const q=document.getElementById('searchInp').value.trim().toLowerCase();
+  document.querySelectorAll('#mainTable tbody tr').forEach(row=>{
+    const filters=row.dataset.filter||'';
+    const name=row.dataset.name.toLowerCase();
+    const fOk=activeFilter==='all'||filters.includes(activeFilter);
+    const nOk=!q||name.includes(q);
+    row.style.display=(fOk&&nOk)?'':'none';
+  });
+}
+</script>
+</body></html>
