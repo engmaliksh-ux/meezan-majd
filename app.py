@@ -83,6 +83,7 @@ def validate_csrf():
 app.jinja_env.globals["csrf_token"] = generate_csrf
 # مساعدات Jinja2 للقوالب
 app.jinja_env.globals["enumerate"] = enumerate
+app.jinja_env.filters["enumerate"] = enumerate   # للاستخدام كـ |enumerate في القوالب
 from datetime import datetime as _DT
 app.jinja_env.globals["now"] = _DT.now
 
@@ -5411,8 +5412,12 @@ def camp_beneficiary_profile(ben_id):
                  WHERE dr.beneficiary_id=? AND dr.camp_entity_id=?
                  ORDER BY d.distribution_date DESC""", (ben_id, camp_id))
     dist_records = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    _ent = c.fetchone()
+    entity = dict(_ent) if _ent else {"name": session.get("camp_name","المخيم")}
     conn.close()
-    return render_template("camp_beneficiary.html", ben=ben, benefits=benefits, dist_records=dist_records)
+    return render_template("camp_beneficiary.html", ben=ben, benefits=benefits,
+                           dist_records=dist_records, entity=entity)
 
 @app.route("/camp/benefit/add", methods=["POST"])
 @camp_login_required

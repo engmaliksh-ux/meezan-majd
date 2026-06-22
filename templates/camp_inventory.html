@@ -68,7 +68,7 @@ tr:hover td{background:#fafaf7;}
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="n">{{ items|length }}</div><div class="l">إجمالي عمليات الاستلام</div></div>
-    <div class="stat-card"><div class="n" style="font-size:1.3rem">{{ stats.s|default(0)|round(1) }}</div><div class="l">مجموع الكميات المستلمة</div></div>
+    <div class="stat-card"><div class="n" style="font-size:1.3rem">{{ ((stats.s or 0))|round(1) }}</div><div class="l">مجموع الكميات المستلمة</div></div>
     <div class="stat-card"><div class="n">{{ items|selectattr('donor_type','eq','organization')|list|length }}</div><div class="l">من مؤسسات</div></div>
     <div class="stat-card"><div class="n">{{ items|selectattr('donor_type','eq','volunteer')|list|length }}</div><div class="l">من فرق تطوعية</div></div>
   </div>
