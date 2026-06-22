@@ -210,56 +210,106 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
   <div class="card">
     <div class="card-head">
       <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-lock"></i></div>
-        <div><h3>البيانات الأساسية</h3><p>غير قابلة للتعديل</p></div>
+        <div class="card-head-icon"><i class="fas fa-id-card"></i></div>
+        <div><h3>المعلومات الشخصية</h3><p>البيانات المقفلة لا يمكن تعديلها</p></div>
       </div>
-    </div>
-    <div class="card-body">
-      <div class="info-list">
-        <div class="info-item"><span class="info-lbl">الاسم الرباعي</span><span class="info-val">{{ ben.full_name }}</span></div>
-        <div class="info-item"><span class="info-lbl">رقم الهوية</span><span class="info-val" dir="ltr">{{ ben.id_number }}</span></div>
-        <div class="info-item"><span class="info-lbl">تاريخ التسجيل</span><span class="info-val">{{ ben.created_at[:10] if ben.created_at else '—' }}</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <div class="card-head-left">
-        <div class="card-head-icon"><i class="fas fa-user-edit"></i></div>
-        <div><h3>المعلومات الشخصية</h3><p>يمكنك تعديل هذه البيانات</p></div>
-      </div>
-      <button class="btn-edit" onclick="toggleEdit('profile')"><i class="fas fa-pen"></i> تعديل</button>
     </div>
     <div class="card-body">
       <div id="flash-profile" class="flash"></div>
-      <div id="view-profile" class="view-mode">
+
+      <!-- عرض البيانات -->
+      <div id="view-profile">
+        <!-- مقفلة -->
+        <div style="background:var(--sand-100);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:.75rem;font-weight:700;color:var(--ink-4);">
+            <i class="fas fa-lock" style="font-size:.7rem;"></i> بيانات غير قابلة للتعديل
+          </div>
+          <div class="info-list">
+            <div class="info-item"><span class="info-lbl">الاسم الرباعي</span><span class="info-val">{{ ben.full_name }}</span></div>
+            <div class="info-item"><span class="info-lbl">رقم الهوية</span><span class="info-val" dir="ltr">{{ ben.id_number }}</span></div>
+          </div>
+        </div>
+        <!-- قابلة للتعديل — عرض -->
         <div class="info-list">
+          <div class="info-item"><span class="info-lbl">الجنس</span><span class="info-val">{{ 'ذكر' if ben.gender=='male' else 'أنثى' }}</span></div>
+          <div class="info-item"><span class="info-lbl">الحالة الاجتماعية</span>
+            <span class="info-val">{% if ben.marital_status=='married' %}متزوج{% elif ben.marital_status=='single' %}أعزب{% elif ben.marital_status=='divorced' %}مطلق{% elif ben.marital_status=='widowed' %}أرمل{% else %}—{% endif %}</span>
+          </div>
           <div class="info-item"><span class="info-lbl">رقم الجوال</span><span class="info-val {% if not ben.phone %}muted{% endif %}">{{ ben.phone or 'غير محدد' }}</span></div>
-          <div class="info-item"><span class="info-lbl">الجنس</span><span class="info-val">{{ 'ذكر' if ben.gender == 'male' else 'أنثى' }}</span></div>
-          <div class="info-item"><span class="info-lbl">المحافظة</span><span class="info-val {% if not ben.governorate %}muted{% endif %}">{{ ben.governorate or 'غير محددة' }}</span></div>
-          <div class="info-item"><span class="info-lbl">العنوان الحالي</span><span class="info-val {% if not ben.address %}muted{% endif %}">{{ ben.address or 'غير محدد' }}</span></div>
-          <div class="info-item"><span class="info-lbl">العنوان الأصلي</span><span class="info-val {% if not ben.address2 %}muted{% endif %}">{{ ben.address2 or 'غير محدد' }}</span></div>
+          <div class="info-item"><span class="info-lbl">تاريخ الميلاد</span><span class="info-val {% if not ben.birth_date %}muted{% endif %}">{{ ben.birth_date or 'غير محدد' }}</span></div>
+          <div class="info-item"><span class="info-lbl">السكن الحالي</span>
+            <span class="info-val {% if not ben.governorate %}muted{% endif %}">
+              {% if ben.governorate %}
+                {{ ben.governorate }}{% if ben.city %} / {{ ben.city }}{% endif %}{% if ben.neighborhood %} / {{ ben.neighborhood }}{% endif %}{% if ben.street %} / {{ ben.street }}{% endif %}
+              {% else %}غير محدد{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn-save" onclick="toggleEdit('profile')" style="background:var(--sand-100);color:var(--teal-700);border:1.5px solid var(--sand-200);">
+            <i class="fas fa-pen"></i> تحديث البيانات
+          </button>
         </div>
       </div>
+
+      <!-- نموذج التعديل -->
       <div id="edit-profile" class="edit-mode">
+        <!-- مقفلة readonly -->
+        <div style="background:var(--sand-100);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+          <div style="font-size:.72rem;color:var(--ink-4);font-weight:700;margin-bottom:8px;"><i class="fas fa-lock"></i> غير قابلة للتعديل</div>
+          <div class="form-grid">
+            <div class="fg"><label>الاسم الرباعي</label><input type="text" value="{{ ben.full_name }}" readonly style="background:var(--sand-200);color:var(--ink-4);cursor:not-allowed;"></div>
+            <div class="fg"><label>رقم الهوية</label><input type="text" value="{{ ben.id_number }}" readonly dir="ltr" style="background:var(--sand-200);color:var(--ink-4);cursor:not-allowed;"></div>
+          </div>
+        </div>
+        <!-- قابلة للتعديل -->
         <div class="form-grid">
-          <div class="fg"><label>رقم الجوال</label><input type="tel" id="p-phone" value="{{ ben.phone or '' }}" dir="ltr" placeholder="07xxxxxxxx"></div>
-          <div class="fg"><label>الجنس</label><select id="p-gender"><option value="male" {% if ben.gender=='male' %}selected{% endif %}>ذكر</option><option value="female" {% if ben.gender=='female' %}selected{% endif %}>أنثى</option></select></div>
-          <div class="fg"><label>المحافظة</label>
-            <select id="p-governorate">
-              <option value="">اختر</option>
-              {% for g in ['دمشق','ريف دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','إدلب','درعا','السويداء','القنيطرة','دير الزور','الرقة','الحسكة'] %}
-              <option value="{{ g }}" {% if ben.governorate==g %}selected{% endif %}>{{ g }}</option>
-              {% endfor %}
+          <div class="fg"><label>الجنس</label>
+            <select id="p-gender">
+              <option value="male" {% if ben.gender=='male' %}selected{% endif %}>ذكر</option>
+              <option value="female" {% if ben.gender=='female' %}selected{% endif %}>أنثى</option>
             </select>
           </div>
-          <div class="fg"><label>العنوان الحالي</label><input type="text" id="p-address" value="{{ ben.address or '' }}" placeholder="المدينة / الحي"></div>
-          <div class="fg" style="grid-column:1/-1"><label>العنوان الأصلي (قبل النزوح)</label><input type="text" id="p-address2" value="{{ ben.address2 or '' }}" placeholder="المنطقة الأصلية"></div>
+          <div class="fg"><label>الحالة الاجتماعية</label>
+            <select id="p-marital">
+              <option value="married" {% if ben.marital_status=='married' %}selected{% endif %}>متزوج</option>
+              <option value="single" {% if ben.marital_status=='single' %}selected{% endif %}>أعزب</option>
+              <option value="divorced" {% if ben.marital_status=='divorced' %}selected{% endif %}>مطلق</option>
+              <option value="widowed" {% if ben.marital_status=='widowed' %}selected{% endif %}>أرمل</option>
+            </select>
+          </div>
+          <div class="fg"><label>رقم الجوال</label><input type="tel" id="p-phone" value="{{ ben.phone or '' }}" dir="ltr" placeholder="05xxxxxxxx"></div>
+          <div class="fg"><label>تاريخ الميلاد</label><input type="date" id="p-birth" value="{{ ben.birth_date or '' }}"></div>
         </div>
-        <div class="btn-row">
+
+        <!-- السكن الحالي -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--sand-200);">
+          <div style="font-size:.8rem;font-weight:700;color:var(--ink-6);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-map-marker-alt" style="color:var(--teal-600)"></i> السكن الحالي
+          </div>
+          <div class="form-grid">
+            <div class="fg"><label>المحافظة</label>
+              <select id="p-governorate" onchange="updateCities()">
+                <option value="">اختر المحافظة</option>
+                <option value="شمال غزة" {% if ben.governorate=='شمال غزة' %}selected{% endif %}>شمال غزة</option>
+                <option value="غزة" {% if ben.governorate=='غزة' %}selected{% endif %}>غزة</option>
+                <option value="الوسطى" {% if ben.governorate=='الوسطى' %}selected{% endif %}>الوسطى</option>
+                <option value="الجنوب" {% if ben.governorate=='الجنوب' %}selected{% endif %}>الجنوب</option>
+              </select>
+            </div>
+            <div class="fg"><label>المدينة</label>
+              <select id="p-city">
+                <option value="{{ ben.city or '' }}">{{ ben.city or 'اختر المحافظة أولاً' }}</option>
+              </select>
+            </div>
+            <div class="fg"><label>الحي</label><input type="text" id="p-neighborhood" value="{{ ben.neighborhood or '' }}" placeholder="اسم الحي"></div>
+            <div class="fg"><label>الشارع / أقرب معلم</label><input type="text" id="p-street" value="{{ ben.street or '' }}" placeholder="اسم الشارع أو معلم قريب"></div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:18px;">
           <button class="btn-cancel" onclick="toggleEdit('profile',true)">إلغاء</button>
-          <button class="btn-save" onclick="saveProfile()"><i class="fas fa-check"></i> حفظ</button>
+          <button class="btn-save" onclick="saveProfile()"><i class="fas fa-save"></i> حفظ البيانات</button>
         </div>
       </div>
     </div>
@@ -465,6 +515,52 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
 </div>
 
 <script>
+// ── قوائم المدن حسب المحافظة ──
+const CITIES = {
+  'شمال غزة': ['بيت لاهيا','جباليا','بيت حانون','أم النصر'],
+  'غزة':      ['غزة','الشجاعية','الشيخ رضوان','النصر','الرمال','الصحابة','النفق','التفاح','الثلاثيني'],
+  'الوسطى':   ['النصيرات','المغازي','البريج','دير البلح'],
+  'الجنوب':   ['خانيونس','رفح'],
+};
+function updateCities(selectedCity){
+  const gov  = document.getElementById('p-governorate').value;
+  const sel  = document.getElementById('p-city');
+  sel.innerHTML = '<option value="">اختر المدينة</option>';
+  (CITIES[gov] || []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    if(c === (selectedCity||'')) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+// تهيئة قائمة المدن عند فتح التعديل
+const _origToggle = window.toggleEdit;
+window.toggleEdit = function(key, cancel){
+  _origToggle && _origToggle(key, cancel);
+  if(key === 'profile' && !cancel){
+    const gov = document.getElementById('p-governorate');
+    if(gov) updateCities('{{ ben.city or "" }}');
+  }
+};
+
+// ── حفظ البيانات الشخصية ──
+async function saveProfile(){
+  const body = {
+    gender:        document.getElementById('p-gender').value,
+    marital_status:document.getElementById('p-marital').value,
+    phone:         document.getElementById('p-phone').value.trim(),
+    birth_date:    document.getElementById('p-birth').value,
+    governorate:   document.getElementById('p-governorate').value,
+    city:          document.getElementById('p-city').value,
+    neighborhood:  document.getElementById('p-neighborhood').value.trim(),
+    street:        document.getElementById('p-street').value.trim(),
+  };
+  const r = await fetch('/api/beneficiary/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if(d.ok){ setFlash('profile','✅ تم حفظ البيانات بنجاح','success'); toggleEdit('profile',true); setTimeout(()=>location.reload(),1200); }
+  else setFlash('profile', d.error||'خطأ في الحفظ','error');
+}
+
 function switchTab(name,btn){
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -492,19 +588,7 @@ function setFlash(id,msg,type){
   el.scrollIntoView({behavior:'smooth',block:'nearest'});
   if(type==='success')setTimeout(()=>{el.className='flash';},4000);
 }
-async function saveProfile(){
-  const body={
-    phone:document.getElementById('p-phone').value.trim(),
-    gender:document.getElementById('p-gender').value,
-    governorate:document.getElementById('p-governorate').value,
-    address:document.getElementById('p-address').value.trim(),
-    address2:document.getElementById('p-address2').value.trim()
-  };
-  const r=await fetch('/api/beneficiary/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const d=await r.json();
-  if(d.ok){setFlash('profile','✅ تم الحفظ بنجاح','success');toggleEdit('profile',true);}
-  else setFlash('profile',d.error||'خطأ','error');
-}
+// saveProfile defined above
 async function saveFamily(){
   const body={
     marital_status:document.getElementById('f-marital').value,

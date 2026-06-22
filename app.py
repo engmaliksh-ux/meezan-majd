@@ -4563,17 +4563,22 @@ def api_ben_update_profile():
     ben_id = session.get("beneficiary_id")
     if not ben_id:
         return jsonify({"ok": False, "error": "غير مصرح"}), 401
-    data = request.get_json(force=True) or {}
-    phone      = data.get("phone", "").strip()
-    address    = data.get("address", "").strip()
-    address2   = data.get("address2", "").strip()
-    governorate= data.get("governorate", "").strip()
-    gender     = data.get("gender", "").strip()
+    data         = request.get_json(force=True) or {}
+    phone        = data.get("phone", "").strip()
+    gender       = data.get("gender", "").strip()
+    marital      = data.get("marital_status", "").strip()
+    birth_date   = data.get("birth_date", "").strip()
+    governorate  = data.get("governorate", "").strip()
+    city         = data.get("city", "").strip()
+    neighborhood = data.get("neighborhood", "").strip()
+    street       = data.get("street", "").strip()
     conn = get_connection(); c = conn.cursor()
     c.execute("""UPDATE beneficiaries
-                 SET phone=?, address=?, address2=?, governorate=?, gender=?
+                 SET phone=?, gender=?, marital_status=?, birth_date=?,
+                     governorate=?, city=?, neighborhood=?, street=?
                  WHERE id=? AND self_registered=1""",
-              (phone, address, address2, governorate, gender, ben_id))
+              (phone, gender, marital, birth_date,
+               governorate, city, neighborhood, street, ben_id))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
