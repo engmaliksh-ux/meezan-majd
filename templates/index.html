@@ -179,6 +179,19 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 .foot-links a{color:var(--ink-400);text-decoration:none;transition:.15s;}
 .foot-links a:hover{color:var(--teal-700);}
 
+
+/* SCROLL ANIMATIONS */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+.reveal-left{opacity:0;transform:translateX(28px);transition:opacity .6s ease,transform .6s ease;}
+.reveal-left.visible{opacity:1;transform:translateX(0);}
+
+/* NAV SCROLLED */
+.nav.scrolled{background:rgba(15,61,46,.97);border-bottom-color:rgba(255,255,255,.08);}
+.nav.scrolled .brand-title,.nav.scrolled .brand-sub{color:#fff;}
+.nav.scrolled .nav-links a{color:rgba(255,255,255,.8);}
+.nav.scrolled .nav-links a:hover{color:var(--amber-400);}
+
 /* RESPONSIVE */
 @media(max-width:900px){
   .hero-inner,.how-grid{grid-template-columns:1fr;}
@@ -256,18 +269,25 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
   </div>
 </section>
 
+<!-- ════ WAVE ════ -->
+<div style="background:linear-gradient(145deg,var(--teal-900) 0%,var(--teal-700) 55%,#1e5c3a 100%);line-height:0;margin-bottom:-2px;">
+  <svg viewBox="0 0 1440 60" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="display:block;width:100%;height:60px;">
+    <path d="M0,40 C240,70 480,10 720,40 C960,70 1200,10 1440,40 L1440,60 L0,60 Z" fill="#ffffff"/>
+  </svg>
+</div>
+
 <!-- ════ STATS BAR ════ -->
 <div class="stats-bar">
   <div class="stats-bar-inner">
-    <div class="sb-item"><div class="sb-num">{{ total_benef }}</div><div class="sb-lbl">مستفيد مسجّل</div></div>
-    <div class="sb-item"><div class="sb-num">{{ total_camps }}</div><div class="sb-lbl">مخيم في المنظومة</div></div>
-    <div class="sb-item"><div class="sb-num">{{ total_orgs }}</div><div class="sb-lbl">مؤسسة معتمدة</div></div>
-    <div class="sb-item"><div class="sb-num">24/7</div><div class="sb-lbl">خدمة مستمرة</div></div>
+    <div class="sb-item reveal"><div class="sb-num counter" data-target="{{ total_benef }}">0</div><div class="sb-lbl">مستفيد مسجّل</div></div>
+    <div class="sb-item reveal"><div class="sb-num counter" data-target="{{ total_camps }}">0</div><div class="sb-lbl">مخيم في المنظومة</div></div>
+    <div class="sb-item reveal"><div class="sb-num counter" data-target="{{ total_orgs }}">0</div><div class="sb-lbl">مؤسسة معتمدة</div></div>
+    <div class="sb-item reveal"><div class="sb-num">24/7</div><div class="sb-lbl">خدمة مستمرة</div></div>
   </div>
 </div>
 
 <!-- ════ FEATURES ════ -->
-<section class="section" id="features">
+<section class="section reveal" id="features">
   <div class="sec-inner">
     <div class="sec-tag">المنظومة</div>
     <h2 class="sec-title">ليست موقعاً معلوماتياً — نظام تشغيل كامل</h2>
@@ -281,7 +301,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         ('fa-comment-dots','تواصل وشكاوى','رسائل داخلية بين جميع الأطراف ونظام شكاوى مع خيار مجهول الهوية.'),
         ('fa-chart-bar','تقارير وإحصاءات','لوحات إحصائية فورية وتقارير شاملة لدعم القرار وتقييم الأداء الميداني.'),
       ] %}
-      <div class="feat-card">
+      <div class="feat-card reveal">
         <div class="feat-icon"><i class="fas {{ icon }}"></i></div>
         <div class="feat-title">{{ title }}</div>
         <p class="feat-desc">{{ desc }}</p>
@@ -292,7 +312,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 </section>
 
 <!-- ════ ROLES ════ -->
-<section class="roles-sec" id="roles">
+<section class="roles-sec reveal" id="roles">
   <div class="sec-inner">
     <div style="text-align:center;">
       <div class="sec-tag" style="display:block;text-align:center;">خمسة أطراف — شبكة واحدة</div>
@@ -306,7 +326,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         ('fa-hands-helping','المبادرون','أنشطة وصفحة عامة وشراكات','#059669'),
         ('fa-user','المستفيدون','بياناتي ومساعداتي وشكاواي','#475569'),
       ] %}
-      <div class="role-card">
+      <div class="role-card reveal">
         <div class="role-icon" style="background:{{ bg }};"><i class="fas {{ icon }}"></i></div>
         <div class="role-name">{{ name }}</div>
         <div class="role-desc">{{ desc }}</div>
@@ -317,7 +337,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 </section>
 
 <!-- ════ HOW ════ -->
-<section class="section" id="how">
+<section class="section reveal" id="how">
   <div class="sec-inner">
     <div class="how-grid">
       <div>
@@ -365,7 +385,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 </section>
 
 <!-- ════ CTA ════ -->
-<section class="cta-sec">
+<section class="cta-sec reveal">
   <div class="sec-inner cta-inner">
     <div style="font-size:2rem;color:var(--amber-400);margin-bottom:16px;"><i class="fas fa-balance-scale"></i></div>
     <h2 class="cta-title">انضم إلى منظومة العمل الإنساني الموحدة</h2>
@@ -715,6 +735,52 @@ async function benCompleteReg(){
     setFlash('ben-reg-flash', data.error||'حدث خطأ', 'error');
   }
 }
+</script>
+
+<script>
+// ── NAV SCROLL ──
+(function(){
+  var nav = document.querySelector('.nav');
+  window.addEventListener('scroll', function(){
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  }, {passive:true});
+})();
+
+// ── INTERSECTION OBSERVER: fade-in ──
+(function(){
+  var els = document.querySelectorAll('.reveal, .reveal-left');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e, i){
+      if(e.isIntersecting){
+        setTimeout(function(){ e.target.classList.add('visible'); }, i * 80);
+        io.unobserve(e.target);
+      }
+    });
+  }, {threshold: 0.12});
+  els.forEach(function(el){ io.observe(el); });
+})();
+
+// ── COUNTER ANIMATION ──
+(function(){
+  var counters = document.querySelectorAll('.counter');
+  var io2 = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var el = e.target;
+      var target = parseInt(el.getAttribute('data-target')) || 0;
+      if(target === 0){ el.textContent = '0'; io2.unobserve(el); return; }
+      var start = 0, duration = 1200, step = 16;
+      var increment = target / (duration / step);
+      var timer = setInterval(function(){
+        start += increment;
+        if(start >= target){ start = target; clearInterval(timer); }
+        el.textContent = Math.floor(start).toLocaleString('ar');
+      }, step);
+      io2.unobserve(el);
+    });
+  }, {threshold: 0.3});
+  counters.forEach(function(c){ io2.observe(c); });
+})();
 </script>
 </body>
 </html>

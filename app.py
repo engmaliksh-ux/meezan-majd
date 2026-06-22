@@ -4842,30 +4842,22 @@ import subprocess, hashlib, hmac
 
 @app.route("/deploy/webhook", methods=["POST"])
 def deploy_webhook():
-    secret = app.config.get("DEPLOY_SECRET", "")
-    if secret:
-        sig = request.headers.get("X-Hub-Signature-256", "")
-        body = request.get_data()
-        expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, expected):
-            return jsonify({"error": "Unauthorized"}), 401
     import os
+    # التحقق من التوكن
+    token = os.environ.get("DEPLOY_TOKEN", "")
+    if token:
+        sent = request.headers.get("X-Deploy-Token", "")
+        if sent != token:
+            return jsonify({"error": "Unauthorized"}), 401
     project_dir = os.path.dirname(os.path.abspath(__file__))
     result = subprocess.run(
         ["git", "pull"],
         cwd=project_dir,
         capture_output=True, text=True, timeout=60
     )
-    # أعِد تحميل التطبيق بلمس wsgi.py
-    try:
-        wsgi_path = os.path.join(project_dir, "wsgi.py")
-        os.utime(wsgi_path, None)
-    except Exception:
-        pass
     return jsonify({
         "status": "ok",
         "stdout": result.stdout,
-        "stderr": result.stderr,
         "returncode": result.returncode
     })
 
