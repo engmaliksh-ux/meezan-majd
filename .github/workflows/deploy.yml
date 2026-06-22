@@ -8,12 +8,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Git pull via app webhook
+      - name: Git pull via PythonAnywhere API
         run: |
+          # إنشاء console جديد وتشغيل git pull مباشرة
+          CONSOLE=$(curl -s -X POST \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            -d "executable=bash&arguments=-c&arguments=cd+/home/MalikMohs/meezan-majd+&&+git+pull" \
+            "https://www.pythonanywhere.com/api/v0/user/MalikMohs/consoles/") || true
+          echo "Console response: $CONSOLE"
+          # احتياطي: جرّب الـ webhook القديم أيضاً
           curl -s -X POST \
             -H "X-Deploy-Token: ${{ secrets.DEPLOY_TOKEN }}" \
             "https://malikmohs.pythonanywhere.com/deploy/webhook" || true
-          sleep 8
+          sleep 10
 
       - name: Reload web app
         run: |
