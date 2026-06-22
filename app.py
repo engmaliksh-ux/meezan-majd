@@ -5126,7 +5126,8 @@ def register_camp():
 @app.route("/camp/login", methods=["GET", "POST"])
 def camp_login():
     import datetime as _dt
-    if request.method == "POST":
+    try:
+      if request.method == "POST":
         email    = (request.form.get("email") or "").strip().lower()
         password = (request.form.get("password") or "").strip()
         ip       = request.remote_addr or "0.0.0.0"
@@ -5193,7 +5194,10 @@ def camp_login():
         else:
             conn.commit(); conn.close()
             flash("البريد الإلكتروني غير مسجل", "error")
-    return render_template("camp_login.html")
+      return render_template("camp_login.html")
+    except Exception as _e:
+        import traceback
+        return f"<pre style='direction:ltr'>{traceback.format_exc()}</pre>", 500
 
 
 # ── نسيت كلمة مرور المخيم ──
