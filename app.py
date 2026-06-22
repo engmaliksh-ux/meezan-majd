@@ -4577,21 +4577,57 @@ def beneficiary_portal():
     c.execute("SELECT * FROM beneficiary_dependents WHERE beneficiary_id=?", (ben["id"],))
     dependents = [dict(r) for r in c.fetchall()]
 
-    # كشف الاستفادة
+    # كشف الاستفادة — من 3 مصادر: برامج المؤسسات + سجلات المخيم اليدوية + جلسات التوزيع
+    benefits = []
+    # 1. برامج المؤسسات
     try:
         c.execute("""
             SELECT pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
                    p.name as program_name, p.program_type,
-                   o.name as org_name
+                   o.name as org_name, NULL as camp_name, 'program' as source
             FROM program_records pr
             JOIN programs p ON pr.program_id = p.id
             LEFT JOIN organizations o ON pr.org_id = o.id
             WHERE pr.beneficiary_id = ?
             ORDER BY pr.benefit_date DESC LIMIT 50
         """, (ben["id"],))
-        benefits = [dict(r) for r in c.fetchall()]
+        benefits += [dict(r) for r in c.fetchall()]
     except Exception:
-        benefits = []
+        pass
+    # 2. سجلات الاستفادة اليدوية من المخيم/اللجنة
+    try:
+        c.execute("""
+            SELECT cb.benefit_date, cb.benefit_type, cb.quantity, cb.notes,
+                   cb.value, ce.name as camp_name, NULL as program_name,
+                   NULL as org_name, 'camp_manual' as source
+            FROM camp_benefits cb
+            LEFT JOIN camp_entities ce ON cb.camp_entity_id = ce.id
+            WHERE cb.beneficiary_id = ?
+            ORDER BY cb.benefit_date DESC LIMIT 50
+        """, (ben["id"],))
+        benefits += [dict(r) for r in c.fetchall()]
+    except Exception:
+        pass
+    # 3. جلسات التوزيع الرسمية (فقط ما تم استلامه)
+    try:
+        c.execute("""
+            SELECT d.distribution_date as benefit_date,
+                   COALESCE(dr.item_name, d.title) as benefit_type,
+                   dr.quantity, dr.notes,
+                   dr.value, ce.name as camp_name,
+                   d.title as program_name, d.donor_name as org_name,
+                   'distribution' as source
+            FROM camp_dist_records dr
+            JOIN camp_distributions d ON dr.distribution_id = d.id
+            LEFT JOIN camp_entities ce ON d.camp_entity_id = ce.id
+            WHERE dr.beneficiary_id = ? AND dr.received = 1
+            ORDER BY d.distribution_date DESC LIMIT 50
+        """, (ben["id"],))
+        benefits += [dict(r) for r in c.fetchall()]
+    except Exception:
+        pass
+    # ترتيب موحّد من الأحدث للأقدم
+    benefits.sort(key=lambda x: (x.get("benefit_date") or ""), reverse=True)
     conn.close()
     # قائمة المخيمات واللجان — مفلترة حسب محافظة/مدينة المستفيد
     ben_dict = dict(ben)
