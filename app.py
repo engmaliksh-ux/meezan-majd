@@ -5094,7 +5094,7 @@ def register_camp():
                 """, (new_id, pb["id"]))
                 c.execute("""
                     INSERT OR IGNORE INTO camp_join_requests (beneficiary_id, camp_entity_id, status)
-                    VALUES (?,'pending')
+                    VALUES (?,?,'pending')
                 """, (pb["id"], new_id))
             conn.commit()
             conn.close()
@@ -5200,8 +5200,8 @@ def api_camp_forgot_password():
     code = generate_verification_code()
     import datetime as _dt
     expires = (_dt.datetime.now() + _dt.timedelta(minutes=15)).isoformat()
-    c.execute("DELETE FROM verification_codes WHERE identifier=? AND purpose='camp_reset'", (email,))
-    c.execute("INSERT INTO verification_codes (identifier,code,purpose,expires_at) VALUES (?,?,?,?)",
+    c.execute("DELETE FROM verification_codes WHERE email=? AND purpose='camp_reset'", (email,))
+    c.execute("INSERT INTO verification_codes (email,code,purpose,expires_at) VALUES (?,?,?,?)",
               (email, code, "camp_reset", expires))
     conn.commit(); conn.close()
     try:
@@ -5222,15 +5222,15 @@ def api_camp_reset_password():
     conn = get_connection(); c = conn.cursor()
     import datetime as _dt
     c.execute("""SELECT * FROM verification_codes
-                 WHERE identifier=? AND code=? AND purpose='camp_reset'
-                 AND expires_at > datetime('now','localtime')""", (email, code))
+                 WHERE email=? AND code=? AND purpose='camp_reset'
+                 AND used=0 AND expires_at > datetime('now','localtime')""", (email, code))
     row = c.fetchone()
     if not row:
         conn.close()
         return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
-    c.execute("UPDATE camp_entities SET password=?, failed_attempts=0, locked_until=NULL WHERE LOWER(email)=?",
+    c.execute("UPDATE camp_entities SET password=?, failed_attempts=0, locked_until=NULL WHERE email=?",
               (generate_password_hash(new_pass), email))
-    c.execute("DELETE FROM verification_codes WHERE identifier=? AND purpose='camp_reset'", (email,))
+    c.execute("UPDATE verification_codes SET used=1 WHERE email=? AND purpose='camp_reset'", (email,))
     conn.commit(); conn.close()
     return jsonify({"ok": True})
 
