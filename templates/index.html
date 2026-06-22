@@ -496,6 +496,47 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         <button class="mbtn mbtn-primary" onclick="benLogin()">
           <i class="fas fa-sign-in-alt"></i> دخول
         </button>
+        <div style="text-align:center;margin-top:10px;">
+          <button onclick="showForgot()" style="background:none;border:none;color:var(--teal-700);
+            font-size:.8rem;cursor:pointer;text-decoration:underline;">نسيت كلمة المرور؟</button>
+        </div>
+      </div>
+
+      <!-- نسيت كلمة المرور -->
+      <div id="ben-forgot" style="display:none">
+        <div class="mflash" id="ben-forgot-flash"></div>
+        <div id="bfg-step1">
+          <div class="mform-group">
+            <label>رقم الهوية</label>
+            <input type="text" id="bfg-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+          </div>
+          <button class="mbtn mbtn-primary" onclick="benForgotSend()">
+            <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
+          </button>
+          <button class="mbtn mbtn-outline" onclick="showLogin()" style="margin-top:8px;">
+            <i class="fas fa-arrow-right"></i> العودة للدخول
+          </button>
+        </div>
+        <div id="bfg-step2" style="display:none">
+          <p style="text-align:center;font-size:.84rem;color:#64748b;margin-bottom:12px;">
+            أدخل الرمز المرسل لبريدك
+          </p>
+          <div class="otp-row" id="bfg-otp-inputs">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+            <input type="text" maxlength="1" inputmode="numeric">
+          </div>
+          <div class="mform-group">
+            <label>كلمة المرور الجديدة</label>
+            <input type="password" id="bfg-pw" placeholder="6 أحرف على الأقل">
+          </div>
+          <button class="mbtn mbtn-primary" onclick="benResetPassword()">
+            <i class="fas fa-key"></i> تعيين كلمة المرور
+          </button>
+        </div>
       </div>
 
       <!-- تسجيل - الخطوة 1: رقم الجوال -->
@@ -661,6 +702,53 @@ document.querySelectorAll('.otp-row').forEach(row => {
 
 function getOTP(rowId){
   return [...document.querySelectorAll(`#${rowId} input`)].map(i=>i.value).join('');
+}
+
+// === نسيت كلمة المرور ===
+function showForgot(){
+  document.getElementById('ben-login').classList.remove('active');
+  document.getElementById('ben-forgot').style.display='block';
+  document.getElementById('ben-login').style.display='none';
+  document.querySelector('#benModal .mtab:first-child').classList.remove('active');
+}
+function showLogin(){
+  document.getElementById('ben-forgot').style.display='none';
+  document.getElementById('ben-login').style.display='block';
+  document.getElementById('ben-login').classList.add('active');
+  document.querySelector('#benModal .mtab:first-child').classList.add('active');
+}
+async function benForgotSend(){
+  const id = document.getElementById('bfg-id').value.trim();
+  if(!id){ setFlash('ben-forgot-flash','أدخل رقم الهوية','error'); return; }
+  const res = await fetch('/api/beneficiary/forgot-password',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id_number:id})
+  });
+  const data = await res.json();
+  if(data.ok){
+    document.getElementById('bfg-step1').style.display='none';
+    document.getElementById('bfg-step2').style.display='block';
+    setFlash('ben-forgot-flash','تم إرسال رمز التحقق لبريدك','success');
+  } else {
+    setFlash('ben-forgot-flash', data.error||'خطأ', 'error');
+  }
+}
+async function benResetPassword(){
+  const id   = document.getElementById('bfg-id').value.trim();
+  const code = getOTP('bfg-otp-inputs');
+  const pw   = document.getElementById('bfg-pw').value;
+  if(code.length<6||!pw){ setFlash('ben-forgot-flash','أكمل جميع الحقول','error'); return; }
+  const res = await fetch('/api/beneficiary/reset-password',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id_number:id,code,password:pw})
+  });
+  const data = await res.json();
+  if(data.ok){
+    setFlash('ben-forgot-flash','تم تغيير كلمة المرور! سجّل دخولك الآن','success');
+    setTimeout(showLogin, 2000);
+  } else {
+    setFlash('ben-forgot-flash', data.error||'خطأ', 'error');
+  }
 }
 
 // === بوابة المستفيد ===

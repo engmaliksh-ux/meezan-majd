@@ -560,6 +560,19 @@ def init_camp_tables():
     conn.commit()
 
     # أعمدة جديدة للمستفيدين
+    # جدول محاولات الدخول
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS login_attempts (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        identifier   TEXT NOT NULL,
+        attempt_type TEXT DEFAULT 'beneficiary',
+        ip_address   TEXT,
+        success      INTEGER DEFAULT 0,
+        created_at   TEXT DEFAULT (datetime('now','localtime'))
+    )
+    """)
+    conn.commit()
+
     new_cols = [
         ("beneficiaries", "camp_entity_id",    "INTEGER"),
         ("beneficiaries", "self_registered",   "INTEGER DEFAULT 0"),
@@ -568,6 +581,8 @@ def init_camp_tables():
         ("beneficiaries", "family_last_name",  "TEXT"),
         ("beneficiaries", "self_reg_password", "TEXT"),
         ("beneficiaries", "email",             "TEXT"),
+        ("beneficiaries", "failed_attempts",   "INTEGER DEFAULT 0"),
+        ("beneficiaries", "locked_until",      "TEXT"),
     ]
     for table, col, defn in new_cols:
         try:

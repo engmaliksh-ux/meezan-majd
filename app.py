@@ -4866,16 +4866,53 @@ def deploy_webhook():
 # API: بوابة المستفيد — دخول وتسجيل بالبريد
 # ══════════════════════════════════════════
 
+# ── Session timeout: 5 دقائق ──
+@app.before_request
+def check_beneficiary_session_timeout():
+    import datetime
+    if session.get("beneficiary_id"):
+        last = session.get("ben_last_active")
+        if last:
+            diff = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(last)).total_seconds()
+            if diff > 300:  # 5 دقائق
+                session.pop("beneficiary_id", None)
+                session.pop("beneficiary_name", None)
+                session.pop("ben_last_active", None)
+                return
+        session["ben_last_active"] = datetime.datetime.utcnow().isoformat()
+
+
 @app.route("/api/beneficiary/login", methods=["POST"])
 def api_beneficiary_login():
-    """دخول المستفيد عبر رقم الهوية + كلمة المرور (JSON)"""
+    """دخول المستفيد: قفل بعد 5 محاولات + rate limiting على IP"""
+    import datetime
     data      = request.get_json(force=True) or {}
     id_number = data.get("id_number", "").strip()
     password  = data.get("password", "").strip()
+    ip        = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+
     if not id_number or not password:
         return jsonify({"ok": False, "error": "يرجى إدخال رقم الهوية وكلمة المرور"})
+
+    now     = datetime.datetime.utcnow()
+    win15   = (now - datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
     conn = get_connection()
-    c = conn.cursor()
+    c    = conn.cursor()
+
+    # ── Rate limiting: IP ──
+    c.execute("""
+        SELECT COUNT(*) FROM login_attempts
+        WHERE ip_address=? AND success=0 AND attempt_type='beneficiary'
+        AND created_at > ?
+    """, (ip, win15))
+    ip_fails = c.fetchone()[0]
+    if ip_fails >= 10:
+        conn.close()
+        return jsonify({"ok": False, "error": "محاولات كثيرة من هذا الجهاز، انتظر 15 دقيقة"})
+
+    # ── جلب الحساب ──
     c.execute("""
         SELECT b.*, ce.name as camp_name
         FROM beneficiaries b
@@ -4883,12 +4920,115 @@ def api_beneficiary_login():
         WHERE b.id_number = ? AND b.self_registered = 1
     """, (id_number,))
     ben = c.fetchone()
-    conn.close()
-    if ben and ben["self_reg_password"] and check_password_hash(ben["self_reg_password"], password):
+
+    if not ben:
+        c.execute("INSERT INTO login_attempts (identifier,ip_address,success,attempt_type) VALUES (?,?,0,'beneficiary')",
+                  (id_number, ip))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": False, "error": "رقم الهوية أو كلمة المرور غير صحيحة"})
+
+    # ── قفل الحساب ──
+    locked_until = ben["locked_until"] if ben["locked_until"] else None
+    if locked_until and locked_until > now_str:
+        conn.close()
+        return jsonify({"ok": False, "error": "الحساب مقفل مؤقتاً بسبب محاولات متعددة، حاول بعد 30 دقيقة"})
+
+    # ── التحقق من كلمة المرور ──
+    if ben["self_reg_password"] and check_password_hash(ben["self_reg_password"], password):
+        # نجح — إعادة تعيين المحاولات
+        c.execute("UPDATE beneficiaries SET failed_attempts=0, locked_until=NULL WHERE id=?", (ben["id"],))
+        c.execute("INSERT INTO login_attempts (identifier,ip_address,success,attempt_type) VALUES (?,?,1,'beneficiary')",
+                  (id_number, ip))
+        conn.commit()
+        conn.close()
         session["beneficiary_id"]   = ben["id"]
         session["beneficiary_name"] = ben["full_name"]
+        session["ben_last_active"]  = now.isoformat()
         return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "رقم الهوية أو كلمة المرور غير صحيحة"})
+
+    # ── فشل ──
+    fails = (ben["failed_attempts"] or 0) + 1
+    lock  = None
+    if fails >= 5:
+        lock  = (now + datetime.timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+        fails = 0
+    c.execute("UPDATE beneficiaries SET failed_attempts=?, locked_until=? WHERE id=?",
+              (fails, lock, ben["id"]))
+    c.execute("INSERT INTO login_attempts (identifier,ip_address,success,attempt_type) VALUES (?,?,0,'beneficiary')",
+              (id_number, ip))
+    conn.commit()
+    conn.close()
+
+    remaining = 5 - fails
+    if lock:
+        return jsonify({"ok": False, "error": "تم قفل الحساب 30 دقيقة بسبب محاولات متعددة"})
+    return jsonify({"ok": False, "error": f"كلمة المرور غير صحيحة — متبقي {remaining} محاولة قبل القفل"})
+
+
+@app.route("/api/beneficiary/forgot-password", methods=["POST"])
+def api_beneficiary_forgot_password():
+    """إرسال رابط إعادة تعيين كلمة المرور عبر البريد"""
+    import datetime
+    data      = request.get_json(force=True) or {}
+    id_number = data.get("id_number", "").strip()
+    if not id_number:
+        return jsonify({"ok": False, "error": "أدخل رقم الهوية"})
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT id, email, full_name FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    ben = c.fetchone()
+    if not ben or not ben["email"]:
+        conn.close()
+        return jsonify({"ok": False, "error": "لم يُعثر على حساب بهذا الرقم أو لا يوجد بريد مسجل"})
+    code       = generate_verification_code()
+    expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("DELETE FROM verification_codes WHERE email=? AND purpose='ben_reset'", (ben["email"],))
+    c.execute("INSERT INTO verification_codes (email,code,purpose,expires_at) VALUES (?,?,?,?)",
+              (ben["email"], code, "ben_reset", expires_at))
+    conn.commit()
+    conn.close()
+    try:
+        send_org_verification(ben["email"], "إعادة تعيين كلمة المرور", ben["full_name"], code, "", "")
+    except Exception as e:
+        app.logger.error(f"Reset email error: {e}")
+        return jsonify({"ok": False, "error": "فشل إرسال البريد"})
+    return jsonify({"ok": True})
+
+
+@app.route("/api/beneficiary/reset-password", methods=["POST"])
+def api_beneficiary_reset_password():
+    """تعيين كلمة مرور جديدة بعد التحقق من OTP"""
+    import datetime
+    data      = request.get_json(force=True) or {}
+    id_number = data.get("id_number", "").strip()
+    code      = data.get("code", "").strip()
+    new_pw    = data.get("password", "")
+    if not id_number or not code or not new_pw or len(new_pw) < 6:
+        return jsonify({"ok": False, "error": "بيانات ناقصة أو كلمة المرور قصيرة"})
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT id, email FROM beneficiaries WHERE id_number=? AND self_registered=1", (id_number,))
+    ben = c.fetchone()
+    if not ben:
+        conn.close()
+        return jsonify({"ok": False, "error": "حساب غير موجود"})
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""
+        SELECT * FROM verification_codes
+        WHERE email=? AND purpose='ben_reset' AND used=0 AND expires_at > ?
+        ORDER BY id DESC LIMIT 1
+    """, (ben["email"], now))
+    row = c.fetchone()
+    if not row or row["code"] != code:
+        conn.close()
+        return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
+    c.execute("UPDATE verification_codes SET used=1 WHERE id=?", (row["id"],))
+    c.execute("UPDATE beneficiaries SET self_reg_password=?, failed_attempts=0, locked_until=NULL WHERE id=?",
+              (generate_password_hash(new_pw), ben["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/beneficiary/send-otp", methods=["POST"])
