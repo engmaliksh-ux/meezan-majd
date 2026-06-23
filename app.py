@@ -1378,17 +1378,21 @@ def beneficiaries():
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
-    # جلب المستفيدين عبر جدول الربط (مستفيدو المؤسسة + المرتبطون بها من مؤسسات أخرى)
-    c.execute("""
-        SELECT DISTINCT b.* FROM beneficiaries b
-        LEFT JOIN org_beneficiary_links obl ON b.id = obl.beneficiary_id AND obl.org_id = ?
-        WHERE b.org_id = ? OR obl.org_id = ?
-        ORDER BY b.id ASC
-    """, (org_id, org_id, org_id))
+    # جلب المستفيدين عبر جدول الربط
+    try:
+        c.execute("""
+            SELECT DISTINCT b.* FROM beneficiaries b
+            LEFT JOIN org_beneficiary_links obl ON b.id = obl.beneficiary_id AND obl.org_id = ?
+            WHERE b.org_id = ? OR obl.org_id = ?
+            ORDER BY b.id ASC
+        """, (org_id, org_id, org_id))
+    except Exception:
+        # fallback: الجدول الجديد لم يُنشأ بعد
+        c.execute("SELECT * FROM beneficiaries WHERE org_id=? ORDER BY id ASC", (org_id,))
     rows = c.fetchall()
 
     # جلب أفراد الأسرة لكل المستفيدين
-    benef_ids = [r["id"] for r in rows]
+    benef_ids = tuple(r["id"] for r in rows)
     if benef_ids:
         placeholders = ",".join("?" * len(benef_ids))
         c.execute(f"SELECT * FROM beneficiary_family_members WHERE beneficiary_id IN ({placeholders}) ORDER BY member_type, id",
@@ -1581,9 +1585,12 @@ def add_beneficiary():
                     return redirect(url_for("add_beneficiary"))
                 else:
                     # ربط المستفيد الموجود بهذه المؤسسة تلقائياً
-                    c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
-                              (org_id, existing["id"]))
-                    conn.commit()
+                    try:
+                        c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                                  (org_id, existing["id"]))
+                        conn.commit()
+                    except Exception:
+                        pass
                     conn.close()
                     flash(f"✅ المستفيد {existing['full_name']} موجود في النظام — تم ربطه بمؤسستك تلقائياً", "success")
                     return redirect(url_for("beneficiaries"))
@@ -1629,8 +1636,11 @@ def add_beneficiary():
             )
             new_benef_id = c.lastrowid
             # ربط المستفيد الجديد بالمؤسسة
-            c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
-                      (org_id, new_benef_id))
+            try:
+                c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                          (org_id, new_benef_id))
+            except Exception:
+                pass
         except Exception as ex:
             conn.close()
             if "UNIQUE" in str(ex):
@@ -1844,13 +1854,15 @@ def delete_beneficiary(id):
     full_name = row["full_name"]
 
     # احذف الربط مع هذه المؤسسة
-    c.execute("DELETE FROM org_beneficiary_links WHERE org_id=? AND beneficiary_id=?", (org_id, id))
+    try:
+        c.execute("DELETE FROM org_beneficiary_links WHERE org_id=? AND beneficiary_id=?", (org_id, id))
+        c.execute("SELECT COUNT(*) FROM org_beneficiary_links WHERE beneficiary_id=?", (id,))
+        links_remaining = c.fetchone()[0]
+    except Exception:
+        # الجدول لم يُنشأ بعد — احذف مباشرة
+        links_remaining = 0
 
-    # إذا لم يعد المستفيد مرتبطاً بأي مؤسسة → احذف سجله بالكامل
-    c.execute("SELECT COUNT(*) FROM org_beneficiary_links WHERE beneficiary_id=?", (id,))
-    links_remaining = c.fetchone()[0]
     if links_remaining == 0 and row["org_id"] == org_id:
-        # لا يوجد أي مؤسسة أخرى تملكه — احذف كامل
         c.execute("DELETE FROM beneficiary_family_members WHERE beneficiary_id=?", (id,))
         c.execute("DELETE FROM beneficiaries WHERE id=?", (id,))
 
