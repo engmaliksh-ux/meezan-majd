@@ -4610,7 +4610,7 @@ def beneficiary_portal():
         pass
     # 3. جلسات التوزيع الرسمية (فقط ما تم استلامه) — بالـ id الداخلي أو رقم الهوية
     try:
-        ben_id_num = ben.get("id_number") or ""
+        ben_id_num = ben["id_number"] or ""
         c.execute("""
             SELECT d.distribution_date as benefit_date,
                    COALESCE(dr.item_name, d.title) as benefit_type,
