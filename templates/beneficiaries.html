@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}المستفيدون – ميزان مجد{% endblock %}
+{% block page_title %}<i class="fas fa-users"></i> المستفيدون{% endblock %}
 {% block content %}
 {% macro person_bubble(p) %}
 <div class="person-bubble" onclick="openPersonModal({{ p.id }})">

@@ -244,13 +244,10 @@
       <button class="topbar-toggle-btn" id="sidebar-toggle" title="القائمة الجانبية">
         <i class="fas fa-bars" id="toggle-icon"></i>
       </button>
+      <!-- عنوان الصفحة -->
+      <div class="topbar-page-title">{% block page_title %}{% endblock %}</div>
       <!-- العناصر: اسم المؤسسة + الكود + الجرس -->
       <div class="topbar-end">
-        <!-- أيقونة المستفيدين -->
-        <a href="/beneficiaries" title="المستفيدون" class="topbar-pill topbar-pill-benef">
-          <i class="fas fa-users" style="font-size:.75rem;flex-shrink:0;"></i>
-          <span>المستفيدون</span>
-        </a>
         <!-- اسم المؤسسة -->
         <a href="/profile" title="ملفي الشخصي" class="topbar-pill">
           <i class="fas fa-building" style="font-size:.65rem;flex-shrink:0;"></i>
