@@ -6432,4 +6432,52 @@ def camp_activity_detail(act_id):
     attachments = [dict(r) for r in c.fetchall()]
     c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
     entity = dict(c.fetchone())
-    conn.close
+    conn.close()
+    return render_template("camp_activity_detail.html", entity=entity, act=dict(act), attachments=attachments)
+
+
+# ── التنبيهات ──
+@app.route("/camp/alerts", methods=["GET", "POST"])
+@camp_login_required
+def camp_alerts_route():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    # المستفيدون مع حالاتهم
+    c.execute("""SELECT b.* FROM beneficiaries b
+                 JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
+                 WHERE jr.camp_entity_id=? AND jr.status='approved'
+                 ORDER BY b.full_name""", (camp_id,))
+    beneficiaries = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_alerts.html", entity=entity, beneficiaries=beneficiaries)
+
+
+# ── التصنيف الذكي ──
+@app.route("/camp/smart-classify")
+@camp_login_required
+def camp_smart_classify():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    # كل المستفيدين المقبولين في المخيم
+    c.execute("""SELECT b.* FROM beneficiaries b
+                 JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
+                 WHERE jr.camp_entity_id=? AND jr.status='approved'
+                 ORDER BY b.full_name""", (camp_id,))
+    beneficiaries = [dict(r) for r in c.fetchall()]
+    conn.close()
+    # تصنيف تلقائي
+    orphans   = [b for b in beneficiaries if b.get("has_orphans")]
+    pregnant  = [b for b in beneficiaries if b.get("wife_pregnant")]
+    nursing   = [b for b in beneficiaries if b.get("wife_nursing")]
+    return render_template("camp_smart_classify.html",
+                           entity=entity, beneficiaries=beneficiaries,
+                           orphans=orphans, pregnant=pregnant, nursing=nursing)
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True)
