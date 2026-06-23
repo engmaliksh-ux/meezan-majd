@@ -33,35 +33,23 @@
 {% set sick_count = sick_list|length %}
 
 <div class="filter-bubbles mb-4">
-  <button class="filter-bubble active" id="btn-camps" onclick="showTab('camps')">
-    <i class="fas fa-tents"></i>
-    <span class="filter-count">{{ camps|length }}</span>
-    <span class="filter-label">مخيمات</span>
+  <button class="filter-bubble fb-camps active" id="btn-camps" onclick="showTab('camps')">
+    <i class="fas fa-tents"></i> {{ camps|length }} مخيم
   </button>
-  <button class="filter-bubble" id="btn-families" onclick="showTab('families')">
-    <i class="fas fa-users"></i>
-    <span class="filter-count">{{ persons|length }}</span>
-    <span class="filter-label">أسر</span>
+  <button class="filter-bubble fb-families" id="btn-families" onclick="showTab('families')">
+    <i class="fas fa-users"></i> {{ persons|length }} أسرة
   </button>
-  <button class="filter-bubble orphan-bubble" id="btn-orphans" onclick="showTab('orphans')">
-    <i class="fas fa-child"></i>
-    <span class="filter-count">{{ orphan_list|length }}</span>
-    <span class="filter-label">أيتام</span>
+  <button class="filter-bubble fb-orphans" id="btn-orphans" onclick="showTab('orphans')">
+    <i class="fas fa-child"></i> {{ orphan_list|length }} يتيم
   </button>
-  <button class="filter-bubble pregnant-bubble" id="btn-pregnant" onclick="showTab('pregnant')">
-    <i class="fas fa-baby"></i>
-    <span class="filter-count">{{ pregnant_count }}</span>
-    <span class="filter-label">حوامل</span>
+  <button class="filter-bubble fb-pregnant" id="btn-pregnant" onclick="showTab('pregnant')">
+    <i class="fas fa-baby"></i> {{ pregnant_count }} حامل
   </button>
-  <button class="filter-bubble nursing-bubble" id="btn-nursing" onclick="showTab('nursing')">
-    <i class="fas fa-heart"></i>
-    <span class="filter-count">{{ nursing_count }}</span>
-    <span class="filter-label">مرضعات</span>
+  <button class="filter-bubble fb-nursing" id="btn-nursing" onclick="showTab('nursing')">
+    <i class="fas fa-heart"></i> {{ nursing_count }} مرضع
   </button>
-  <button class="filter-bubble sick-bubble" id="btn-sick" onclick="showTab('sick')">
-    <i class="fas fa-notes-medical"></i>
-    <span class="filter-count">{{ sick_count }}</span>
-    <span class="filter-label">مرضى</span>
+  <button class="filter-bubble fb-sick" id="btn-sick" onclick="showTab('sick')">
+    <i class="fas fa-notes-medical"></i> {{ sick_count }} مريض
   </button>
 </div>
 
@@ -593,24 +581,28 @@ function toggleCamp(id) {
 
 {% block scripts %}
 <style>
-/* فقاعات الفرز */
-.filter-bubbles{display:flex;gap:10px;flex-wrap:wrap;}
-.filter-bubble{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 18px;border:2px solid #e0e0e0;border-radius:16px;background:#fff;cursor:pointer;font-family:inherit;transition:all .2s;min-width:80px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.filter-bubble i{font-size:1.2rem;color:#aaa;transition:color .2s;}
-.filter-bubble .filter-count{font-size:1.1rem;font-weight:900;color:#333;}
-.filter-bubble .filter-label{font-size:.72rem;color:#aaa;font-weight:700;}
-.filter-bubble:hover,.filter-bubble.active{border-color:var(--primary);background:linear-gradient(135deg,#e8f5ee,#f0fff4);box-shadow:0 4px 16px rgba(26,107,58,.15);}
-.filter-bubble:hover i,.filter-bubble.active i{color:var(--primary);}
-.filter-bubble:hover .filter-count,.filter-bubble.active .filter-count{color:var(--primary);}
-.filter-bubble:hover .filter-label,.filter-bubble.active .filter-label{color:var(--primary);}
-.orphan-bubble:hover,.orphan-bubble.active{border-color:#c62828;background:linear-gradient(135deg,#fde8e8,#fff5f5);}
-.orphan-bubble:hover i,.orphan-bubble.active i,.orphan-bubble:hover .filter-count,.orphan-bubble.active .filter-count,.orphan-bubble:hover .filter-label,.orphan-bubble.active .filter-label{color:#c62828;}
-.pregnant-bubble:hover,.pregnant-bubble.active{border-color:#f57f17;background:linear-gradient(135deg,#fffde7,#fff8e1);}
-.pregnant-bubble:hover i,.pregnant-bubble.active i,.pregnant-bubble:hover .filter-count,.pregnant-bubble.active .filter-count,.pregnant-bubble:hover .filter-label,.pregnant-bubble.active .filter-label{color:#f57f17;}
-.nursing-bubble:hover,.nursing-bubble.active{border-color:#e91e8c;background:linear-gradient(135deg,#fce4ec,#fff0f6);}
-.nursing-bubble:hover i,.nursing-bubble.active i,.nursing-bubble:hover .filter-count,.nursing-bubble.active .filter-count,.nursing-bubble:hover .filter-label,.nursing-bubble.active .filter-label{color:#e91e8c;}
-.sick-bubble:hover,.sick-bubble.active{border-color:#e65100;background:linear-gradient(135deg,#fbe9e7,#fff3f0);}
-.sick-bubble:hover i,.sick-bubble.active i,.sick-bubble:hover .filter-count,.sick-bubble.active .filter-count,.sick-bubble:hover .filter-label,.sick-bubble.active .filter-label{color:#e65100;}
+/* أزرار الفرز */
+.filter-bubbles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.filter-bubble{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:2px solid #e0e0e0;border-radius:20px;background:#fff;cursor:pointer;font-family:inherit;font-size:.84rem;font-weight:700;color:#888;transition:all .18s;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.filter-bubble:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1);}
+/* مخيمات */
+.fb-camps{border-color:#e0c96e;color:#856404;}
+.fb-camps:hover,.fb-camps.active{background:#fff8e1;border-color:#856404;color:#856404;box-shadow:0 3px 10px rgba(133,100,4,.18);}
+/* أسر */
+.fb-families{border-color:#90caf9;color:#1565c0;}
+.fb-families:hover,.fb-families.active{background:#e3f2fd;border-color:#1565c0;color:#1565c0;box-shadow:0 3px 10px rgba(21,101,192,.18);}
+/* أيتام */
+.fb-orphans{border-color:#ef9a9a;color:#c62828;}
+.fb-orphans:hover,.fb-orphans.active{background:#fde8e8;border-color:#c62828;color:#c62828;box-shadow:0 3px 10px rgba(198,40,40,.18);}
+/* حوامل */
+.fb-pregnant{border-color:#ffcc80;color:#e65100;}
+.fb-pregnant:hover,.fb-pregnant.active{background:#fff3e0;border-color:#e65100;color:#e65100;box-shadow:0 3px 10px rgba(230,81,0,.18);}
+/* مرضعات */
+.fb-nursing{border-color:#f48fb1;color:#c2185b;}
+.fb-nursing:hover,.fb-nursing.active{background:#fce4ec;border-color:#c2185b;color:#c2185b;box-shadow:0 3px 10px rgba(194,24,91,.18);}
+/* مرضى */
+.fb-sick{border-color:#a5d6a7;color:#2e7d32;}
+.fb-sick:hover,.fb-sick.active{background:#e8f5e9;border-color:#2e7d32;color:#2e7d32;box-shadow:0 3px 10px rgba(46,125,50,.18);}
 
 /* جداول الكشوف */
 .list-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid #f0f0f0;box-shadow:0 2px 12px rgba(0,0,0,.05);}
