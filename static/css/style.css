@@ -317,44 +317,65 @@ textarea.form-control{resize:vertical;min-height:88px;}
 }
 
 @media(max-width:768px){
-  .sidebar-toggle { top: 20px; transform: none; }
   .sidebar { width: 100%; max-width: 280px; }
 }
 
-/* ══ زر التحكم بالسايدبار — داخل الصفحة على يسار السايدبار ══ */
-.sidebar-toggle {
-  position: fixed;
-  top: 50%;
-  /* يكون على يسار السايدبار مباشرة = right: var(--sidebar-w) */
-  right: var(--sidebar-w);
-  transform: translateY(-50%);
-  z-index: 200;
-  width: 20px;
-  height: 56px;
+/* ══ الشريط العلوي ══ */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 7px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  gap: 10px;
+}
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.topbar-pill {
+  background: #fff;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: .75rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(26,107,58,.15);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.topbar-pill:hover { background: #e8f5ee; color: var(--primary-dark); }
+.topbar-toggle-btn {
   background: var(--primary);
   border: none;
-  border-radius: 8px 0 0 8px;
+  border-radius: 8px;
   color: #fff;
-  font-size: .7rem;
+  width: 36px;
+  height: 36px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: -2px 0 8px rgba(0,0,0,.2);
-  transition: right .3s ease, width .2s, opacity .2s;
-  opacity: .75;
+  font-size: .85rem;
+  flex-shrink: 0;
+  transition: background .2s;
 }
-.sidebar-toggle:hover {
-  width: 26px;
-  opacity: 1;
-}
-/* لما السايدبار مخفي، الزر يروح لليمين */
-.sidebar-toggle.toggle-hidden-mode {
-  right: 0;
-  border-radius: 8px 0 0 8px;
-  background: var(--primary-dark);
-  opacity: .85;
-}
+.topbar-toggle-btn:hover { background: var(--primary-dark); }
 
 /* ══ السايدبار — شريط التمرير على اليمين ══ */
 .sidebar {
@@ -394,14 +415,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
 }
 
 @media(max-width:768px){
-  .sidebar-toggle {
-    top: 16px;
-    transform: none;
-    right: var(--sidebar-w);
-  }
-  .sidebar-toggle.toggle-hidden-mode {
-    right: 0;
-  }
+  .topbar-pill span { max-width: 100px !important; }
 }
 
 /* ══════════════════════════════════════════
