@@ -5386,7 +5386,10 @@ def camp_handle_request(req_id, action):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if action == "approve":
             c.execute("UPDATE camp_join_requests SET status='approved', resolved_at=? WHERE id=?", (now, req_id))
-            c.execute("UPDATE beneficiaries SET beneficiary_status='in_camp' WHERE id=?", (req["beneficiary_id"],))
+            # ضبط camp_entity_id مع الحالة — هذا هو الربط الأساسي
+            c.execute("""UPDATE beneficiaries
+                         SET beneficiary_status='in_camp', camp_entity_id=?
+                         WHERE id=?""", (camp_id, req["beneficiary_id"]))
             flash("تم قبول المستفيد في مخيمك", "success")
         else:
             c.execute("UPDATE camp_join_requests SET status='rejected', resolved_at=? WHERE id=?", (now, req_id))
@@ -6265,4 +6268,28 @@ def diag_ben(id_number):
 
     conn.close()
     return "<br>".join(out)
+
+
+# ══ إصلاح البيانات القديمة — يُشغَّل مرة واحدة ويُحذف ══
+@app.route("/diag/fix-camp-entity")
+def diag_fix_camp_entity():
+    conn = get_connection(); c = conn.cursor()
+    # ابحث عن كل مستفيد status=in_camp وcamp_entity_id=None
+    # واربطه بآخر طلب انضمام مقبول له
+    c.execute("""
+        UPDATE beneficiaries
+        SET camp_entity_id = (
+            SELECT cjr.camp_entity_id
+            FROM camp_join_requests cjr
+            WHERE cjr.beneficiary_id = beneficiaries.id
+              AND cjr.status = 'approved'
+            ORDER BY cjr.id DESC LIMIT 1
+        )
+        WHERE beneficiary_status = 'in_camp'
+          AND (camp_entity_id IS NULL OR camp_entity_id = 0)
+    """)
+    fixed = conn.total_changes
+    conn.commit()
+    conn.close()
+    return f"<h2>✅ تم إصلاح {fixed} مستفيد — camp_entity_id محدَّث</h2><p><a href='/diag/ben/411051527'>تحقق من مالك شبير</a></p>"
 
