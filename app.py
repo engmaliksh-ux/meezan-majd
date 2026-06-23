@@ -5659,6 +5659,18 @@ def camp_add_beneficiary():
         family_last_name = parts[3] if len(parts) >= 4 else (parts[-1] if parts else "")
         conn = get_connection()
         c    = conn.cursor()
+        # تحقق من رقم الهوية المكرر
+        if id_number:
+            c.execute("SELECT id FROM beneficiaries WHERE TRIM(id_number)=TRIM(?)", (id_number,))
+            existing = c.fetchone()
+            if existing:
+                # ربط المستفيد بالمخيم إن لم يكن مرتبطاً
+                c.execute("UPDATE beneficiaries SET camp_entity_id=?, beneficiary_status='in_camp' WHERE id=?",
+                          (camp_id, existing["id"]))
+                conn.commit()
+                conn.close()
+                flash("هذا المستفيد مسجل مسبقاً — تم ربطه بالمخيم تلقائياً", "warning")
+                return redirect(url_for("camp_dashboard"))
         c.execute("""
             INSERT INTO beneficiaries
             (full_name, id_number, phone, gender, family_size, address,
@@ -6451,25 +6463,6 @@ def camp_alerts_route():
                  ORDER BY b.full_name""", (camp_id,))
     beneficiaries = [dict(r) for r in c.fetchall()]
     conn.close()
-    return render_template("camp_alerts.html", entity=entity, beneficiaries=beneficiaries)
-
-
-# ── التصنيف الذكي ──
-@app.route("/camp/smart-classify")
-@camp_login_required
-def camp_smart_classify():
-    camp_id = session["camp_id"]
-    conn = get_connection(); c = conn.cursor()
-    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
-    # كل المستفيدين المقبولين في المخيم
-    c.execute("""SELECT b.* FROM beneficiaries b
-                 JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
-                 WHERE jr.camp_entity_id=? AND jr.status='approved'
-                 ORDER BY b.full_name""", (camp_id,))
-    beneficiaries = [dict(r) for r in c.fetchall()]
-    conn.close()
-    # تصنيف تلقائي
     orphans   = [b for b in beneficiaries if b.get("has_orphans")]
     pregnant  = [b for b in beneficiaries if b.get("wife_pregnant")]
     nursing   = [b for b in beneficiaries if b.get("wife_nursing")]
