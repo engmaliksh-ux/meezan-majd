@@ -63,19 +63,22 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation()">
       {% if session.get('role') != 'observer' %}
       <a href="/add_beneficiary?linked_camp={{ (camp.camp_name or camp.full_name)|urlencode }}"
-         class="btn-camp-action btn-camp-add" title="إضافة أسرة للمخيم">
-        <i class="fas fa-user-plus"></i>
+         class="btn-camp-action btn-camp-add" title="إضافة مستفيد للمخيم"
+         style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
+        <i class="fas fa-user-plus"></i><span>إضافة مستفيد</span>
       </a>
       <button onclick="openCampEdit({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }},{{ (camp.camp_manager_name or '')|tojson }},{{ (camp.camp_coordinator or '')|tojson }},{{ (camp.camp_coordinator_phone or '')|tojson }},{{ (camp.camp_family_count or '')|tojson }},{{ (camp.camp_address or '')|tojson }},{{ (camp.notes or '')|tojson }})"
-         class="btn-camp-action btn-camp-edit" title="تعديل بيانات المخيم">
-        <i class="fas fa-pen"></i>
+         class="btn-camp-action btn-camp-edit" title="تعديل بيانات المخيم"
+         style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
+        <i class="fas fa-pen"></i><span>تعديل</span>
       </button>
       <button onclick="deleteCamp({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }})"
-         class="btn-camp-action btn-camp-del" title="حذف المخيم">
-        <i class="fas fa-trash"></i>
+         class="btn-camp-action btn-camp-del" title="حذف المخيم"
+         style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
+        <i class="fas fa-trash"></i><span>حذف المخيم</span>
       </button>
       {% endif %}
       <span style="background:#fff3cd;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:700;color:#856404;">
@@ -298,8 +301,9 @@ function openPersonModal(id) {
 
   if(p.notes) body += section('ملاحظات', '#6c7a72', 'fa-sticky-note', `<div style="color:#555;">${p.notes}</div>`);
 
-  body += `<div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid #f0f0f0;padding-top:14px;">
+  body += `<div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid #f0f0f0;padding-top:14px;flex-wrap:wrap;">
     <a href="${p.edit_url}" class="btn btn-warning btn-sm fw-bold"><i class="fas fa-pen me-1"></i>تعديل</a>
+    <button onclick="deletePerson(${p.id}, ${JSON.stringify(p.full_name)})" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-trash me-1"></i>حذف المستفيد</button>
   </div>`;
 
   document.getElementById('modal-body').innerHTML = body;
@@ -348,6 +352,13 @@ document.getElementById('camp-edit-modal').addEventListener('click', e => {
 
 function deleteCamp(id, name) {
   if(confirm('حذف المخيم "' + name + '" ؟\nسجل المخيم سيُحذف، بيانات الأسر تبقى كما هي.')) {
+    window.location.href = '/delete_beneficiary/' + id;
+  }
+}
+
+function deletePerson(id, name) {
+  closePersonModal();
+  if(confirm('حذف المستفيد "' + name + '" ؟\nلا يمكن التراجع عن هذا الإجراء.')) {
     window.location.href = '/delete_beneficiary/' + id;
   }
 }

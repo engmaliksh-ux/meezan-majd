@@ -1437,9 +1437,9 @@ def add_beneficiary():
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
         beneficiary_type = request.form.get("beneficiary_type", "person").strip()
-        # للمخيم: camp_name هو اسم المخيم نفسه، للشخص: linked_camp هو اسم المخيم المرتبط
+        # للمخيم: اسم المخيم يُخزن في full_name وcamp_name معاً؛ للشخص: linked_camp هو اسم المخيم
         if beneficiary_type == 'camp':
-            camp_name = request.form.get("camp_name", "").strip()
+            camp_name = full_name  # نفس الاسم في العمودين حتى يبقى الربط صحيحاً
         else:
             camp_name = request.form.get("linked_camp", "").strip()
         camp_manager_name     = request.form.get("camp_manager_name", "").strip()
@@ -1614,9 +1614,9 @@ def edit_beneficiary(id):
         address        = request.form.get("address", "").strip()
         address2       = request.form.get("address2", "").strip()
         beneficiary_type = request.form.get("beneficiary_type", "person").strip()
-        # للمخيم: camp_name هو اسم المخيم نفسه، للشخص: linked_camp هو اسم المخيم المرتبط
+        # للمخيم: اسم المخيم يُخزن في full_name وcamp_name معاً؛ للشخص: linked_camp هو اسم المخيم
         if beneficiary_type == 'camp':
-            camp_name = request.form.get("camp_name", "").strip()
+            camp_name = full_name  # نفس الاسم في العمودين حتى يبقى الربط صحيحاً
         else:
             camp_name = request.form.get("linked_camp", "").strip()
         camp_manager_name     = request.form.get("camp_manager_name", "").strip()
@@ -6280,129 +6280,4 @@ def camp_activity_detail(act_id):
     attachments = [dict(r) for r in c.fetchall()]
     c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
     entity = dict(c.fetchone())
-    conn.close()
-    return render_template("camp_activity_detail.html", entity=entity, act=dict(act), attachments=attachments)
-
-# ── تنبيهات المخيم ──
-@app.route("/camp/alerts", methods=["GET","POST"])
-@camp_login_required
-def camp_alerts_route():
-    camp_id = session["camp_id"]
-    conn = get_connection(); c = conn.cursor()
-    if request.method == "POST":
-        action = request.form.get("action","add")
-        if action == "add":
-            title = request.form.get("title","").strip()
-            body  = request.form.get("body","").strip()
-            if title:
-                c.execute("INSERT INTO camp_alerts(camp_entity_id,title,body) VALUES(?,?,?)",(camp_id,title,body))
-                conn.commit()
-                flash("تم إرسال التنبيه","success")
-        elif action == "delete":
-            aid = request.form.get("alert_id")
-            c.execute("DELETE FROM camp_alerts WHERE id=? AND camp_entity_id=?",(aid,camp_id))
-            conn.commit()
-        conn.close()
-        return redirect(url_for("camp_alerts_route"))
-    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
-    entity = dict(c.fetchone())
-    c.execute("SELECT * FROM camp_alerts WHERE camp_entity_id=? ORDER BY created_at DESC",(camp_id,))
-    alerts = [dict(r) for r in c.fetchall()]
-    conn.close()
-    return render_template("camp_alerts.html", entity=entity, alerts=alerts)
-
-# ── تصنيف ذكي: من لم يستفد كفاية ──
-@app.route("/camp/smart-classify")
-@camp_login_required
-def camp_smart_classify():
-    camp_id = session["camp_id"]
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM camp_entities WHERE id=?",(camp_id,))
-    entity = dict(c.fetchone())
-    # آخر 3 جلسات توزيع
-    c.execute("""SELECT id FROM camp_distributions WHERE camp_entity_id=? AND status='completed'
-                 ORDER BY distribution_date DESC LIMIT 3""",(camp_id,))
-    last3 = [r["id"] for r in c.fetchall()]
-    members = get_classified_members(camp_id, conn)
-    for m in members:
-        if last3:
-            c.execute("""SELECT COUNT(*) as n FROM camp_dist_records
-                         WHERE beneficiary_id=? AND distribution_id IN ({})
-                         AND received=1""".format(','.join('?'*len(last3))),
-                      [m["id"]]+last3)
-            m["last3_received"] = c.fetchone()["n"]
-        else:
-            m["last3_received"] = 0
-    # ترتيب: من استفاد أقل أولاً
-    members_sorted = sorted(members, key=lambda m: (m.get("total_received") or 0, m.get("last3_received") or 0))
-    conn.close()
-    return render_template("camp_smart_classify.html", entity=entity, members=members_sorted, last3=len(last3))
-
-
-# ══ تشخيص مؤقت — يُحذف بعد حل المشكلة ══
-@app.route("/diag/ben/<id_number>")
-def diag_ben(id_number):
-    conn = get_connection(); c = conn.cursor()
-    out = []
-
-    # 1. هل المستفيد موجود؟
-    c.execute("SELECT id, full_name, beneficiary_status, camp_entity_id FROM beneficiaries WHERE id_number=?", (id_number,))
-    ben = c.fetchone()
-    if not ben:
-        conn.close()
-        return f"<h2>❌ لا يوجد مستفيد برقم هوية {id_number}</h2>"
-    ben = dict(ben)
-    out.append(f"<h3>✅ المستفيد: {ben['full_name']} | id={ben['id']} | status={ben['beneficiary_status']} | camp_entity_id={ben['camp_entity_id']}</h3>")
-
-    # 2. سجلات التوزيع
-    c.execute("""SELECT dr.id, dr.distribution_id, dr.beneficiary_id, dr.received,
-                        d.title, d.distribution_date, ce.name as camp_name
-                 FROM camp_dist_records dr
-                 JOIN camp_distributions d ON dr.distribution_id=d.id
-                 LEFT JOIN camp_entities ce ON d.camp_entity_id=ce.id
-                 WHERE dr.beneficiary_id=?""", (ben['id'],))
-    recs = [dict(r) for r in c.fetchall()]
-    out.append(f"<h3>📦 camp_dist_records: {len(recs)} سجل</h3>")
-    for r in recs:
-        out.append(f"<p>id={r['id']} | dist={r['distribution_id']} | received={r['received']} | camp={r['camp_name']} | date={r['distribution_date']}</p>")
-
-    # 3. سجلات camp_benefits
-    c.execute("SELECT * FROM camp_benefits WHERE beneficiary_id=?", (ben['id'],))
-    cbs = [dict(r) for r in c.fetchall()]
-    out.append(f"<h3>✍️ camp_benefits: {len(cbs)} سجل</h3>")
-    for r in cbs:
-        out.append(f"<p>type={r['benefit_type']} | date={r['benefit_date']}</p>")
-
-    # 4. program_records
-    c.execute("SELECT COUNT(*) as n FROM program_records WHERE beneficiary_id=?", (ben['id'],))
-    pr = c.fetchone()["n"]
-    out.append(f"<h3>🏛️ program_records: {pr} سجل</h3>")
-
-    conn.close()
-    return "<br>".join(out)
-
-
-# ══ إصلاح البيانات القديمة — يُشغَّل مرة واحدة ويُحذف ══
-@app.route("/diag/fix-camp-entity")
-def diag_fix_camp_entity():
-    conn = get_connection(); c = conn.cursor()
-    # ابحث عن كل مستفيد status=in_camp وcamp_entity_id=None
-    # واربطه بآخر طلب انضمام مقبول له
-    c.execute("""
-        UPDATE beneficiaries
-        SET camp_entity_id = (
-            SELECT cjr.camp_entity_id
-            FROM camp_join_requests cjr
-            WHERE cjr.beneficiary_id = beneficiaries.id
-              AND cjr.status = 'approved'
-            ORDER BY cjr.id DESC LIMIT 1
-        )
-        WHERE beneficiary_status = 'in_camp'
-          AND (camp_entity_id IS NULL OR camp_entity_id = 0)
-    """)
-    fixed = conn.total_changes
-    conn.commit()
-    conn.close()
-    return f"<h2>✅ تم إصلاح {fixed} مستفيد — camp_entity_id محدَّث</h2><p><a href='/diag/ben/411051527'>تحقق من مالك شبير</a></p>"
-
+    conn.close
