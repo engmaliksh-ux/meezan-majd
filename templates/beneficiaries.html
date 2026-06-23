@@ -136,7 +136,7 @@
       <button onclick="closeCampEdit()" style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
     </div>
     <form id="camp-edit-form" method="POST" style="padding:20px 22px;">
-      {{ csrf_token()|safe }}
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="beneficiary_type" value="camp">
       <div class="row g-3">
         <div class="col-12">
