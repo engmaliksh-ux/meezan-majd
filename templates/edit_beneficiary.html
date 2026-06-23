@@ -54,9 +54,9 @@
 
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label">{{ t.form_id_number }}</label>
+          <label class="form-label">{{ t.form_id_number }} <span class="text-danger">*</span></label>
           <input class="form-control" name="id_number" value="{{ b.id_number or '' }}"
-                 placeholder="{{ t.form_id_placeholder }}" maxlength="9" inputmode="numeric">
+                 placeholder="{{ t.form_id_placeholder }}" maxlength="9" inputmode="numeric" required>
         </div>
         <div class="col-md-6">
           <label class="form-label">{{ t.form_phone }}</label>

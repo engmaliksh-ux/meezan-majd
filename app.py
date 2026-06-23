@@ -1178,6 +1178,9 @@ def users_list():
 def add_user():
     error = None
     if request.method == "POST":
+        if not validate_csrf():
+            flash("طلب غير صالح (CSRF). أعد المحاولة.", "danger")
+            return redirect(url_for("add_user"))
         full_name = request.form.get("full_name", "").strip()
         id_number = request.form.get("id_number", "").strip()
         username  = request.form.get("username", "").strip()
@@ -1219,6 +1222,9 @@ def edit_user(id):
     if id == session["user_id"]:
         flash("لا يمكنك تعديل حسابك من هنا", "warning")
         return redirect(url_for("users_list"))
+    if request.method == "POST" and not validate_csrf():
+        flash("طلب غير صالح (CSRF). أعد المحاولة.", "danger")
+        return redirect(url_for("edit_user", id=id))
 
     conn = get_connection()
     c = conn.cursor()
@@ -1372,11 +1378,23 @@ def beneficiaries():
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM beneficiaries WHERE org_id=? ORDER BY id ASC", (org_id,))
+    # جلب المستفيدين عبر جدول الربط (مستفيدو المؤسسة + المرتبطون بها من مؤسسات أخرى)
+    c.execute("""
+        SELECT DISTINCT b.* FROM beneficiaries b
+        LEFT JOIN org_beneficiary_links obl ON b.id = obl.beneficiary_id AND obl.org_id = ?
+        WHERE b.org_id = ? OR obl.org_id = ?
+        ORDER BY b.id ASC
+    """, (org_id, org_id, org_id))
     rows = c.fetchall()
 
     # جلب أفراد الأسرة لكل المستفيدين
-    c.execute("SELECT * FROM beneficiary_family_members WHERE org_id=? ORDER BY member_type, id", (org_id,))
+    benef_ids = [r["id"] for r in rows]
+    if benef_ids:
+        placeholders = ",".join("?" * len(benef_ids))
+        c.execute(f"SELECT * FROM beneficiary_family_members WHERE beneficiary_id IN ({placeholders}) ORDER BY member_type, id",
+                  benef_ids)
+    else:
+        c.execute("SELECT * FROM beneficiary_family_members WHERE 1=0")
     fam_rows = c.fetchall()
     conn.close()
 
@@ -1536,18 +1554,44 @@ def add_beneficiary():
 
         conn = get_connection()
         c = conn.cursor()
-        # فحص تكرار رقم الهوية داخل نفس المؤسسة
-        if id_number:
-            c.execute("SELECT id, full_name FROM beneficiaries WHERE org_id=? AND TRIM(id_number)=TRIM(?)",
-                      (session["org_id"], id_number))
-            dup = c.fetchone()
-            if dup:
-                conn.close()
-                flash(f"⚠️ رقم الهوية {id_number} مسجل مسبقاً للمستفيد: {dup['full_name']}", "danger")
-                return redirect(url_for("add_beneficiary"))
-        c.execute("SELECT COUNT(*) FROM beneficiaries WHERE org_id=?", (session["org_id"],))
+
+        # ── المنطق الجديد: رقم الهوية محور الربط المركزي ──
+        org_id = session["org_id"]
+
+        # 1. رقم الهوية إلزامي للأشخاص
+        if beneficiary_type == 'person' and not id_number:
+            conn.close()
+            flash("⚠️ رقم الهوية إلزامي — لا يمكن إضافة مستفيد بدون هوية", "danger")
+            return render_template("add_beneficiary.html", form_data=request.form,
+                                   prefill_camp=request.form.get("linked_camp",""))
+
+        # 2. هل رقم الهوية موجود في النظام؟
+        new_benef_id = None
+        if id_number and beneficiary_type == 'person':
+            c.execute("SELECT id, full_name, org_id FROM beneficiaries WHERE TRIM(id_number)=TRIM(?)", (id_number,))
+            existing = c.fetchone()
+            if existing:
+                # تحقق: هل هو مرتبط بهذه المؤسسة مسبقاً؟
+                c.execute("SELECT id FROM org_beneficiary_links WHERE org_id=? AND beneficiary_id=?",
+                          (org_id, existing["id"]))
+                already = c.fetchone()
+                if already:
+                    conn.close()
+                    flash(f"⚠️ رقم الهوية {id_number} مسجل مسبقاً في مؤسستك للمستفيد: {existing['full_name']}", "danger")
+                    return redirect(url_for("add_beneficiary"))
+                else:
+                    # ربط المستفيد الموجود بهذه المؤسسة تلقائياً
+                    c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                              (org_id, existing["id"]))
+                    conn.commit()
+                    conn.close()
+                    flash(f"✅ المستفيد {existing['full_name']} موجود في النظام — تم ربطه بمؤسستك تلقائياً", "success")
+                    return redirect(url_for("beneficiaries"))
+
+        c.execute("SELECT COUNT(*) FROM beneficiaries WHERE org_id=?", (org_id,))
         next_seq = c.fetchone()[0] + 1
-        # حقول شخص جديدة
+
+        # حقول شخص
         wife_name           = request.form.get("wife_name", "").strip()
         guardian_name       = request.form.get("guardian_name", "").strip()
         guardian_id_number  = request.form.get("guardian_id_number", "").strip()
@@ -1557,7 +1601,7 @@ def add_beneficiary():
             f2 = request.files.get(field)
             if f2 and f2.filename:
                 ext = f2.filename.rsplit(".", 1)[-1].lower()
-                fname = f"{prefix}_{session['org_id']}_{next_seq}.{ext}"
+                fname = f"{prefix}_{org_id}_{next_seq}.{ext}"
                 f2.save(os.path.join(app.config["UPLOAD_FOLDER"], fname))
                 return fname
             return None
@@ -1566,23 +1610,35 @@ def add_beneficiary():
         death_cert_image    = save_upload("death_cert_image", "bdeath")
         guardianship_image  = save_upload("guardianship_image", "bguard")
 
-        c.execute(
-            """INSERT INTO beneficiaries
-               (org_id, seq_num, full_name, gender, phone, address, address2, camp_name,
-                id_number, family_size, marital_status, children_count,
-                wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
-                camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
-                wife_name, personal_photo, death_cert_image, guardianship_image,
-                guardian_whatsapp, guardian_name, guardian_id_number)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (session["org_id"], next_seq, full_name, gender, phone, address, address2,
-             camp_name, id_number, family_size, marital_status, children_count,
-             wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
-             camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
-             wife_name, personal_photo, death_cert_image, guardianship_image,
-             guardian_whatsapp, guardian_name, guardian_id_number)
-        )
-        new_benef_id = c.lastrowid
+        try:
+            c.execute(
+                """INSERT INTO beneficiaries
+                   (org_id, seq_num, full_name, gender, phone, address, address2, camp_name,
+                    id_number, family_size, marital_status, children_count,
+                    wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
+                    camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
+                    wife_name, personal_photo, death_cert_image, guardianship_image,
+                    guardian_whatsapp, guardian_name, guardian_id_number)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (org_id, next_seq, full_name, gender, phone, address, address2,
+                 camp_name, id_number, family_size, marital_status, children_count,
+                 wife_pregnant, wife_nursing, has_orphans, orphans_count, notes, beneficiary_type,
+                 camp_manager_name, camp_coordinator, camp_coordinator_phone, camp_address, camp_family_count,
+                 wife_name, personal_photo, death_cert_image, guardianship_image,
+                 guardian_whatsapp, guardian_name, guardian_id_number)
+            )
+            new_benef_id = c.lastrowid
+            # ربط المستفيد الجديد بالمؤسسة
+            c.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                      (org_id, new_benef_id))
+        except Exception as ex:
+            conn.close()
+            if "UNIQUE" in str(ex):
+                flash(f"⚠️ رقم الهوية {id_number} مسجل مسبقاً في النظام لمستفيد آخر", "danger")
+            else:
+                flash(f"خطأ: {ex}", "danger")
+            return render_template("add_beneficiary.html", form_data=request.form,
+                                   prefill_camp=request.form.get("linked_camp",""))
 
         # حفظ أفراد الأسرة (أطفال)
         child_names  = request.form.getlist("child_name[]")
@@ -1694,10 +1750,18 @@ def edit_beneficiary(id):
             errors.append("الاسم يجب أن يكون رباعياً (كلمتان على الأقل)")
         elif beneficiary_type == 'camp' and not full_name.strip():
             errors.append("يرجى إدخال اسم المخيم")
+        if beneficiary_type == 'person' and not id_number:
+            errors.append("رقم الهوية إلزامي للمستفيد")
         if id_number and (not id_number.isdigit() or len(id_number) != 9):
             errors.append("رقم الهوية يجب أن يكون 9 أرقام فقط")
         if phone and (not phone.isdigit() or len(phone) != 10 or not phone.startswith("05")):
             errors.append("رقم الجوال يجب أن يكون 10 أرقام ويبدأ بـ 05")
+        # فحص التكرار: لا يوجد مستفيد آخر بنفس الهوية
+        if id_number and not errors:
+            c.execute("SELECT id FROM beneficiaries WHERE TRIM(id_number)=TRIM(?) AND id!=?", (id_number, id))
+            dup = c.fetchone()
+            if dup:
+                errors.append(f"رقم الهوية {id_number} مسجل لمستفيد آخر في النظام")
 
         if errors:
             for e in errors:
@@ -1768,11 +1832,32 @@ def delete_beneficiary(id):
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM beneficiaries WHERE id=? AND org_id=?", (id, org_id))
+
+    # تحقق أن المستفيد مرتبط بهذه المؤسسة
+    c.execute("SELECT b.full_name, b.org_id FROM beneficiaries b WHERE b.id=?", (id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        flash("المستفيد غير موجود", "danger")
+        return redirect(url_for("beneficiaries"))
+
+    full_name = row["full_name"]
+
+    # احذف الربط مع هذه المؤسسة
+    c.execute("DELETE FROM org_beneficiary_links WHERE org_id=? AND beneficiary_id=?", (org_id, id))
+
+    # إذا لم يعد المستفيد مرتبطاً بأي مؤسسة → احذف سجله بالكامل
+    c.execute("SELECT COUNT(*) FROM org_beneficiary_links WHERE beneficiary_id=?", (id,))
+    links_remaining = c.fetchone()[0]
+    if links_remaining == 0 and row["org_id"] == org_id:
+        # لا يوجد أي مؤسسة أخرى تملكه — احذف كامل
+        c.execute("DELETE FROM beneficiary_family_members WHERE beneficiary_id=?", (id,))
+        c.execute("DELETE FROM beneficiaries WHERE id=?", (id,))
+
     conn.commit()
     conn.close()
     resequence(org_id)
-    flash("تم حذف المستفيد وإعادة الترقيم", "warning")
+    flash(f"تم إزالة المستفيد '{full_name}' من مؤسستك", "warning")
     return redirect(url_for("beneficiaries"))
 
 

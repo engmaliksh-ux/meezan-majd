@@ -51,9 +51,11 @@
 
         <div class="row g-3 mb-3">
           <div class="col-md-6">
-            <label class="form-label fw-bold">رقم الهوية</label>
+            <label class="form-label fw-bold">رقم الهوية <span class="text-danger">*</span></label>
             <input class="form-control" name="id_number" value="{{ form_data.get('id_number','') }}"
-                   placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+                   placeholder="9 أرقام" maxlength="9" inputmode="numeric" required
+                   id="id-number-input">
+            <div class="form-text text-danger d-none" id="id-dup-msg"></div>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-bold">رقم الجوال</label>
