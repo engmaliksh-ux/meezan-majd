@@ -502,65 +502,70 @@ def migrate_db():
     # ══════════════════════════════════════════════════════════
     # Phase 1 — توحيد بيانات المستفيدين (رقم الهوية المحور الأساسي)
     # ══════════════════════════════════════════════════════════
-
-    # 1. جدول ربط المستفيد بأكثر من مؤسسة
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS org_beneficiary_links (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        org_id         INTEGER NOT NULL,
-        beneficiary_id INTEGER NOT NULL,
-        added_at       TEXT DEFAULT (datetime('now','localtime')),
-        added_by       INTEGER,
-        notes          TEXT,
-        UNIQUE(org_id, beneficiary_id),
-        FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(id)
-    )
-    """)
-    conn.commit()
-
-    # 2. حذف الهويات الوهمية (000000000 أو فارغة)
-    c.execute("""
-        DELETE FROM beneficiary_family_members
-        WHERE beneficiary_id IN (
-            SELECT id FROM beneficiaries
-            WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
-        )
-    """)
-    c.execute("""
-        DELETE FROM beneficiaries
-        WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
-    """)
-    conn.commit()
-
-    # 3. إزالة التكرار: إذا نفس رقم الهوية موجود أكثر من مرة، احتفظ بالأحدث فقط
-    c.execute("""
-        DELETE FROM beneficiaries WHERE id NOT IN (
-            SELECT MAX(id) FROM beneficiaries
-            WHERE id_number IS NOT NULL AND id_number != ''
-            GROUP BY id_number
-        ) AND id_number IS NOT NULL AND id_number != ''
-    """)
-    conn.commit()
-
-    # 4. UNIQUE INDEX على id_number (يسمح بـ NULL لكن يمنع التكرار للهويات الحقيقية)
     try:
+        # 1. جدول ربط المستفيد بأكثر من مؤسسة
         c.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS ux_beneficiary_id_number
-            ON beneficiaries(id_number)
-            WHERE id_number IS NOT NULL AND id_number != ''
+        CREATE TABLE IF NOT EXISTS org_beneficiary_links (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            org_id         INTEGER NOT NULL,
+            beneficiary_id INTEGER NOT NULL,
+            added_at       TEXT DEFAULT (datetime('now','localtime')),
+            added_by       INTEGER,
+            notes          TEXT,
+            UNIQUE(org_id, beneficiary_id),
+            FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(id)
+        )
         """)
         conn.commit()
-    except Exception:
-        pass
 
-    # 5. اربط كل مستفيد موجود بمؤسسته (org_id) في جدول الربط
-    c.execute("""
-        INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id)
-        SELECT org_id, id FROM beneficiaries
-        WHERE org_id IS NOT NULL
-    """)
-    conn.commit()
+        # 2. حذف الهويات الوهمية (000000000 أو فارغة)
+        c.execute("""
+            DELETE FROM beneficiary_family_members
+            WHERE beneficiary_id IN (
+                SELECT id FROM beneficiaries
+                WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
+            )
+        """)
+        c.execute("""
+            DELETE FROM beneficiaries
+            WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
+        """)
+        conn.commit()
 
+        # 3. إزالة التكرار: احتفظ بالأحدث فقط لكل هوية مكررة
+        c.execute("""
+            DELETE FROM beneficiaries WHERE id NOT IN (
+                SELECT MAX(id) FROM beneficiaries
+                WHERE id_number IS NOT NULL AND id_number != ''
+                GROUP BY id_number
+            ) AND id_number IS NOT NULL AND id_number != ''
+        """)
+        conn.commit()
+
+        # 4. UNIQUE INDEX على id_number
+        try:
+            c.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_beneficiary_id_number
+                ON beneficiaries(id_number)
+                WHERE id_number IS NOT NULL AND id_number != ''
+            """)
+            conn.commit()
+        except Exception:
+            pass
+
+        # 5. اربط كل مستفيد موجود بمؤسسته في جدول الربط
+        c.execute("""
+            INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id)
+            SELECT org_id, id FROM beneficiaries
+            WHERE org_id IS NOT NULL
+        """)
+        conn.commit()
+    except Exception as _ph1_err:
+        # لا توقف التطبيق إذا فشلت الهجرة — ستُعاد عند التشغيل التالي
+        try:
+            conn.rollback()
+        except Exception:
+            pass
     # ══════════════════════════════════════════════════════════
 
     conn.close()
@@ -796,4 +801,39 @@ def init_camp_tables():
         UNIQUE(distribution_id, beneficiary_id))""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS camp_activities (
- 
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        camp_entity_id INTEGER NOT NULL,
+        activity_date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        activity_type TEXT DEFAULT 'general',
+        created_at TEXT DEFAULT (datetime('now','localtime')))""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS camp_activity_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        activity_id INTEGER NOT NULL,
+        beneficiary_id INTEGER NOT NULL,
+        item_name TEXT, quantity TEXT, value TEXT,
+        notes TEXT,
+        UNIQUE(activity_id, beneficiary_id))""")
+
+    conn.commit()
+
+    # أعمدة إضافية لكيانات المخيم
+    extra_cols = [
+        ("camp_entities", "logo_image",       "TEXT"),
+        ("camp_entities", "cover_image",      "TEXT"),
+        ("camp_entities", "about",            "TEXT"),
+        ("camp_entities", "facebook",         "TEXT"),
+        ("camp_entities", "telegram",         "TEXT"),
+        ("camp_entities", "total_families",   "INTEGER DEFAULT 0"),
+        ("camp_entities", "total_members",    "INTEGER DEFAULT 0"),
+    ]
+    for table, col, defn in extra_cols:
+        try:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+
+    conn.commit()
+    conn.close()
