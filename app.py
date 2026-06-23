@@ -6223,3 +6223,46 @@ def camp_smart_classify():
     conn.close()
     return render_template("camp_smart_classify.html", entity=entity, members=members_sorted, last3=len(last3))
 
+
+# ══ تشخيص مؤقت — يُحذف بعد حل المشكلة ══
+@app.route("/diag/ben/<id_number>")
+def diag_ben(id_number):
+    conn = get_connection(); c = conn.cursor()
+    out = []
+
+    # 1. هل المستفيد موجود؟
+    c.execute("SELECT id, full_name, beneficiary_status, camp_entity_id FROM beneficiaries WHERE id_number=?", (id_number,))
+    ben = c.fetchone()
+    if not ben:
+        conn.close()
+        return f"<h2>❌ لا يوجد مستفيد برقم هوية {id_number}</h2>"
+    ben = dict(ben)
+    out.append(f"<h3>✅ المستفيد: {ben['full_name']} | id={ben['id']} | status={ben['beneficiary_status']} | camp_entity_id={ben['camp_entity_id']}</h3>")
+
+    # 2. سجلات التوزيع
+    c.execute("""SELECT dr.id, dr.distribution_id, dr.beneficiary_id, dr.received,
+                        d.title, d.distribution_date, ce.name as camp_name
+                 FROM camp_dist_records dr
+                 JOIN camp_distributions d ON dr.distribution_id=d.id
+                 LEFT JOIN camp_entities ce ON d.camp_entity_id=ce.id
+                 WHERE dr.beneficiary_id=?""", (ben['id'],))
+    recs = [dict(r) for r in c.fetchall()]
+    out.append(f"<h3>📦 camp_dist_records: {len(recs)} سجل</h3>")
+    for r in recs:
+        out.append(f"<p>id={r['id']} | dist={r['distribution_id']} | received={r['received']} | camp={r['camp_name']} | date={r['distribution_date']}</p>")
+
+    # 3. سجلات camp_benefits
+    c.execute("SELECT * FROM camp_benefits WHERE beneficiary_id=?", (ben['id'],))
+    cbs = [dict(r) for r in c.fetchall()]
+    out.append(f"<h3>✍️ camp_benefits: {len(cbs)} سجل</h3>")
+    for r in cbs:
+        out.append(f"<p>type={r['benefit_type']} | date={r['benefit_date']}</p>")
+
+    # 4. program_records
+    c.execute("SELECT COUNT(*) as n FROM program_records WHERE beneficiary_id=?", (ben['id'],))
+    pr = c.fetchone()["n"]
+    out.append(f"<h3>🏛️ program_records: {pr} سجل</h3>")
+
+    conn.close()
+    return "<br>".join(out)
+
