@@ -70,12 +70,12 @@
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-user-plus"></i><span>إضافة مستفيد</span>
       </a>
-      <button onclick="openCampEdit({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }},{{ (camp.camp_manager_name or '')|tojson }},{{ (camp.camp_coordinator or '')|tojson }},{{ (camp.camp_coordinator_phone or '')|tojson }},{{ (camp.camp_family_count or '')|tojson }},{{ (camp.camp_address or '')|tojson }},{{ (camp.notes or '')|tojson }})"
+      <button onclick='openCampEdit({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }},{{ (camp.camp_manager_name or "")|tojson }},{{ (camp.camp_coordinator or "")|tojson }},{{ (camp.camp_coordinator_phone or "")|tojson }},{{ (camp.camp_family_count or "")|tojson }},{{ (camp.camp_address or "")|tojson }},{{ (camp.notes or "")|tojson }})'
          class="btn-camp-action btn-camp-edit" title="تعديل بيانات المخيم"
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-pen"></i><span>تعديل</span>
       </button>
-      <button onclick="deleteCamp({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }})"
+      <button onclick='deleteCamp({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }})'
          class="btn-camp-action btn-camp-del" title="حذف المخيم"
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-trash"></i><span>حذف المخيم</span>
