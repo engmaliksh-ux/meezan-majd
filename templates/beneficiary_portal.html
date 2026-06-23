@@ -619,52 +619,92 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
         <div><h3>كشف الاستفادة</h3><p>جميع المساعدات التي استفدت منها</p></div>
       </div>
     </div>
+    {# — تصنيف المصادر الثلاثة — #}
+    {% set camp_comm = benefits | rejectattr('source','equalto','program') | rejectattr('entity_type','equalto','family') | list %}
+    {% set fam_list  = benefits | selectattr('entity_type','equalto','family') | list %}
+    {% set org_list  = benefits | selectattr('source','equalto','program')    | list %}
+
     {% if benefits %}
+
+    {# ── ماكرو جدول مشترك ── #}
+    {% macro ben_table(rows) %}
     <div class="tbl-wrap">
       <table class="benefits-table">
-        <thead>
-          <tr>
-            <th>نوع الاستفادة</th>
-            <th>الجهة المستفيد منها</th>
-            <th>القيمة / الكمية</th>
-            <th>التاريخ</th>
-            <th>ملاحظات</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>نوع الاستفادة</th><th>الجهة</th>
+          <th>القيمة/الكمية</th><th>التاريخ</th><th>ملاحظات</th>
+        </tr></thead>
         <tbody>
-          {% for b in benefits %}
-          <tr>
-            <td>
-              <strong>{{ b.benefit_type or b.program_name or '—' }}</strong>
-              {% if b.program_name and b.benefit_type and b.program_name != b.benefit_type %}
-              <br><small style="color:var(--ink-4);">{{ b.program_name }}</small>
-              {% endif %}
-              {% if b.source == 'distribution' %}
-              <br><span style="font-size:.68rem;background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:999px;font-weight:700;">📦 جلسة توزيع</span>
-              {% elif b.source == 'camp_manual' %}
-              <br><span style="font-size:.68rem;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:999px;font-weight:700;">✍️ تسجيل يدوي</span>
-              {% elif b.source == 'program' %}
-              <br><span style="font-size:.68rem;background:#f3e8ff;color:#7c3aed;padding:2px 6px;border-radius:999px;font-weight:700;">🏛️ برنامج</span>
-              {% endif %}
-            </td>
-            <td>
-              {% set _name = b.camp_name or b.org_name %}
-              {% if _name %}
-                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--sand-100);padding:3px 8px;border-radius:20px;font-size:.75rem;font-weight:600;">
-                  <i class="fas fa-{{ 'campground' if b.camp_name else 'building' }}" style="color:var(--teal-600);font-size:.65rem;"></i>{{ _name }}
-                </span>
-              {% else %}
-                <span style="color:var(--ink-4);font-size:.8rem;">—</span>
-              {% endif %}
-            </td>
-            <td style="font-weight:700;color:var(--teal-700);">{{ b.value or b.quantity or '—' }}</td>
-            <td style="font-size:.8rem;color:var(--ink-6);white-space:nowrap;">{{ b.benefit_date }}</td>
-            <td style="font-size:.8rem;color:var(--ink-4);">{{ b.notes or '—' }}</td>
-          </tr>
-          {% endfor %}
+        {% for b in rows %}
+        <tr>
+          <td>
+            <strong>{{ b.benefit_type or b.program_name or '—' }}</strong>
+            {% if b.program_name and b.benefit_type and b.program_name != b.benefit_type %}
+            <br><small style="color:var(--ink-4);">{{ b.program_name }}</small>
+            {% endif %}
+            {% if b.source == 'distribution' %}
+            <br><span style="font-size:.68rem;background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:999px;font-weight:700;">📦 جلسة توزيع</span>
+            {% elif b.source == 'camp_manual' %}
+            <br><span style="font-size:.68rem;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:999px;font-weight:700;">✍️ تسجيل يدوي</span>
+            {% elif b.source == 'program' %}
+            <br><span style="font-size:.68rem;background:#f3e8ff;color:#7c3aed;padding:2px 6px;border-radius:999px;font-weight:700;">🏛️ برنامج</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set _name = b.camp_name or b.org_name %}
+            {% if _name %}
+              {% if b.entity_type == 'family' %}{% set _ico = 'users' %}
+              {% elif b.entity_type == 'committee' %}{% set _ico = 'hands-helping' %}
+              {% elif b.source == 'program' %}{% set _ico = 'building' %}
+              {% else %}{% set _ico = 'campground' %}{% endif %}
+              <span style="display:inline-flex;align-items:center;gap:4px;background:var(--sand-100);padding:3px 8px;border-radius:20px;font-size:.75rem;font-weight:600;">
+                <i class="fas fa-{{ _ico }}" style="color:var(--teal-600);font-size:.65rem;"></i>{{ _name }}
+              </span>
+            {% else %}<span style="color:var(--ink-4);font-size:.8rem;">—</span>{% endif %}
+          </td>
+          <td style="font-weight:700;color:var(--teal-700);">{{ b.value or b.quantity or '—' }}</td>
+          <td style="font-size:.8rem;color:var(--ink-6);white-space:nowrap;">{{ b.benefit_date }}</td>
+          <td style="font-size:.8rem;color:var(--ink-4);">{{ b.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
         </tbody>
       </table>
     </div>
+    {% endmacro %}
+
+    {# ══ 1. مخيم / لجنة ══ #}
+    {% if camp_comm %}
+    <div style="padding:10px 18px 6px;border-bottom:2px solid #d1fae5;display:flex;align-items:center;gap:8px;">
+      <span style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;">
+        🏕️ مخيم / لجنة
+      </span>
+      <span style="font-size:.75rem;color:var(--ink-4);">{{ camp_comm|length }} سجل</span>
+    </div>
+    {{ ben_table(camp_comm) }}
+    {% endif %}
+
+    {# ══ 2. عائلة ══ #}
+    {% if fam_list %}
+    <div style="padding:10px 18px 6px;border-bottom:2px solid #fef3c7;display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;">
+        👨‍👩‍👧‍👦 عائلة
+      </span>
+      <span style="font-size:.75rem;color:var(--ink-4);">{{ fam_list|length }} سجل</span>
+    </div>
+    {{ ben_table(fam_list) }}
+    {% endif %}
+
+    {# ══ 3. مؤسسة ══ #}
+    {% if org_list %}
+    <div style="padding:10px 18px 6px;border-bottom:2px solid #ede9fe;display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <span style="background:#ede9fe;color:#5b21b6;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;">
+        🏛️ مؤسسة
+      </span>
+      <span style="font-size:.75rem;color:var(--ink-4);">{{ org_list|length }} سجل</span>
+    </div>
+    {{ ben_table(org_list) }}
+    {% endif %}
+
     {% else %}
     <div class="card-body">
       <div class="empty-box"><i class="fas fa-box-open"></i><p>لا توجد سجلات استفادة بعد</p></div>

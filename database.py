@@ -471,6 +471,18 @@ def migrate_db():
         created_at  TEXT
     )
     """)
+    # قيد UNIQUE على (beneficiary_id, camp_entity_id) في طلبات الانضمام المقبولة
+    # يمنع تكرار نفس المستفيد داخل نفس الكيان
+    try:
+        c.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_join_approved
+            ON camp_join_requests (beneficiary_id, camp_entity_id)
+            WHERE status = 'approved'
+        """)
+        conn.commit()
+    except Exception:
+        pass
+
     conn.commit()
 
     conn.close()

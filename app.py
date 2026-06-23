@@ -4594,12 +4594,13 @@ def beneficiary_portal():
         benefits += [dict(r) for r in c.fetchall()]
     except Exception:
         pass
-    # 2. سجلات الاستفادة اليدوية من المخيم/اللجنة
+    # 2. سجلات الاستفادة اليدوية (مخيم/لجنة/عائلة)
     try:
         c.execute("""
             SELECT cb.benefit_date, cb.benefit_type, cb.quantity, cb.notes,
                    cb.value, ce.name as camp_name, NULL as program_name,
-                   NULL as org_name, 'camp_manual' as source
+                   NULL as org_name, 'camp_manual' as source,
+                   COALESCE(ce.entity_type,'camp') as entity_type
             FROM camp_benefits cb
             LEFT JOIN camp_entities ce ON cb.camp_entity_id = ce.id
             WHERE cb.beneficiary_id = ?
@@ -4617,7 +4618,8 @@ def beneficiary_portal():
                    dr.quantity, dr.notes,
                    dr.value, ce.name as camp_name,
                    d.title as program_name, d.donor_name as org_name,
-                   'distribution' as source
+                   'distribution' as source,
+                   COALESCE(ce.entity_type,'camp') as entity_type
             FROM camp_dist_records dr
             JOIN camp_distributions d ON dr.distribution_id = d.id
             LEFT JOIN camp_entities ce ON d.camp_entity_id = ce.id
@@ -5385,6 +5387,22 @@ def camp_handle_request(req_id, action):
     if req:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if action == "approve":
+            # ── فحص التكرار ──
+            c.execute("""SELECT b.full_name, ce.name as entity_name
+                         FROM beneficiaries b
+                         LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+                         WHERE b.id = ? AND b.beneficiary_status = 'in_camp'""",
+                      (req["beneficiary_id"],))
+            dup = c.fetchone()
+            if dup and dup["entity_name"] and dup["entity_name"] == session.get("camp_name"):
+                flash(f"⚠️ المستفيد '{dup['full_name']}' مسجل بالفعل في مخيمك — لا يمكن القبول مرتين", "warning")
+                conn.close()
+                return redirect(url_for("camp_dashboard"))
+            if dup and dup["entity_name"]:
+                flash(f"⚠️ المستفيد '{dup['full_name']}' منضم لـ '{dup['entity_name']}' — لا يمكن القبول في كيانين بالوقت نفسه", "warning")
+                conn.close()
+                return redirect(url_for("camp_dashboard"))
+            # ── موافقة سليمة ──
             c.execute("UPDATE camp_join_requests SET status='approved', resolved_at=? WHERE id=?", (now, req_id))
             # ضبط camp_entity_id مع الحالة — هذا هو الربط الأساسي
             c.execute("""UPDATE beneficiaries
