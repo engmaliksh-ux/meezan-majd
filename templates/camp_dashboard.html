@@ -218,12 +218,12 @@ tr:hover td{background:#fafaf7;}
     </div>
     <input type="file" id="logo-file" accept="image/*" onchange="uploadLogo(this)">
 
-    <div class="sb-name">{{ entity.name }}</div>
-    <div class="sb-badge">
+    <div class="sb-badge" style="margin-top:11px;">
       {% if entity.entity_type == 'camp' %}🏕️ مخيم
       {% elif entity.entity_type == 'committee' %}🤝 لجنة
       {% else %}👨‍👩‍👧‍👦 عائلة{% endif %}
     </div>
+    <div class="sb-name">{{ entity.name }}</div>
   </div>
 
   <!-- Nav -->
@@ -308,9 +308,6 @@ tr:hover td{background:#fafaf7;}
     <a href="{{ url_for('camp_settings') }}" class="ni">
       <i class="ic fas fa-cog"></i><span class="lbl">الإعدادات</span>
     </a>
-    <a href="/camp/logout" class="ni" style="color:rgba(255,100,100,.7);">
-      <i class="ic fas fa-sign-out-alt"></i><span class="lbl">خروج</span>
-    </a>
   </div>
 </aside>
 
@@ -323,7 +320,9 @@ tr:hover td{background:#fafaf7;}
       <i class="fas fa-balance-scale" style="color:var(--amber);"></i>
       <span id="page-title">الرئيسية</span>
     </div>
-    <div class="tb-meta">{{ entity.name }}</div>
+    <a href="/camp/logout" style="color:rgba(255,180,180,.85);text-decoration:none;font-size:.82rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+      <i class="fas fa-sign-out-alt"></i> خروج
+    </a>
   </div>
 
   <!-- Content -->
