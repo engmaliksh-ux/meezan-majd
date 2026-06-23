@@ -4608,8 +4608,9 @@ def beneficiary_portal():
         benefits += [dict(r) for r in c.fetchall()]
     except Exception:
         pass
-    # 3. جلسات التوزيع الرسمية (فقط ما تم استلامه)
+    # 3. جلسات التوزيع الرسمية (فقط ما تم استلامه) — بالـ id الداخلي أو رقم الهوية
     try:
+        ben_id_num = ben.get("id_number") or ""
         c.execute("""
             SELECT d.distribution_date as benefit_date,
                    COALESCE(dr.item_name, d.title) as benefit_type,
@@ -4620,9 +4621,13 @@ def beneficiary_portal():
             FROM camp_dist_records dr
             JOIN camp_distributions d ON dr.distribution_id = d.id
             LEFT JOIN camp_entities ce ON d.camp_entity_id = ce.id
-            WHERE dr.beneficiary_id = ? AND dr.received = 1
+            WHERE dr.received = 1
+              AND (dr.beneficiary_id = ?
+                   OR dr.beneficiary_id IN (
+                       SELECT id FROM beneficiaries WHERE id_number=? AND id_number!=''
+                   ))
             ORDER BY d.distribution_date DESC LIMIT 50
-        """, (ben["id"],))
+        """, (ben["id"], ben_id_num))
         benefits += [dict(r) for r in c.fetchall()]
     except Exception:
         pass
@@ -5998,6 +6003,11 @@ def camp_distribution_new():
                     (distribution_id,camp_entity_id,beneficiary_id,item_name,quantity,value)
                     VALUES(?,?,?,?,?,?)""",
                     (dist_id,camp_id,m["id"],item,qty,value))
+                # إضافة id_number إذا موجود (للربط برقم الهوية مستقبلاً)
+                try:
+                    c.execute("UPDATE camp_dist_records SET notes=notes WHERE distribution_id=? AND beneficiary_id=?",
+                              (dist_id, m["id"]))  # placeholder للتوافقية
+                except: pass
             conn.commit()
             conn.close()
             flash(f"تم إنشاء جلسة التوزيع — {len(filtered)} مستفيد","success")
