@@ -1422,9 +1422,64 @@ def beneficiaries():
 
     unlinked = [p for p in persons if p["id"] not in linked_ids]
 
+    # ── قوائم التصنيف ──
+    from datetime import date as _date
+    def _calc_age(bd_str):
+        if not bd_str: return None
+        try:
+            bd = __import__('datetime').datetime.strptime(bd_str, '%Y-%m-%d').date()
+            today = _date.today()
+            return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+        except: return None
+
+    orphan_list = []
+    pregnant_list = []
+    nursing_list = []
+    persons_sorted = sorted(persons, key=lambda x: x.get('full_name',''))
+    for p in persons:
+        if p.get('wife_pregnant'): pregnant_list.append(p)
+        if p.get('wife_nursing'):  nursing_list.append(p)
+        if p.get('has_orphans'):
+            for fm in p.get('family_members', []):
+                if fm.get('is_orphan'):
+                    orphan_list.append({
+                        'name':           fm.get('full_name',''),
+                        'birth_date':     fm.get('birth_date',''),
+                        'age':            _calc_age(fm.get('birth_date','')),
+                        'guardian_name':  p.get('guardian_name','') or p.get('full_name',''),
+                        'guardian_phone': p.get('guardian_whatsapp','') or p.get('phone',''),
+                        'camp_name':      p.get('camp_name',''),
+                        'parent_name':    p.get('full_name',''),
+                    })
+    orphan_list.sort(key=lambda x: x.get('name',''))
+    pregnant_list.sort(key=lambda x: x.get('full_name',''))
+    nursing_list.sort(key=lambda x: x.get('full_name',''))
+
+    # قائمة المرضى من beneficiary_health
+    try:
+        conn2 = get_connection()
+        c2 = conn2.cursor()
+        c2.execute("""
+            SELECT bh.beneficiary_id, bh.condition_type, bh.notes, bh.report_path,
+                   b.full_name, b.camp_name, b.phone
+            FROM beneficiary_health bh
+            JOIN beneficiaries b ON bh.beneficiary_id = b.id
+            WHERE b.org_id = ?
+            ORDER BY b.full_name
+        """, (org_id,))
+        sick_list = [dict(r) for r in c2.fetchall()]
+        conn2.close()
+    except Exception:
+        sick_list = []
+
     return render_template("beneficiaries.html",
                            beneficiaries=data, camps=camps,
-                           unlinked_persons=unlinked, persons=persons)
+                           unlinked_persons=unlinked, persons=persons,
+                           persons_sorted=persons_sorted,
+                           orphan_list=orphan_list,
+                           pregnant_list=pregnant_list,
+                           nursing_list=nursing_list,
+                           sick_list=sick_list)
 
 
 @app.route("/add_beneficiary", methods=["GET", "POST"])

@@ -16,7 +16,6 @@
 </div>
 {% endmacro %}
 
-
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-users"></i> المستفيدون</h2>
   <div class="d-flex gap-2">
@@ -26,29 +25,52 @@
   </div>
 </div>
 
-<!-- إحصاء سريع -->
+<!-- ════════ أزرار فرز التصنيف ════════ -->
 {% set all_persons = persons|list %}
 {% set total_orphans_count = all_persons | sum(attribute='orphans_count') %}
-<div class="d-flex gap-3 mb-3 flex-wrap">
-  <div style="background:#e8f5ee;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#1a6b3a;">
-    <i class="fas fa-tents me-1"></i>{{ camps|length }} مخيم
-  </div>
-  <div style="background:#e3f2fd;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#1565c0;">
-    <i class="fas fa-users me-1"></i>{{ persons|length }} شخص / أسرة
-  </div>
-  {% if total_orphans_count > 0 %}
-  <div style="background:#fde8e8;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;color:#c62828;">
-    <i class="fas fa-child me-1"></i>{{ total_orphans_count }} يتيم
-  </div>
-  {% endif %}
+{% set pregnant_count = pregnant_list|length %}
+{% set nursing_count = nursing_list|length %}
+{% set sick_count = sick_list|length %}
+
+<div class="filter-bubbles mb-4">
+  <button class="filter-bubble active" id="btn-camps" onclick="showTab('camps')">
+    <i class="fas fa-tents"></i>
+    <span class="filter-count">{{ camps|length }}</span>
+    <span class="filter-label">مخيمات</span>
+  </button>
+  <button class="filter-bubble" id="btn-families" onclick="showTab('families')">
+    <i class="fas fa-users"></i>
+    <span class="filter-count">{{ persons|length }}</span>
+    <span class="filter-label">أسر</span>
+  </button>
+  <button class="filter-bubble orphan-bubble" id="btn-orphans" onclick="showTab('orphans')">
+    <i class="fas fa-child"></i>
+    <span class="filter-count">{{ orphan_list|length }}</span>
+    <span class="filter-label">أيتام</span>
+  </button>
+  <button class="filter-bubble pregnant-bubble" id="btn-pregnant" onclick="showTab('pregnant')">
+    <i class="fas fa-baby"></i>
+    <span class="filter-count">{{ pregnant_count }}</span>
+    <span class="filter-label">حوامل</span>
+  </button>
+  <button class="filter-bubble nursing-bubble" id="btn-nursing" onclick="showTab('nursing')">
+    <i class="fas fa-heart"></i>
+    <span class="filter-count">{{ nursing_count }}</span>
+    <span class="filter-label">مرضعات</span>
+  </button>
+  <button class="filter-bubble sick-bubble" id="btn-sick" onclick="showTab('sick')">
+    <i class="fas fa-notes-medical"></i>
+    <span class="filter-count">{{ sick_count }}</span>
+    <span class="filter-label">مرضى</span>
+  </button>
 </div>
 
-<!-- ════════ المخيمات (هرمي) ════════ -->
+<!-- ════════ تبويب: المخيمات ════════ -->
+<div id="tab-camps" class="tab-section">
 {% if camps %}
 <h6 class="section-mini-title"><i class="fas fa-tents me-2" style="color:#856404;"></i>المخيمات وأسرها</h6>
 {% for camp in camps %}
 <div class="camp-card mb-4">
-  <!-- رأس المخيم -->
   <div class="camp-header" onclick="toggleCamp('camp-{{ loop.index }}')">
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="background:#ffe082;border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
@@ -66,17 +88,17 @@
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation()">
       {% if session.get('role') != 'observer' %}
       <a href="/add_beneficiary?linked_camp={{ (camp.camp_name or camp.full_name)|urlencode }}"
-         class="btn-camp-action btn-camp-add" title="إضافة مستفيد للمخيم"
+         class="btn-camp-action btn-camp-add"
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-user-plus"></i><span>إضافة مستفيد</span>
       </a>
       <button onclick='openCampEdit({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }},{{ (camp.camp_manager_name or "")|tojson }},{{ (camp.camp_coordinator or "")|tojson }},{{ (camp.camp_coordinator_phone or "")|tojson }},{{ (camp.camp_family_count or "")|tojson }},{{ (camp.camp_address or "")|tojson }},{{ (camp.notes or "")|tojson }})'
-         class="btn-camp-action btn-camp-edit" title="تعديل بيانات المخيم"
+         class="btn-camp-action btn-camp-edit"
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-pen"></i><span>تعديل</span>
       </button>
       <button onclick='deleteCamp({{ camp.id }},{{ (camp.camp_name or camp.full_name)|tojson }})'
-         class="btn-camp-action btn-camp-del" title="حذف المخيم"
+         class="btn-camp-action btn-camp-del"
          style="width:auto;padding:0 10px;gap:5px;font-size:.78rem;font-weight:700;">
         <i class="fas fa-trash"></i><span>حذف المخيم</span>
       </button>
@@ -90,13 +112,9 @@
       <i class="fas fa-chevron-down camp-chevron" id="chev-camp-{{ loop.index }}" style="color:#aaa;transition:.2s;"></i>
     </div>
   </div>
-
-  <!-- أسر المخيم -->
   <div id="camp-{{ loop.index }}" class="camp-persons-grid">
     {% if camp.persons %}
-    {% for p in camp.persons %}
-    {{ person_bubble(p) }}
-    {% endfor %}
+    {% for p in camp.persons %}{{ person_bubble(p) }}{% endfor %}
     {% else %}
     <div style="color:#bbb;font-size:.82rem;padding:16px;text-align:center;grid-column:1/-1;">
       <i class="fas fa-user-plus me-1"></i>لا توجد أسر مضافة لهذا المخيم بعد
@@ -106,17 +124,12 @@
 </div>
 {% endfor %}
 {% endif %}
-
-<!-- ════════ أشخاص بدون مخيم ════════ -->
 {% if unlinked_persons %}
 <h6 class="section-mini-title mt-4"><i class="fas fa-user me-2" style="color:#1565c0;"></i>أشخاص / أسر غير مرتبطة بمخيم</h6>
 <div class="persons-grid mb-4">
-  {% for p in unlinked_persons %}
-  {{ person_bubble(p) }}
-  {% endfor %}
+  {% for p in unlinked_persons %}{{ person_bubble(p) }}{% endfor %}
 </div>
 {% endif %}
-
 {% if not camps and not unlinked_persons %}
 <div class="text-center py-5" style="color:#6c7a72;">
   <i class="fas fa-users fa-3x mb-3" style="color:#d8e8de;"></i>
@@ -126,6 +139,215 @@
   {% endif %}
 </div>
 {% endif %}
+</div><!-- /tab-camps -->
+
+<!-- ════════ تبويب: الأسر ════════ -->
+<div id="tab-families" class="tab-section" style="display:none;">
+{% if persons_sorted %}
+<div class="list-table-wrap">
+  <table class="list-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم الأسرة</th>
+        <th>المخيم</th>
+        <th>أفراد</th>
+        <th>أيتام</th>
+        <th>الحالة</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in persons_sorted %}
+    <tr onclick="openPersonModal({{ p.id }})" style="cursor:pointer;">
+      <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="mini-avatar">
+            {% if p.personal_photo %}<img src="{{ url_for('static', filename='uploads/' + p.personal_photo) }}" alt="">
+            {% else %}<i class="fas fa-user"></i>{% endif %}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:.88rem;">{{ p.full_name }}</div>
+            {% if p.id_number %}<div style="font-size:.72rem;color:#aaa;">{{ p.id_number }}</div>{% endif %}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:.82rem;color:#856404;">
+        {% if p.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ p.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td style="text-align:center;font-weight:700;">{{ p.family_size or 1 }}</td>
+      <td style="text-align:center;">
+        {% if p.orphans_count and p.orphans_count > 0 %}
+        <span class="orphan-badge">{{ p.orphans_count }}</span>
+        {% else %}<span style="color:#ddd;">—</span>{% endif %}
+      </td>
+      <td>
+        {% if p.wife_pregnant %}<span class="status-chip chip-green">حامل</span>{% endif %}
+        {% if p.wife_nursing %}<span class="status-chip chip-pink">مرضع</span>{% endif %}
+      </td>
+      <td onclick="event.stopPropagation()">
+        {% if session.get('role') != 'observer' %}
+        <a href="{{ url_for('edit_beneficiary', id=p.id) }}" class="btn-sm-icon btn-edit-mini" title="تعديل"><i class="fas fa-pen"></i></a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#aaa;"><i class="fas fa-users fa-2x mb-2"></i><p>لا توجد أسر مسجلة</p></div>
+{% endif %}
+</div><!-- /tab-families -->
+
+<!-- ════════ تبويب: الأيتام ════════ -->
+<div id="tab-orphans" class="tab-section" style="display:none;">
+{% if orphan_list %}
+<div class="list-table-wrap">
+  <table class="list-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم اليتيم</th>
+        <th>العمر</th>
+        <th>اسم الوصي</th>
+        <th>تواصل</th>
+        <th>المخيم</th>
+        <th>الأسرة</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for o in orphan_list %}
+    <tr>
+      <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#fde8e8;border:2px solid #f48fb1;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#c62828;flex-shrink:0;">
+            <i class="fas fa-child"></i>
+          </div>
+          <div style="font-weight:700;font-size:.88rem;">{{ o.name or '—' }}</div>
+        </div>
+      </td>
+      <td style="text-align:center;font-weight:700;color:#c62828;">
+        {% if o.age is not none %}{{ o.age }} سنة{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td style="font-size:.85rem;">{{ o.guardian_name or '—' }}</td>
+      <td>
+        {% if o.guardian_phone %}
+        <a href="https://wa.me/{{ o.guardian_phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ o.guardian_phone }}</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td style="font-size:.82rem;color:#856404;">
+        {% if o.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ o.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td style="font-size:.82rem;color:#555;">{{ o.parent_name or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#aaa;"><i class="fas fa-child fa-2x mb-2"></i><p>لا يوجد أيتام مسجلون</p></div>
+{% endif %}
+</div><!-- /tab-orphans -->
+
+<!-- ════════ تبويب: الحوامل ════════ -->
+<div id="tab-pregnant" class="tab-section" style="display:none;">
+{% if pregnant_list %}
+<div class="list-table-wrap">
+  <table class="list-table">
+    <thead>
+      <tr><th>#</th><th>اسم الأسرة</th><th>اسم الزوجة</th><th>المخيم</th><th>الجوال</th></tr>
+    </thead>
+    <tbody>
+    {% for p in pregnant_list %}
+    <tr onclick="openPersonModal({{ p.id }})" style="cursor:pointer;">
+      <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+      <td style="font-weight:700;font-size:.88rem;">{{ p.full_name }}</td>
+      <td style="font-size:.85rem;">{{ p.wife_name or '—' }}</td>
+      <td style="font-size:.82rem;color:#856404;">
+        {% if p.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ p.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td>
+        {% if p.phone %}
+        <a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#aaa;"><i class="fas fa-baby fa-2x mb-2"></i><p>لا توجد حوامل مسجلات</p></div>
+{% endif %}
+</div><!-- /tab-pregnant -->
+
+<!-- ════════ تبويب: المرضعات ════════ -->
+<div id="tab-nursing" class="tab-section" style="display:none;">
+{% if nursing_list %}
+<div class="list-table-wrap">
+  <table class="list-table">
+    <thead>
+      <tr><th>#</th><th>اسم الأسرة</th><th>اسم الزوجة</th><th>المخيم</th><th>الجوال</th></tr>
+    </thead>
+    <tbody>
+    {% for p in nursing_list %}
+    <tr onclick="openPersonModal({{ p.id }})" style="cursor:pointer;">
+      <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+      <td style="font-weight:700;font-size:.88rem;">{{ p.full_name }}</td>
+      <td style="font-size:.85rem;">{{ p.wife_name or '—' }}</td>
+      <td style="font-size:.82rem;color:#856404;">
+        {% if p.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ p.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td>
+        {% if p.phone %}
+        <a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#aaa;"><i class="fas fa-heart fa-2x mb-2"></i><p>لا توجد مرضعات مسجلات</p></div>
+{% endif %}
+</div><!-- /tab-nursing -->
+
+<!-- ════════ تبويب: المرضى ════════ -->
+<div id="tab-sick" class="tab-section" style="display:none;">
+{% if sick_list %}
+<div class="list-table-wrap">
+  <table class="list-table">
+    <thead>
+      <tr><th>#</th><th>الاسم</th><th>نوع الحالة</th><th>ملاحظات</th><th>المخيم</th><th>مرفق طبي</th></tr>
+    </thead>
+    <tbody>
+    {% for s in sick_list %}
+    <tr>
+      <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+      <td style="font-weight:700;font-size:.88rem;">{{ s.full_name }}</td>
+      <td><span class="status-chip chip-orange">{{ s.condition_type or '—' }}</span></td>
+      <td style="font-size:.82rem;color:#555;max-width:160px;">{{ s.notes or '—' }}</td>
+      <td style="font-size:.82rem;color:#856404;">
+        {% if s.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ s.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+      <td>
+        {% if s.report_path %}
+        <a href="/static/uploads/{{ s.report_path }}" target="_blank" style="color:#e65100;font-size:.82rem;"><i class="fas fa-file-medical me-1"></i>عرض</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#aaa;"><i class="fas fa-notes-medical fa-2x mb-2"></i><p>لا يوجد مرضى مسجلون</p></div>
+{% endif %}
+</div><!-- /tab-sick -->
 
 <!-- ════════ مودال تعديل المخيم ════════ -->
 <div id="camp-edit-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:20px;">
@@ -192,8 +414,16 @@
   </div>
 </div>
 
-<!-- بيانات JSON للمستفيدين -->
 <script>
+// ── تبويب التصنيف ──
+function showTab(tab) {
+  document.querySelectorAll('.tab-section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.filter-bubble').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = '';
+  document.getElementById('btn-' + tab).classList.add('active');
+}
+
+// ── بيانات JSON ──
 const BENEF_DATA = {
   {% for p in persons %}
   {{ p.id }}: {
@@ -247,9 +477,8 @@ function openPersonModal(id) {
 
   const ms = {married:'متزوج',single:'أعزب',widowed:'أرمل',divorced:'مطلق'};
   let body = '';
-
   body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">`;
-  if(p.phone)      body += info('الجوال', p.phone);
+  if(p.phone)      body += info('الجوال', `<a href="https://wa.me/${p.phone}" target="_blank" style="color:#25d366;"><i class="fab fa-whatsapp me-1"></i>${p.phone}</a>`);
   if(p.address)    body += info('العنوان', p.address + (p.address2?' / '+p.address2:''));
   if(p.camp_name)  body += info('المخيم', p.camp_name);
   if(p.marital_status) body += info('الحالة الاجتماعية', ms[p.marital_status]||p.marital_status);
@@ -298,7 +527,6 @@ function openPersonModal(id) {
   if(p.death_cert_image) docs += `<a href="/static/uploads/${p.death_cert_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.death_cert_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> شهادة الوفاة</a>`;
   if(p.guardianship_image) docs += `<a href="/static/uploads/${p.guardianship_image}" target="_blank" style="display:inline-block;margin-left:8px;"><img src="/static/uploads/${p.guardianship_image}" style="height:56px;border-radius:8px;border:1px solid #ddd;"> الوكالة/الوصاية</a>`;
   if(docs) body += section('الوثائق', '#e65100', 'fa-file-alt', `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">${docs}</div>`);
-
   if(p.notes) body += section('ملاحظات', '#6c7a72', 'fa-sticky-note', `<div style="color:#555;">${p.notes}</div>`);
 
   body += `<div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid #f0f0f0;padding-top:14px;flex-wrap:wrap;">
@@ -324,78 +552,104 @@ function section(title, color, icon, inner) {
     <div style="padding:0 4px;">${inner}</div>
   </div>`;
 }
-
-function closePersonModal() {
-  document.getElementById('person-modal').style.display = 'none';
-}
-document.getElementById('person-modal').addEventListener('click', e => {
+function closePersonModal() { document.getElementById('person-modal').style.display='none'; }
+document.getElementById('person-modal').addEventListener('click',e=>{
   if(e.target===document.getElementById('person-modal')) closePersonModal();
 });
-
-function openCampEdit(id, name, manager, coordinator, coordPhone, familyCount, address, notes) {
-  document.getElementById('camp-edit-form').action = '/edit_beneficiary/' + id;
-  document.getElementById('ce-name').value         = name        || '';
-  document.getElementById('ce-manager').value      = manager     || '';
-  document.getElementById('ce-coordinator').value  = coordinator || '';
-  document.getElementById('ce-coord-phone').value  = coordPhone  || '';
-  document.getElementById('ce-family-count').value = familyCount || '';
-  document.getElementById('ce-address').value      = address     || '';
-  document.getElementById('ce-notes').value        = notes       || '';
-  document.getElementById('camp-edit-modal').style.display = 'flex';
+function openCampEdit(id,name,manager,coordinator,coordPhone,familyCount,address,notes) {
+  document.getElementById('camp-edit-form').action='/edit_beneficiary/'+id;
+  document.getElementById('ce-name').value        =name||'';
+  document.getElementById('ce-manager').value     =manager||'';
+  document.getElementById('ce-coordinator').value =coordinator||'';
+  document.getElementById('ce-coord-phone').value =coordPhone||'';
+  document.getElementById('ce-family-count').value=familyCount||'';
+  document.getElementById('ce-address').value     =address||'';
+  document.getElementById('ce-notes').value       =notes||'';
+  document.getElementById('camp-edit-modal').style.display='flex';
 }
-function closeCampEdit() {
-  document.getElementById('camp-edit-modal').style.display = 'none';
-}
-document.getElementById('camp-edit-modal').addEventListener('click', e => {
-  if(e.target === document.getElementById('camp-edit-modal')) closeCampEdit();
+function closeCampEdit() { document.getElementById('camp-edit-modal').style.display='none'; }
+document.getElementById('camp-edit-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('camp-edit-modal')) closeCampEdit();
 });
-
-function deleteCamp(id, name) {
-  if(confirm('حذف المخيم "' + name + '" ؟\nسجل المخيم سيُحذف، بيانات الأسر تبقى كما هي.')) {
-    window.location.href = '/delete_beneficiary/' + id;
-  }
+function deleteCamp(id,name) {
+  if(confirm('حذف المخيم "'+name+'" ؟\nسجل المخيم سيُحذف، بيانات الأسر تبقى كما هي.'))
+    window.location.href='/delete_beneficiary/'+id;
 }
-
-function deletePerson(id, name) {
+function deletePerson(id,name) {
   closePersonModal();
-  if(confirm('حذف المستفيد "' + name + '" ؟\nلا يمكن التراجع عن هذا الإجراء.')) {
-    window.location.href = '/delete_beneficiary/' + id;
-  }
+  if(confirm('حذف المستفيد "'+name+'" ؟\nلا يمكن التراجع عن هذا الإجراء.'))
+    window.location.href='/delete_beneficiary/'+id;
 }
-
 function toggleCamp(id) {
-  const el = document.getElementById(id);
-  const idx = id.split('-')[1];
-  const chev = document.getElementById('chev-camp-'+idx);
-  const open = el.style.display !== 'none';
-  el.style.display = open ? 'none' : 'grid';
-  if(chev) chev.style.transform = open ? 'rotate(-90deg)' : 'rotate(0)';
+  const el=document.getElementById(id);
+  const idx=id.split('-')[1];
+  const chev=document.getElementById('chev-camp-'+idx);
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'grid';
+  if(chev) chev.style.transform=open?'rotate(-90deg)':'rotate(0)';
 }
 </script>
-
 {% endblock %}
 
 {% block scripts %}
 <style>
-.camp-card { border:2px solid #ffe082;border-radius:14px;overflow:hidden;background:#fff; }
-.camp-header { background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;flex-wrap:wrap;gap:8px; }
-.camp-header:hover { background:linear-gradient(135deg,#fff3cd,#ffe082); }
-.camp-persons-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px; }
-.persons-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px; }
-.person-bubble { background:#fff;border:2px solid #e3f2fd;border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.06); }
-.person-bubble:hover { border-color:#1565c0;transform:translateY(-2px);box-shadow:0 6px 18px rgba(21,101,192,.15); }
-.person-avatar { width:54px;height:54px;border-radius:50%;background:#e3f2fd;border:2px solid #90caf9;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#90caf9;overflow:hidden; }
-.person-avatar img { width:100%;height:100%;object-fit:cover; }
-.person-bubble-name { font-weight:800;font-size:.8rem;color:#1565c0;line-height:1.3;margin-bottom:4px; }
-.person-bubble-meta { font-size:.7rem;color:#aaa; }
-.orphan-badge { background:#fde8e8;color:#c62828;border-radius:6px;padding:1px 6px;font-size:.68rem;font-weight:700;display:inline-block;margin-top:2px; }
-.section-mini-title { font-weight:800;font-size:.9rem;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px; }
-.btn-camp-action { border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.82rem;transition:all .15s; }
-.btn-camp-add { background:#e8f5ee;color:#1a6b3a;text-decoration:none; }
-.btn-camp-add:hover { background:#1a6b3a;color:#fff; }
-.btn-camp-edit { background:#fff3cd;color:#856404; }
-.btn-camp-edit:hover { background:#856404;color:#fff; }
-.btn-camp-del { background:#fde8e8;color:#c62828; }
-.btn-camp-del:hover { background:#c62828;color:#fff; }
+/* فقاعات الفرز */
+.filter-bubbles{display:flex;gap:10px;flex-wrap:wrap;}
+.filter-bubble{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 18px;border:2px solid #e0e0e0;border-radius:16px;background:#fff;cursor:pointer;font-family:inherit;transition:all .2s;min-width:80px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.filter-bubble i{font-size:1.2rem;color:#aaa;transition:color .2s;}
+.filter-bubble .filter-count{font-size:1.1rem;font-weight:900;color:#333;}
+.filter-bubble .filter-label{font-size:.72rem;color:#aaa;font-weight:700;}
+.filter-bubble:hover,.filter-bubble.active{border-color:var(--primary);background:linear-gradient(135deg,#e8f5ee,#f0fff4);box-shadow:0 4px 16px rgba(26,107,58,.15);}
+.filter-bubble:hover i,.filter-bubble.active i{color:var(--primary);}
+.filter-bubble:hover .filter-count,.filter-bubble.active .filter-count{color:var(--primary);}
+.filter-bubble:hover .filter-label,.filter-bubble.active .filter-label{color:var(--primary);}
+.orphan-bubble:hover,.orphan-bubble.active{border-color:#c62828;background:linear-gradient(135deg,#fde8e8,#fff5f5);}
+.orphan-bubble:hover i,.orphan-bubble.active i,.orphan-bubble:hover .filter-count,.orphan-bubble.active .filter-count,.orphan-bubble:hover .filter-label,.orphan-bubble.active .filter-label{color:#c62828;}
+.pregnant-bubble:hover,.pregnant-bubble.active{border-color:#f57f17;background:linear-gradient(135deg,#fffde7,#fff8e1);}
+.pregnant-bubble:hover i,.pregnant-bubble.active i,.pregnant-bubble:hover .filter-count,.pregnant-bubble.active .filter-count,.pregnant-bubble:hover .filter-label,.pregnant-bubble.active .filter-label{color:#f57f17;}
+.nursing-bubble:hover,.nursing-bubble.active{border-color:#e91e8c;background:linear-gradient(135deg,#fce4ec,#fff0f6);}
+.nursing-bubble:hover i,.nursing-bubble.active i,.nursing-bubble:hover .filter-count,.nursing-bubble.active .filter-count,.nursing-bubble:hover .filter-label,.nursing-bubble.active .filter-label{color:#e91e8c;}
+.sick-bubble:hover,.sick-bubble.active{border-color:#e65100;background:linear-gradient(135deg,#fbe9e7,#fff3f0);}
+.sick-bubble:hover i,.sick-bubble.active i,.sick-bubble:hover .filter-count,.sick-bubble.active .filter-count,.sick-bubble:hover .filter-label,.sick-bubble.active .filter-label{color:#e65100;}
+
+/* جداول الكشوف */
+.list-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid #f0f0f0;box-shadow:0 2px 12px rgba(0,0,0,.05);}
+.list-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.list-table thead tr{background:linear-gradient(135deg,#f8f9fa,#f0f0f0);}
+.list-table th{padding:10px 14px;font-weight:800;color:#555;font-size:.78rem;text-align:right;white-space:nowrap;border-bottom:2px solid #e0e0e0;}
+.list-table td{padding:10px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle;}
+.list-table tr:last-child td{border-bottom:none;}
+.list-table tbody tr:hover{background:#f8f9fa;}
+.mini-avatar{width:36px;height:36px;border-radius:50%;background:#e3f2fd;border:2px solid #90caf9;display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#90caf9;overflow:hidden;flex-shrink:0;}
+.mini-avatar img{width:100%;height:100%;object-fit:cover;}
+.status-chip{border-radius:8px;padding:3px 10px;font-size:.72rem;font-weight:700;display:inline-block;}
+.chip-green{background:#e8f5ee;color:#1a6b3a;}
+.chip-pink{background:#fce4ec;color:#c2185b;}
+.chip-orange{background:#fbe9e7;color:#e65100;}
+.btn-sm-icon{width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;text-decoration:none;border:none;cursor:pointer;}
+.btn-edit-mini{background:#fff3cd;color:#856404;}
+.btn-edit-mini:hover{background:#856404;color:#fff;}
+
+/* المخيمات */
+.camp-card{border:2px solid #ffe082;border-radius:14px;overflow:hidden;background:#fff;}
+.camp-header{background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;flex-wrap:wrap;gap:8px;}
+.camp-header:hover{background:linear-gradient(135deg,#fff3cd,#ffe082);}
+.camp-persons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px;}
+.persons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
+.person-bubble{background:#fff;border:2px solid #e3f2fd;border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.person-bubble:hover{border-color:#1565c0;transform:translateY(-2px);box-shadow:0 6px 18px rgba(21,101,192,.15);}
+.person-avatar{width:54px;height:54px;border-radius:50%;background:#e3f2fd;border:2px solid #90caf9;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#90caf9;overflow:hidden;}
+.person-avatar img{width:100%;height:100%;object-fit:cover;}
+.person-bubble-name{font-weight:800;font-size:.8rem;color:#1565c0;line-height:1.3;margin-bottom:4px;}
+.person-bubble-meta{font-size:.7rem;color:#aaa;}
+.orphan-badge{background:#fde8e8;color:#c62828;border-radius:6px;padding:1px 6px;font-size:.68rem;font-weight:700;display:inline-block;margin-top:2px;}
+.section-mini-title{font-weight:800;font-size:.9rem;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
+.btn-camp-action{border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.82rem;transition:all .15s;}
+.btn-camp-add{background:#e8f5ee;color:#1a6b3a;text-decoration:none;}
+.btn-camp-add:hover{background:#1a6b3a;color:#fff;}
+.btn-camp-edit{background:#fff3cd;color:#856404;}
+.btn-camp-edit:hover{background:#856404;color:#fff;}
+.btn-camp-del{background:#fde8e8;color:#c62828;}
+.btn-camp-del:hover{background:#c62828;color:#fff;}
 </style>
 {% endblock %}
