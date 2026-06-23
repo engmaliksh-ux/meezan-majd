@@ -471,6 +471,20 @@ def migrate_db():
         created_at  TEXT
     )
     """)
+    # عمود family_entity_id للمستفيد (عائلتو — مستقل عن المخيم/اللجنة)
+    try:
+        c.execute("ALTER TABLE beneficiaries ADD COLUMN family_entity_id INTEGER DEFAULT NULL")
+        conn.commit()
+    except Exception:
+        pass
+
+    # شعار/صورة الكيان (مخيم/لجنة/عائلة)
+    try:
+        c.execute("ALTER TABLE camp_entities ADD COLUMN logo_image TEXT DEFAULT NULL")
+        conn.commit()
+    except Exception:
+        pass
+
     # قيد UNIQUE على (beneficiary_id, camp_entity_id) في طلبات الانضمام المقبولة
     # يمنع تكرار نفس المستفيد داخل نفس الكيان
     try:

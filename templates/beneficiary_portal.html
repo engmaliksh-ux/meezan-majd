@@ -726,7 +726,12 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       </div>
       {% elif ben.beneficiary_status == 'in_camp' %}
       <div style="margin-top:8px;background:#f0fdf4;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#166534;display:flex;align-items:center;gap:6px;">
-        <i class="fas fa-check-circle"></i> مخيم — <strong>{{ ben.camp_name or '' }}</strong>
+        {% if ben.camp_entity_type == 'committee' %}
+        <i class="fas fa-hands-helping"></i> لجنة —
+        {% else %}
+        <i class="fas fa-campground"></i> مخيم —
+        {% endif %}
+        <strong>{{ ben.camp_name or '' }}</strong>
       </div>
       {% elif ben.beneficiary_status == 'in_shelter' %}
       <div style="margin-top:8px;background:#f0f9ff;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#0369a1;display:flex;align-items:center;gap:6px;">
@@ -734,6 +739,12 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       </div>
       {% else %}
       <div style="margin-top:8px;font-size:.75rem;color:var(--ink-4);">مستفيد مستقل</div>
+      {% endif %}
+      <!-- العائلة — مستقلة عن المخيم/اللجنة -->
+      {% if ben.family_name %}
+      <div style="margin-top:6px;background:#fef3c7;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#92400e;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-users" style="color:#d97706;"></i> عائلة — <strong>{{ ben.family_name }}</strong>
+      </div>
       {% endif %}
     </div>
 

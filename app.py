@@ -4539,9 +4539,13 @@ def beneficiary_portal():
     conn = get_connection()
     c = conn.cursor()
     c.execute("""
-        SELECT b.*, ce.name as camp_name
+        SELECT b.*,
+               ce.name  as camp_name,
+               ce.entity_type as camp_entity_type,
+               fe.name  as family_name
         FROM beneficiaries b
-        LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+        LEFT JOIN camp_entities ce ON b.camp_entity_id    = ce.id
+        LEFT JOIN camp_entities fe ON b.family_entity_id  = fe.id
         WHERE b.id = ?
     """, (ben_id,))
     ben = c.fetchone()
@@ -5387,28 +5391,54 @@ def camp_handle_request(req_id, action):
     if req:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if action == "approve":
-            # ── فحص التكرار ──
-            c.execute("""SELECT b.full_name, ce.name as entity_name
-                         FROM beneficiaries b
-                         LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
-                         WHERE b.id = ? AND b.beneficiary_status = 'in_camp'""",
-                      (req["beneficiary_id"],))
-            dup = c.fetchone()
-            if dup and dup["entity_name"] and dup["entity_name"] == session.get("camp_name"):
-                flash(f"⚠️ المستفيد '{dup['full_name']}' مسجل بالفعل في مخيمك — لا يمكن القبول مرتين", "warning")
-                conn.close()
-                return redirect(url_for("camp_dashboard"))
-            if dup and dup["entity_name"]:
-                flash(f"⚠️ المستفيد '{dup['full_name']}' منضم لـ '{dup['entity_name']}' — لا يمكن القبول في كيانين بالوقت نفسه", "warning")
-                conn.close()
-                return redirect(url_for("camp_dashboard"))
+            # جلب نوع الكيان
+            c.execute("SELECT entity_type, name FROM camp_entities WHERE id=?", (camp_id,))
+            _ent = c.fetchone()
+            entity_type = _ent["entity_type"] if _ent else "camp"
+            entity_label = {"camp": "مخيم", "committee": "لجنة", "family": "عائلة"}.get(entity_type, "كيان")
+
+            # ── فحص التكرار حسب نوع الكيان ──
+            if entity_type == "family":
+                # عائلة: يُسمح بمخيم/لجنة منفصل — فقط منع تكرار العائلة
+                c.execute("""SELECT b.full_name, ce.name as fam_name
+                             FROM beneficiaries b
+                             LEFT JOIN camp_entities ce ON b.family_entity_id = ce.id
+                             WHERE b.id = ? AND b.family_entity_id IS NOT NULL""",
+                          (req["beneficiary_id"],))
+                dup = c.fetchone()
+                if dup:
+                    flash(f"⚠️ '{dup['full_name']}' مسجل بالفعل في عائلة '{dup['fam_name']}' — لا يمكن الانضمام لعائلتين", "warning")
+                    conn.close()
+                    return redirect(url_for("camp_dashboard"))
+            else:
+                # مخيم أو لجنة: يُسمح بعائلة منفصلة — فقط منع تكرار المخيم/اللجنة
+                c.execute("""SELECT b.full_name, ce.name as entity_name
+                             FROM beneficiaries b
+                             LEFT JOIN camp_entities ce ON b.camp_entity_id = ce.id
+                             WHERE b.id = ? AND b.beneficiary_status = 'in_camp'""",
+                          (req["beneficiary_id"],))
+                dup = c.fetchone()
+                if dup and dup["entity_name"]:
+                    if dup["entity_name"] == session.get("camp_name"):
+                        flash(f"⚠️ '{dup['full_name']}' مسجل بالفعل في {entity_label}ك — لا يمكن القبول مرتين", "warning")
+                    else:
+                        flash(f"⚠️ '{dup['full_name']}' منضم لـ '{dup['entity_name']}' — لا يمكن القبول في {entity_label}ين بالوقت نفسه", "warning")
+                    conn.close()
+                    return redirect(url_for("camp_dashboard"))
+
             # ── موافقة سليمة ──
             c.execute("UPDATE camp_join_requests SET status='approved', resolved_at=? WHERE id=?", (now, req_id))
-            # ضبط camp_entity_id مع الحالة — هذا هو الربط الأساسي
-            c.execute("""UPDATE beneficiaries
-                         SET beneficiary_status='in_camp', camp_entity_id=?
-                         WHERE id=?""", (camp_id, req["beneficiary_id"]))
-            flash("تم قبول المستفيد في مخيمك", "success")
+            if entity_type == "family":
+                # العائلة: عمود منفصل — لا تغيّر beneficiary_status
+                c.execute("UPDATE beneficiaries SET family_entity_id=? WHERE id=?",
+                          (camp_id, req["beneficiary_id"]))
+                flash(f"تم قبول المستفيد في {entity_label}ك", "success")
+            else:
+                # مخيم أو لجنة
+                c.execute("""UPDATE beneficiaries
+                             SET beneficiary_status='in_camp', camp_entity_id=?
+                             WHERE id=?""", (camp_id, req["beneficiary_id"]))
+                flash(f"تم قبول المستفيد في {entity_label}ك", "success")
         else:
             c.execute("UPDATE camp_join_requests SET status='rejected', resolved_at=? WHERE id=?", (now, req_id))
             c.execute("UPDATE beneficiaries SET beneficiary_status='independent', camp_entity_id=NULL WHERE id=?", (req["beneficiary_id"],))
@@ -5515,6 +5545,28 @@ def camp_delete_benefit(bid):
     conn.commit(); conn.close()
     flash("تم حذف السجل", "success")
     return redirect(request.referrer or url_for("camp_dashboard"))
+
+@app.route("/camp/upload-logo", methods=["POST"])
+@camp_login_required
+def camp_upload_logo():
+    """رفع شعار/صورة المخيم"""
+    import os, uuid
+    camp_id = session["camp_id"]
+    f = request.files.get("logo")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "لم يُرفع ملف"})
+    ext = f.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ("jpg", "jpeg", "png", "gif", "webp"):
+        return jsonify({"ok": False, "error": "صيغة غير مدعومة"})
+    uploads_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    fname = f"camp_{camp_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    f.save(os.path.join(uploads_dir, fname))
+    conn = get_connection(); c = conn.cursor()
+    c.execute("UPDATE camp_entities SET logo_image=? WHERE id=?", (fname, camp_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True, "url": f"/static/uploads/{fname}"})
+
 
 @app.route("/camp/settings", methods=["GET","POST"])
 @camp_login_required
