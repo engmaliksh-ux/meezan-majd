@@ -5348,7 +5348,8 @@ def camp_dashboard():
     c    = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
     entity = dict(c.fetchone())
-    # طلبات الانضمام المعلقة
+
+    # طلبات الانضمام
     c.execute("""
         SELECT cjr.id, cjr.created_at, cjr.status,
                b.full_name, b.id_number, b.phone, b.address, b.gender, b.id as ben_id
@@ -5358,6 +5359,7 @@ def camp_dashboard():
         ORDER BY cjr.id DESC
     """, (camp_id,))
     requests_list = [dict(r) for r in c.fetchall()]
+
     # المستفيدون المقبولون
     c.execute("""
         SELECT * FROM beneficiaries
@@ -5365,17 +5367,58 @@ def camp_dashboard():
         ORDER BY full_name
     """, (camp_id,))
     members = [dict(r) for r in c.fetchall()]
-    # آخر 5 استفادات
-    c.execute("""SELECT cb.*, b.full_name FROM camp_benefits cb
-                 JOIN beneficiaries b ON cb.beneficiary_id=b.id
-                 WHERE cb.camp_entity_id=? ORDER BY cb.created_at DESC LIMIT 5""", (camp_id,))
+
+    # ── إحصاءات تفصيلية ──
+    orphans_count  = sum(1 for m in members if m.get("has_orphans"))
+    pregnant_count = sum(1 for m in members if m.get("wife_pregnant"))
+    nursing_count  = sum(1 for m in members if m.get("wife_nursing"))
+
+    # مرضى: تصنيف حسب نوع الحالة
+    sick_breakdown = []
+    sick_total = 0
+    if members:
+        ids = [m["id"] for m in members]
+        ph  = ",".join("?" * len(ids))
+        c.execute(f"""SELECT COALESCE(condition_type,'غير محدد') as condition_type,
+                             COUNT(DISTINCT beneficiary_id) as n
+                      FROM beneficiary_health
+                      WHERE beneficiary_id IN ({ph})
+                      GROUP BY condition_type ORDER BY n DESC""", ids)
+        sick_breakdown = [dict(r) for r in c.fetchall()]
+        sick_total = sum(r["n"] for r in sick_breakdown)
+
+    # آخر التوزيعات — مع الجهة المانحة (من المصدرين)
+    c.execute("""
+        SELECT b.full_name, cb.benefit_type, cb.value, cb.quantity,
+               cb.benefit_date, NULL as donor_name, 'يدوي' as src
+        FROM camp_benefits cb
+        JOIN beneficiaries b ON cb.beneficiary_id=b.id
+        WHERE cb.camp_entity_id=?
+        UNION ALL
+        SELECT b.full_name,
+               COALESCE(dr.item_name, d.title) as benefit_type,
+               dr.value, dr.quantity,
+               d.distribution_date as benefit_date,
+               d.donor_name, 'توزيع' as src
+        FROM camp_dist_records dr
+        JOIN camp_distributions d ON dr.distribution_id = d.id
+        JOIN beneficiaries b ON dr.beneficiary_id = b.id
+        WHERE d.camp_entity_id=? AND dr.received=1
+        ORDER BY benefit_date DESC LIMIT 8
+    """, (camp_id, camp_id))
     recent_benefits = [dict(r) for r in c.fetchall()]
+
     conn.close()
     return render_template("camp_dashboard.html",
         entity=entity,
         requests_list=requests_list,
         members=members,
-        recent_benefits=recent_benefits)
+        recent_benefits=recent_benefits,
+        orphans_count=orphans_count,
+        pregnant_count=pregnant_count,
+        nursing_count=nursing_count,
+        sick_total=sick_total,
+        sick_breakdown=sick_breakdown)
 
 
 @app.route("/camp/join-request/<int:req_id>/<action>")
