@@ -290,12 +290,12 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         <button onclick="openModal('benModal')" class="portal-btn portal-ben">
           <i class="fas fa-user-circle"></i> دخول مستفيد
         </button>
-        <a href="/camp/login" class="portal-btn portal-camp">
+        <button onclick="openModal('campModal')" class="portal-btn portal-camp">
           <i class="fas fa-campground"></i> دخول إيواء
-        </a>
-        <a href="/login" class="portal-btn portal-org">
+        </button>
+        <button onclick="openModal('orgModal')" class="portal-btn portal-org">
           <i class="fas fa-building"></i> دخول مؤسسة
-        </a>
+        </button>
       </div>
 
       <div class="hero-stats">
@@ -471,12 +471,12 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       <button onclick="openModal('benModal')" class="portal-btn portal-ben">
         <i class="fas fa-user-circle"></i> دخول مستفيد
       </button>
-      <a href="/camp/login" class="portal-btn portal-camp">
+      <button onclick="openModal('campModal')" class="portal-btn portal-camp">
         <i class="fas fa-campground"></i> دخول إيواء
-      </a>
-      <a href="/login" class="portal-btn portal-org">
+      </button>
+      <button onclick="openModal('orgModal')" class="portal-btn portal-org">
         <i class="fas fa-building"></i> دخول مؤسسة
-      </a>
+      </button>
     </div>
   </div>
 </section>
@@ -498,66 +498,138 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 
 <!-- ════ MODALS CSS ════ -->
 <style>
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;
-  display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
-.modal-overlay.active{display:flex;}
-.modal{background:#fff;border-radius:20px;width:100%;max-width:440px;
-  box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;animation:slideUp .25s ease;}
-@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-head{background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
-  padding:22px 24px;display:flex;align-items:center;justify-content:space-between;}
-.modal-head h3{color:#fff;font-size:1rem;font-weight:800;display:flex;align-items:center;gap:10px;}
-.modal-head h3 i{color:var(--amber-400);}
-.modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;
-  width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;
-  display:flex;align-items:center;justify-content:center;transition:.15s;}
-.modal-close:hover{background:rgba(255,255,255,.3);}
-.modal-body{padding:24px;}
-.modal-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:12px;overflow:hidden;
-  border:1.5px solid #e2e8f0;}
-.mtab{flex:1;padding:10px;text-align:center;font-size:.85rem;font-weight:600;
-  background:#f8f9fa;color:#64748b;cursor:pointer;border:none;transition:.15s;}
-.mtab.active{background:var(--teal-700);color:#fff;}
+/* ─── Overlay ─── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:1000;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,0);backdrop-filter:blur(0px);
+  pointer-events:none;
+  transition:background .35s ease, backdrop-filter .35s ease;
+}
+.modal-overlay.active{
+  background:rgba(10,25,20,.65);backdrop-filter:blur(10px);
+  pointer-events:all;
+}
+
+/* ─── Modal box ─── */
+.modal{
+  background:#fff;border-radius:24px;width:100%;max-width:430px;
+  box-shadow:0 32px 80px rgba(0,0,0,.25);overflow:hidden;
+  transform:translateY(48px) scale(.94);opacity:0;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+}
+.modal-overlay.active .modal{transform:translateY(0) scale(1);opacity:1;}
+.modal-overlay.closing .modal{transform:translateY(24px) scale(.96);opacity:0;transition-duration:.2s;}
+
+/* ─── Header ─── */
+.modal-head{
+  padding:24px 24px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;overflow:hidden;
+}
+.modal-head::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:20px 20px;
+}
+.modal-head-icon{
+  width:52px;height:52px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;color:#fff;
+  background:rgba(255,255,255,.15);backdrop-filter:blur(4px);
+  border:1.5px solid rgba(255,255,255,.25);
+}
+.modal-head-text{flex:1;padding:0 14px;}
+.modal-head-text h3{color:#fff;font-size:1.05rem;font-weight:900;margin-bottom:2px;}
+.modal-head-text p{color:rgba(255,255,255,.65);font-size:.75rem;}
+.modal-close{
+  background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);color:#fff;
+  width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:.85rem;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,transform .15s;flex-shrink:0;
+}
+.modal-close:hover{background:rgba(255,255,255,.28);transform:rotate(90deg);}
+
+/* ─── Body ─── */
+.modal-body{padding:22px 24px 24px;}
+.modal-tabs{display:flex;gap:0;margin-bottom:18px;border-radius:12px;overflow:hidden;
+  border:1.5px solid #e2e8f0;background:#f8fafc;}
+.mtab{flex:1;padding:10px;text-align:center;font-size:.83rem;font-weight:700;
+  background:transparent;color:#94a3b8;cursor:pointer;border:none;
+  transition:all .2s ease;font-family:inherit;}
+.mtab.active{background:#fff;color:var(--teal-700);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);border-radius:10px;margin:3px;}
 .tab-pane{display:none;}
-.tab-pane.active{display:block;}
-.mform-group{margin-bottom:14px;}
-.mform-group label{font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:6px;}
-.mform-group input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
-  font-size:.88rem;font-family:inherit;transition:.15s;}
-.mform-group input:focus{outline:none;border-color:var(--teal-600);box-shadow:0 0 0 3px rgba(45,138,80,.1);}
-.mbtn{width:100%;padding:13px;border:none;border-radius:12px;font-size:.92rem;
-  font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;}
-.mbtn-primary{background:var(--teal-700);color:#fff;}
-.mbtn-primary:hover{background:var(--teal-900);}
+.tab-pane.active{display:block;animation:tabIn .25s ease;}
+@keyframes tabIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+
+/* ─── Form ─── */
+.mform-group{margin-bottom:14px;position:relative;}
+.mform-group label{font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:6px;}
+.mform-group input{
+  width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:11px;
+  font-size:.88rem;font-family:inherit;transition:all .2s ease;
+  background:#fafbfc;color:#1a1a2e;
+}
+.mform-group input:focus{
+  outline:none;border-color:var(--teal-500);background:#fff;
+  box-shadow:0 0 0 4px rgba(45,138,80,.1);
+}
+.mform-icon{position:absolute;left:13px;top:38px;color:#94a3b8;font-size:.85rem;pointer-events:none;}
+.mform-group.has-icon input{padding-left:36px;}
+
+/* ─── Buttons ─── */
+.mbtn{width:100%;padding:13px;border:none;border-radius:12px;font-size:.9rem;
+  font-weight:800;cursor:pointer;transition:all .2s ease;
+  display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;}
+.mbtn-primary{background:var(--teal-700);color:#fff;box-shadow:0 4px 14px rgba(26,107,58,.35);}
+.mbtn-primary:hover{background:var(--teal-900);transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,107,58,.45);}
 .mbtn-outline{background:#fff;color:var(--teal-700);border:1.5px solid var(--teal-600);margin-top:8px;}
 .mbtn-outline:hover{background:#f0fdf4;}
-.modal-sep{text-align:center;font-size:.78rem;color:#94a3b8;margin:14px 0;position:relative;}
-.modal-sep::before,.modal-sep::after{content:'';position:absolute;top:50%;
-  width:38%;height:1px;background:#e2e8f0;}
-.modal-sep::before{right:0;} .modal-sep::after{left:0;}
-.mflash{padding:10px 14px;border-radius:8px;font-size:.82rem;margin-bottom:14px;display:none;}
-.mflash.error{background:#fee2e2;color:#991b1b;display:block;}
-.mflash.success{background:#d1fae5;color:#065f46;display:block;}
-.mflash.info{background:#dbeafe;color:#1e40af;display:block;}
+.mbtn:active{transform:translateY(0)!important;}
+
+/* ─── Flash ─── */
+.mflash{padding:10px 14px;border-radius:10px;font-size:.82rem;margin-bottom:14px;display:none;
+  display:flex;align-items:center;gap:8px;}
+.mflash.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;display:flex;}
+.mflash.success{background:#f0fdf4;color:#065f46;border:1px solid #bbf7d0;display:flex;}
+.mflash.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;display:flex;}
+.mflash[style*="display:none"]{display:none!important;}
+
+/* ─── OTP ─── */
 .otp-row{display:flex;gap:8px;justify-content:center;margin:16px 0;direction:ltr;}
 .otp-row input{width:46px;height:50px;text-align:center;font-size:1.3rem;
-  font-weight:700;border:2px solid #e2e8f0;border-radius:10px;padding:0;}
-.otp-row input:focus{border-color:var(--teal-600);outline:none;}
-.admin-options{display:flex;flex-direction:column;gap:10px;}
-.admin-opt{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2e8f0;
-  border-radius:14px;text-decoration:none;color:var(--ink-900);transition:.15s;cursor:pointer;}
-.admin-opt:hover{border-color:var(--teal-600);background:#f0fdf4;}
-.admin-opt-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
-  justify-content:center;font-size:1.1rem;color:#fff;flex-shrink:0;}
-.admin-opt-text strong{display:block;font-size:.9rem;margin-bottom:2px;}
-.admin-opt-text span{font-size:.75rem;color:#64748b;}
+  font-weight:800;border:2px solid #e2e8f0;border-radius:11px;padding:0;
+  transition:.2s;font-family:inherit;background:#fafbfc;}
+.otp-row input:focus{border-color:var(--teal-600);outline:none;background:#fff;
+  box-shadow:0 0 0 3px rgba(45,138,80,.12);}
+
+/* ─── Modal colours ─── */
+.modal-ben .modal-head{background:linear-gradient(135deg,#0f3d2e,#2d8a50);}
+.modal-camp .modal-head{background:linear-gradient(135deg,#0e4f6e,#0891b2);}
+.modal-org .modal-head{background:linear-gradient(135deg,#1e3a5f,#1a6b3a);}
+.modal-ben .mbtn-primary{background:var(--teal-700);box-shadow:0 4px 14px rgba(26,107,58,.35);}
+.modal-camp .mbtn-primary{background:#0891b2;box-shadow:0 4px 14px rgba(8,145,178,.35);}
+.modal-camp .mbtn-primary:hover{background:#0e7490;}
+.modal-camp .mform-group input:focus{border-color:#0891b2;box-shadow:0 0 0 4px rgba(8,145,178,.1);}
+.modal-org .mbtn-primary{background:#1a5c3a;box-shadow:0 4px 14px rgba(26,92,58,.35);}
+.modal-org .mbtn-primary:hover{background:#0f3d2e;}
+
+/* ─── Divider ─── */
+.modal-sep{text-align:center;font-size:.75rem;color:#cbd5e1;margin:16px 0;position:relative;}
+.modal-sep::before,.modal-sep::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:#e2e8f0;}
+.modal-sep::before{right:0;}.modal-sep::after{left:0;}
 </style>
 
-<!-- ════ MODAL: دخول مستفيد ════ -->
+<!-- ════ MODAL: بوابة المستفيد ════ -->
 <div class="modal-overlay" id="benModal" onclick="closeOnBg(event,'benModal')">
-  <div class="modal">
+  <div class="modal modal-ben">
     <div class="modal-head">
-      <h3><i class="fas fa-user-circle"></i> بوابة المستفيد</h3>
+      <div class="modal-head-icon"><i class="fas fa-user-circle"></i></div>
+      <div class="modal-head-text">
+        <h3>بوابة المستفيد</h3>
+        <p>سجّل دخولك أو أنشئ حسابك</p>
+      </div>
       <button class="modal-close" onclick="closeModal('benModal')"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
@@ -568,43 +640,44 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 
       <!-- دخول -->
       <div class="tab-pane active" id="ben-login">
-        <div class="mflash" id="ben-login-flash"></div>
-        <div class="mform-group">
+        <div class="mflash" id="ben-login-flash" style="display:none"></div>
+        <div class="mform-group has-icon">
           <label>رقم الهوية</label>
-          <input type="text" id="bl-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+          <i class="fas fa-id-card mform-icon"></i>
+          <input type="text" id="bl-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric" onkeydown="if(event.key==='Enter') benLogin()">
         </div>
-        <div class="mform-group">
+        <div class="mform-group has-icon">
           <label>كلمة المرور</label>
-          <input type="password" id="bl-pw" placeholder="••••••••">
+          <i class="fas fa-lock mform-icon"></i>
+          <input type="password" id="bl-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter') benLogin()">
         </div>
         <button class="mbtn mbtn-primary" onclick="benLogin()">
           <i class="fas fa-sign-in-alt"></i> دخول
         </button>
-        <div style="text-align:center;margin-top:10px;">
-          <button onclick="showForgot()" style="background:none;border:none;color:var(--teal-700);
-            font-size:.8rem;cursor:pointer;text-decoration:underline;">نسيت كلمة المرور؟</button>
+        <div style="text-align:center;margin-top:12px;">
+          <button onclick="showForgot()" style="background:none;border:none;color:var(--teal-600);
+            font-size:.8rem;cursor:pointer;text-decoration:underline;font-family:inherit;">نسيت كلمة المرور؟</button>
         </div>
       </div>
 
       <!-- نسيت كلمة المرور -->
       <div id="ben-forgot" style="display:none">
-        <div class="mflash" id="ben-forgot-flash"></div>
+        <div class="mflash" id="ben-forgot-flash" style="display:none"></div>
         <div id="bfg-step1">
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>البريد الإلكتروني المسجل</label>
+            <i class="fas fa-envelope mform-icon"></i>
             <input type="email" id="bfg-email" placeholder="example@email.com" dir="ltr">
           </div>
           <button class="mbtn mbtn-primary" onclick="benForgotSend()">
             <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
           </button>
-          <button class="mbtn mbtn-outline" onclick="showLogin()" style="margin-top:8px;">
+          <button class="mbtn mbtn-outline" onclick="showLogin()">
             <i class="fas fa-arrow-right"></i> العودة للدخول
           </button>
         </div>
         <div id="bfg-step2" style="display:none">
-          <p style="text-align:center;font-size:.84rem;color:#64748b;margin-bottom:12px;">
-            أدخل الرمز المرسل لبريدك
-          </p>
+          <p style="text-align:center;font-size:.84rem;color:#64748b;margin-bottom:12px;">أدخل الرمز المرسل لبريدك</p>
           <div class="otp-row" id="bfg-otp-inputs">
             <input type="text" maxlength="1" inputmode="numeric">
             <input type="text" maxlength="1" inputmode="numeric">
@@ -613,8 +686,9 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
             <input type="text" maxlength="1" inputmode="numeric">
             <input type="text" maxlength="1" inputmode="numeric">
           </div>
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>كلمة المرور الجديدة</label>
+            <i class="fas fa-key mform-icon"></i>
             <input type="password" id="bfg-pw" placeholder="6 أحرف على الأقل">
           </div>
           <button class="mbtn mbtn-primary" onclick="benResetPassword()">
@@ -623,28 +697,26 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         </div>
       </div>
 
-      <!-- تسجيل - الخطوة 1: رقم الجوال -->
+      <!-- تسجيل -->
       <div class="tab-pane" id="ben-register">
-        <div class="mflash" id="ben-reg-flash"></div>
+        <div class="mflash" id="ben-reg-flash" style="display:none"></div>
         <div id="breg-step1">
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>البريد الإلكتروني <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-envelope mform-icon"></i>
             <input type="email" id="br-email" placeholder="example@gmail.com">
           </div>
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>رقم الهوية <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-id-card mform-icon"></i>
             <input type="text" id="br-id" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
           </div>
           <button class="mbtn mbtn-primary" onclick="benSendOTP()">
             <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
           </button>
         </div>
-
-        <!-- الخطوة 2: رمز OTP -->
         <div id="breg-step2" style="display:none">
-          <p style="text-align:center;font-size:.85rem;color:#64748b;margin-bottom:4px;">
-            تم إرسال رمز إلى بريدك الإلكتروني
-          </p>
+          <p style="text-align:center;font-size:.85rem;color:#64748b;margin-bottom:4px;">تم إرسال رمز إلى بريدك الإلكتروني</p>
           <p style="text-align:center;font-weight:700;color:var(--teal-800);font-size:.88rem;margin-bottom:16px;" id="br-email-display"></p>
           <div class="otp-row" id="br-otp-inputs">
             <input type="text" maxlength="1" inputmode="numeric">
@@ -659,30 +731,32 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
           </button>
           <div style="display:flex;gap:8px;margin-top:8px;">
             <button class="mbtn mbtn-outline" onclick="openEmailInbox()" style="flex:1;font-size:.78rem;">
-              <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> تحقق من وصول الرمز
+              <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> تحقق من الوصول
             </button>
             <button class="mbtn mbtn-outline" onclick="benSendOTP()" style="flex:1">
               <i class="fas fa-redo"></i> إعادة الإرسال
             </button>
           </div>
         </div>
-
-        <!-- الخطوة 3: إكمال البيانات -->
         <div id="breg-step3" style="display:none">
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>الاسم الرباعي <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-user mform-icon"></i>
             <input type="text" id="br-name" placeholder="الاسم الأول والأب والجد والعائلة">
           </div>
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>رقم الجوال</label>
+            <i class="fas fa-phone mform-icon"></i>
             <input type="tel" id="br-phone" placeholder="05xxxxxxxx">
           </div>
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-lock mform-icon"></i>
             <input type="password" id="br-pw" placeholder="8 أحرف على الأقل">
           </div>
-          <div class="mform-group">
+          <div class="mform-group has-icon">
             <label>تأكيد كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-lock mform-icon"></i>
             <input type="password" id="br-pw2" placeholder="أعد الكتابة">
           </div>
           <button class="mbtn mbtn-primary" onclick="benCompleteReg()">
@@ -694,70 +768,98 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
   </div>
 </div>
 
-<!-- ════ MODAL: دخول إداري ════ -->
-<div class="modal-overlay" id="adminModal" onclick="closeOnBg(event,'adminModal')">
-  <div class="modal">
+<!-- ════ MODAL: بوابة الإيواء ════ -->
+<div class="modal-overlay" id="campModal" onclick="closeOnBg(event,'campModal')">
+  <div class="modal modal-camp">
     <div class="modal-head">
-      <h3><i class="fas fa-shield-alt"></i> الدخول الإداري</h3>
-      <button class="modal-close" onclick="closeModal('adminModal')"><i class="fas fa-times"></i></button>
+      <div class="modal-head-icon"><i class="fas fa-campground"></i></div>
+      <div class="modal-head-text">
+        <h3>بوابة الإيواء</h3>
+        <p>مخيمات، لجان، عائلات</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('campModal')"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <p style="font-size:.84rem;color:#64748b;margin-bottom:16px;text-align:center;">
-        اختر نوع حسابك للدخول أو التسجيل
-      </p>
-      <div class="admin-options">
-        <a href="/login" class="admin-opt">
-          <div class="admin-opt-icon" style="background:var(--teal-700);">
-            <i class="fas fa-building"></i>
-          </div>
-          <div class="admin-opt-text">
-            <strong>دخول مؤسسة</strong>
-            <span>منظمات، جمعيات، مبادرات</span>
-          </div>
-          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
-        </a>
-        <a href="/camp/login" class="admin-opt">
-          <div class="admin-opt-icon" style="background:#0e7490;">
-            <i class="fas fa-campground"></i>
-          </div>
-          <div class="admin-opt-text">
-            <strong>دخول مخيم / لجنة / عائلة</strong>
-            <span>إدارة المخيم وطلبات الانضمام</span>
-          </div>
-          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
-        </a>
-        <div class="modal-sep">أو</div>
-        <a href="/register" class="admin-opt" style="border-color:var(--teal-600);">
-          <div class="admin-opt-icon" style="background:var(--amber-500);">
-            <i class="fas fa-plus"></i>
-          </div>
-          <div class="admin-opt-text">
-            <strong>تسجيل مؤسسة جديدة</strong>
-            <span>انضم بمؤسستك للمنظومة</span>
-          </div>
-          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
-        </a>
-        <a href="/register/camp" class="admin-opt">
-          <div class="admin-opt-icon" style="background:#059669;">
-            <i class="fas fa-tent"></i>
-          </div>
-          <div class="admin-opt-text">
-            <strong>تسجيل مخيم / لجنة / عائلة</strong>
-            <span>سجّل جهتك بالمنظومة</span>
-          </div>
-          <i class="fas fa-chevron-left" style="margin-right:auto;color:#94a3b8;"></i>
-        </a>
+      <div class="mflash" id="camp-login-flash" style="display:none"></div>
+      <form method="POST" action="/camp/login" id="campLoginForm">
+        <div class="mform-group has-icon">
+          <label>البريد الإلكتروني</label>
+          <i class="fas fa-envelope mform-icon"></i>
+          <input type="email" name="email" placeholder="email@example.com" dir="ltr" required>
+        </div>
+        <div class="mform-group has-icon">
+          <label>كلمة المرور</label>
+          <i class="fas fa-lock mform-icon"></i>
+          <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="mbtn mbtn-primary">
+          <i class="fas fa-sign-in-alt"></i> دخول
+        </button>
+      </form>
+      <div class="modal-sep">أو</div>
+      <a href="/register/camp" class="mbtn mbtn-outline" style="text-decoration:none;margin-top:0;">
+        <i class="fas fa-plus-circle"></i> تسجيل مخيم / لجنة جديدة
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: بوابة المؤسسة ════ -->
+<div class="modal-overlay" id="orgModal" onclick="closeOnBg(event,'orgModal')">
+  <div class="modal modal-org">
+    <div class="modal-head">
+      <div class="modal-head-icon"><i class="fas fa-building"></i></div>
+      <div class="modal-head-text">
+        <h3>بوابة المؤسسة</h3>
+        <p>منظمات، جمعيات، مبادرات</p>
       </div>
+      <button class="modal-close" onclick="closeModal('orgModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="mflash" id="org-login-flash" style="display:none"></div>
+      <form method="POST" action="/login" id="orgLoginForm">
+        <div class="mform-group has-icon">
+          <label>رمز المؤسسة</label>
+          <i class="fas fa-hashtag mform-icon"></i>
+          <input type="text" name="org_code" placeholder="ORG-XXXX" style="text-transform:uppercase;letter-spacing:.05em;" required>
+        </div>
+        <div class="mform-group has-icon">
+          <label>اسم المستخدم</label>
+          <i class="fas fa-user mform-icon"></i>
+          <input type="text" name="username" placeholder="اسم المستخدم" required>
+        </div>
+        <div class="mform-group has-icon">
+          <label>كلمة المرور</label>
+          <i class="fas fa-lock mform-icon"></i>
+          <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="mbtn mbtn-primary">
+          <i class="fas fa-sign-in-alt"></i> دخول
+        </button>
+      </form>
+      <div class="modal-sep">أو</div>
+      <a href="/register" class="mbtn mbtn-outline" style="text-decoration:none;margin-top:0;">
+        <i class="fas fa-plus-circle"></i> تسجيل مؤسسة جديدة
+      </a>
     </div>
   </div>
 </div>
 
 <!-- ════ MODAL SCRIPTS ════ -->
 <script>
-// فتح modal تلقائياً من URL
-(function(){ const p=new URLSearchParams(location.search).get('open'); if(p){ const m=document.getElementById(p); if(m){m.classList.add('active');document.body.style.overflow='hidden';} history.replaceState({},'',location.pathname); } })();
-function openModal(id){ document.getElementById(id).classList.add('active'); document.body.style.overflow='hidden'; }
-function closeModal(id){ document.getElementById(id).classList.remove('active'); document.body.style.overflow=''; }
+// فتح/إغلاق مع أنيميشن
+function openModal(id){
+  var el = document.getElementById(id);
+  el.classList.remove('closing');
+  el.classList.add('active');
+  document.body.style.overflow='hidden';
+}
+function closeModal(id){
+  var el = document.getElementById(id);
+  el.classList.add('closing');
+  setTimeout(function(){ el.classList.remove('active','closing'); }, 220);
+  document.body.style.overflow='';
+}
 function closeOnBg(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active')); document.body.style.overflow=''; });
 
