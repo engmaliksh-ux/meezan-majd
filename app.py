@@ -4568,21 +4568,22 @@ def sa_security():
     conn = get_connection()
     c = conn.cursor()
     locked_accounts = []
-    # مؤسسات
-    c.execute("""SELECT id, username, email, 'org' as type, failed_attempts, locked_until
-                 FROM users WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
-    for r in c.fetchall():
-        locked_accounts.append(dict(r))
     # مخيمات
-    c.execute("""SELECT id, camp_name as username, email, 'camp' as type, failed_attempts, locked_until
-                 FROM camp_entities WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
-    for r in c.fetchall():
-        locked_accounts.append(dict(r))
+    try:
+        c.execute("""SELECT id, camp_name as username, email, 'camp' as type, failed_attempts, locked_until
+                     FROM camp_entities WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
+        for r in c.fetchall():
+            locked_accounts.append(dict(r))
+    except Exception:
+        pass
     # مستفيدون
-    c.execute("""SELECT id, full_name as username, phone as email, 'beneficiary' as type, failed_attempts, locked_until
-                 FROM beneficiaries WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
-    for r in c.fetchall():
-        locked_accounts.append(dict(r))
+    try:
+        c.execute("""SELECT id, full_name as username, phone as email, 'beneficiary' as type, failed_attempts, locked_until
+                     FROM beneficiaries WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
+        for r in c.fetchall():
+            locked_accounts.append(dict(r))
+    except Exception:
+        pass
     conn.close()
     return jsonify({"blocked_ips": blocked_ips, "locked_accounts": locked_accounts})
 
