@@ -6537,9 +6537,10 @@ def camp_smart_classify():
 # تأكيد الاستلام من طرف المؤسسة (بدون انتظار المستفيد)
 # ══════════════════════════════════════════════════════════
 @app.route("/api/org/confirm-benefit", methods=["POST"])
-@login_required
 def api_org_confirm_benefit():
     import datetime
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
     org_id = session["org_id"]
     data      = request.get_json(force=True) or {}
     record_id = data.get("record_id")

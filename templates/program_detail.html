@@ -96,7 +96,7 @@
         <tr>
           <td style="color:#6c7a72;font-size:.82rem;">{{ loop.index }}</td>
           <td style="font-weight:700;text-align:right;">
-            <span class="seq-badge me-1">{{ r.seq_num }}</span>
+            {% if r.seq_num %}<span class="seq-badge me-1">{{ r.seq_num }}</span>{% endif %}
             {{ r.full_name }}
           </td>
           <td style="font-family:monospace;font-size:.82rem;">{{ r.id_number or '—' }}</td>
