@@ -5622,12 +5622,13 @@ def camp_dashboard():
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
     entity = dict(c.fetchone())
 
-    # طلبات الانضمام
+    # طلبات الانضمام (كل الطلبات — مسجلين وغير مسجلين)
     c.execute("""
         SELECT cjr.id, cjr.created_at, cjr.status,
-               b.full_name, b.id_number, b.phone, b.address, b.gender, b.id as ben_id
+               cjr.full_name, cjr.id_number, cjr.beneficiary_id,
+               b.phone, b.gender
         FROM camp_join_requests cjr
-        JOIN beneficiaries b ON cjr.beneficiary_id=b.id
+        LEFT JOIN beneficiaries b ON cjr.beneficiary_id=b.id
         WHERE cjr.camp_entity_id=?
         ORDER BY cjr.id DESC
     """, (camp_id,))
@@ -5682,6 +5683,7 @@ def camp_dashboard():
     recent_benefits = [dict(r) for r in c.fetchall()]
 
     conn.close()
+    pending_n = sum(1 for r in requests_list if r.get("status") == "pending")
     return render_template("camp_dashboard.html",
         entity=entity,
         requests_list=requests_list,
@@ -5691,7 +5693,8 @@ def camp_dashboard():
         pregnant_count=pregnant_count,
         nursing_count=nursing_count,
         sick_total=sick_total,
-        sick_breakdown=sick_breakdown)
+        sick_breakdown=sick_breakdown,
+        pending_n=pending_n)
 
 
 @app.route("/camp/join-request/<int:req_id>/<action>")
