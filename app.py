@@ -885,7 +885,7 @@ def logout():
         except Exception:
             pass
     session.clear()
-    return redirect(url_for("login"))
+    return redirect(url_for("home"))
 
 
 # ══════════════════════════════════════════
@@ -5535,7 +5535,7 @@ def camp_logout():
     session.pop("camp_id", None)
     session.pop("camp_name", None)
     session.pop("camp_type", None)
-    return redirect(url_for("camp_login"))
+    return redirect(url_for("home"))
 
 
 @app.route("/camp/dashboard")
