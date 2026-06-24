@@ -627,12 +627,16 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 #campRegModal.creg-fullscreen .modal-head{flex-shrink:0;}
 #campRegModal.creg-fullscreen .modal-body{
   flex:1;overflow-y:auto;
-  padding:16px 26px 20px;
+  padding:10px 26px 10px;
   display:flex;flex-direction:column;
   background:#fff;
 }
-#creg-s3{flex:1;display:flex;flex-direction:column;}
-#creg-s3 > div:first-child{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+#creg-s3{flex:1;display:flex;flex-direction:column;gap:0;}
+#creg-s3 > div:first-child{
+  flex:1;
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:0;align-content:space-evenly;
+}
 .creg-compact{margin-bottom:0!important;}
 .creg-compact label{font-size:.78rem;margin-bottom:5px;display:block;font-weight:700;color:#475569;}
 .creg-inp,.creg-sel{
@@ -643,7 +647,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 }
 .creg-inp:focus,.creg-sel:focus{outline:none;border-color:#0891b2;box-shadow:0 0 0 3px rgba(8,145,178,.1);}
 .creg-compact .mform-icon{top:33px;font-size:.82rem;left:11px;}
-#creg-s3 .mbtn{margin-top:auto;padding:14px;font-size:1rem;}
+#creg-s3 .mbtn{margin-top:0;padding:14px;font-size:1rem;}
 #campRegModal.creg-fullscreen .modal-body > #creg-s3{padding-bottom:0;}
 .modal-org .mbtn-primary{background:#1a5c3a;box-shadow:0 4px 14px rgba(26,92,58,.35);}
 .modal-org .mbtn-primary:hover{background:#0f3d2e;}
@@ -922,6 +926,13 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         <button class="mbtn mbtn-outline" onclick="cregSendOtp(true)">
           <i class="fas fa-redo"></i> إعادة الإرسال
         </button>
+        <p style="text-align:center;margin-top:10px;font-size:.82rem;color:#94a3b8;">
+          <a href="https://mail.google.com/mail/u/0/#spam" target="_blank"
+             style="color:#0891b2;text-decoration:none;font-weight:600;">
+            <i class="fas fa-envelope-open-text" style="margin-left:4px;"></i>
+            تأكد من وصول الرمز الى بريدك!
+          </a>
+        </p>
       </div>
 
       <!-- خطوة 3: بيانات التسجيل -->
