@@ -551,7 +551,8 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 .modal-close:hover{background:rgba(255,255,255,.28);transform:rotate(90deg);}
 
 /* ─── Body ─── */
-.modal-body{padding:22px 24px 24px;}
+.modal-body{padding:18px 22px 20px;}
+#campRegModal .modal-body{padding:14px 20px 18px;}
 .modal-tabs{display:flex;gap:0;margin-bottom:18px;border-radius:12px;overflow:hidden;
   border:1.5px solid #e2e8f0;background:#f8fafc;}
 .mtab{flex:1;padding:10px;text-align:center;font-size:.83rem;font-weight:700;
@@ -612,6 +613,20 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 .modal-camp .mbtn-primary{background:#0891b2;box-shadow:0 4px 14px rgba(8,145,178,.35);}
 .modal-camp .mbtn-primary:hover{background:#0e7490;}
 .modal-camp .mform-group input:focus{border-color:#0891b2;box-shadow:0 0 0 4px rgba(8,145,178,.1);}
+
+/* ─── campRegModal: wider + compact fields ─── */
+#campRegModal .modal{max-width:640px;}
+.creg-compact{margin-bottom:0!important;}
+.creg-compact label{font-size:.75rem;margin-bottom:3px;display:block;font-weight:700;color:#475569;}
+.creg-inp,.creg-sel{
+  width:100%;padding:8px 10px 8px 32px;
+  border:1.5px solid #e2e8f0;border-radius:9px;
+  font-size:.82rem;font-family:inherit;background:#fafbfc;
+  transition:border .2s,box-shadow .2s;box-sizing:border-box;
+}
+.creg-inp:focus,.creg-sel:focus{outline:none;border-color:#0891b2;box-shadow:0 0 0 3px rgba(8,145,178,.1);}
+.creg-compact .mform-icon{top:30px;font-size:.78rem;left:10px;}
+#creg-s3 .mbtn{margin-top:10px;padding:11px;}
 .modal-org .mbtn-primary{background:#1a5c3a;box-shadow:0 4px 14px rgba(26,92,58,.35);}
 .modal-org .mbtn-primary:hover{background:#0f3d2e;}
 
@@ -893,68 +908,73 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 
       <!-- خطوة 3: بيانات التسجيل -->
       <div id="creg-s3" style="display:none">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div class="mform-group has-icon" style="grid-column:1/-1">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <!-- صف 1: نوع + اسم الجهة -->
+          <div class="mform-group has-icon creg-compact">
             <label>نوع الجهة <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-tag mform-icon"></i>
-            <select id="creg-type" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;">
+            <select id="creg-type" class="creg-sel">
               <option value="camp">مخيم</option>
               <option value="committee">لجنة</option>
               <option value="family">عائلة</option>
             </select>
           </div>
-          <div class="mform-group has-icon" style="grid-column:1/-1">
+          <div class="mform-group has-icon creg-compact" style="grid-column:span 2">
             <label>اسم الجهة <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-tent mform-icon"></i>
-            <input type="text" id="creg-name" placeholder="اسم المخيم أو اللجنة">
+            <input type="text" id="creg-name" placeholder="اسم المخيم أو اللجنة" class="creg-inp">
           </div>
-          <div class="mform-group has-icon">
+          <!-- صف 2: مسؤول + هوية + جوال -->
+          <div class="mform-group has-icon creg-compact">
             <label>اسم المسؤول <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-user mform-icon"></i>
-            <input type="text" id="creg-manager" placeholder="الاسم الكامل">
+            <input type="text" id="creg-manager" placeholder="الاسم الكامل" class="creg-inp">
           </div>
-          <div class="mform-group has-icon">
+          <div class="mform-group has-icon creg-compact">
             <label>رقم الهوية <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-id-card mform-icon"></i>
-            <input type="text" id="creg-idnum" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+            <input type="text" id="creg-idnum" placeholder="9 أرقام" maxlength="9" inputmode="numeric" class="creg-inp">
           </div>
-          <div class="mform-group has-icon">
+          <div class="mform-group has-icon creg-compact">
             <label>رقم الجوال <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-phone mform-icon"></i>
-            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx" required>
+            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx" class="creg-inp">
           </div>
-          <div class="mform-group has-icon" style="grid-column:1/-1">
+          <!-- صف 3: محافظة + مدينة -->
+          <div class="mform-group has-icon creg-compact">
             <label>المحافظة <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-map-marker-alt mform-icon"></i>
-            <select id="creg-gov" onchange="updateCities()" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;" required>
-              <option value="">— اختر المحافظة —</option>
+            <select id="creg-gov" onchange="updateCities()" class="creg-sel">
+              <option value="">— المحافظة —</option>
               <option value="شمال غزة">شمال غزة</option>
               <option value="غزة">غزة</option>
               <option value="المنطقة الوسطى">المنطقة الوسطى</option>
               <option value="المنطقة الجنوبية">المنطقة الجنوبية</option>
             </select>
           </div>
-          <div class="mform-group has-icon" style="grid-column:1/-1">
-            <label>المدينة / الحي <span style="color:#e53e3e">*</span></label>
+          <div class="mform-group has-icon creg-compact">
+            <label>المدينة <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-city mform-icon"></i>
-            <select id="creg-city" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;" required>
-              <option value="">— اختر المدينة —</option>
+            <select id="creg-city" class="creg-sel">
+              <option value="">— المدينة —</option>
             </select>
           </div>
-          <div class="mform-group has-icon" style="grid-column:1/-1">
+          <!-- صف 3: حي/معلم -->
+          <div class="mform-group has-icon creg-compact">
             <label>الحي / أقرب معلم</label>
             <i class="fas fa-location-arrow mform-icon"></i>
-            <input type="text" id="creg-street" placeholder="اسم الحي أو الشارع أو أقرب معلم">
+            <input type="text" id="creg-street" placeholder="حي أو شارع أو معلم" class="creg-inp">
           </div>
-          <div class="mform-group has-icon">
+          <!-- صف 4: كلمة مرور -->
+          <div class="mform-group has-icon creg-compact" style="grid-column:span 2">
             <label>كلمة المرور <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-lock mform-icon"></i>
-            <input type="password" id="creg-pw" placeholder="8 أحرف على الأقل">
+            <input type="password" id="creg-pw" placeholder="8 أحرف على الأقل" class="creg-inp">
           </div>
-          <div class="mform-group has-icon">
-            <label>تأكيد كلمة المرور <span style="color:#e53e3e">*</span></label>
+          <div class="mform-group has-icon creg-compact">
+            <label>تأكيد المرور <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-lock mform-icon"></i>
-            <input type="password" id="creg-pw2" placeholder="أعد الكتابة">
+            <input type="password" id="creg-pw2" placeholder="أعد الكتابة" class="creg-inp">
           </div>
         </div>
         <button class="mbtn mbtn-primary" onclick="cregSubmit()">
