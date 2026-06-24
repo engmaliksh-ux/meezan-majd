@@ -304,17 +304,17 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         </div>
         <div class="hstat-row">
           <div class="hstat">
-            <span class="hstat-n">{{ total_benef }}</span>
+            <span class="hstat-n" data-target="{{ total_benef }}">0</span>
             <span class="hstat-l">مستفيد مسجّل</span>
           </div>
           <div class="hstat-div"></div>
           <div class="hstat">
-            <span class="hstat-n">{{ total_camps }}</span>
+            <span class="hstat-n" data-target="{{ total_camps }}">0</span>
             <span class="hstat-l">مخيم في المنظومة</span>
           </div>
           <div class="hstat-div"></div>
           <div class="hstat">
-            <span class="hstat-n">{{ total_orgs }}</span>
+            <span class="hstat-n" data-target="{{ total_orgs }}">0</span>
             <span class="hstat-l">مؤسسة معتمدة</span>
           </div>
           <div class="hstat-div"></div>
@@ -963,6 +963,82 @@ async function benCompleteReg(){
   }, {threshold: 0.3});
   counters.forEach(function(c){ io2.observe(c); });
 })();
+
+// ── HERO ENTRANCE ANIMATION ──
+(function(){
+  var items = document.querySelectorAll('.hero-anim');
+  items.forEach(function(el, i){
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(24px)';
+    el.style.transition = 'opacity .6s ease, transform .6s ease';
+    setTimeout(function(){
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }, 150 + i * 130);
+  });
+})();
+
+// ── HERO STATS COUNTER (on load) ──
+(function(){
+  document.querySelectorAll('.hstat-n[data-target]').forEach(function(el){
+    var target = parseInt(el.getAttribute('data-target')) || 0;
+    if(!target){ return; }
+    var start = 0, duration = 1400, step = 16;
+    var inc = target / (duration / step);
+    setTimeout(function(){
+      var t = setInterval(function(){
+        start += inc;
+        if(start >= target){ start = target; clearInterval(t); }
+        el.textContent = Math.floor(start);
+      }, step);
+    }, 700);
+  });
+})();
+
+// ── RIPPLE on portal buttons ──
+document.querySelectorAll('.portal-btn').forEach(function(btn){
+  btn.addEventListener('click', function(e){
+    var r = document.createElement('span');
+    var rect = btn.getBoundingClientRect();
+    r.style.cssText = 'position:absolute;border-radius:50%;background:rgba(255,255,255,.35);pointer-events:none;transform:scale(0);animation:ripple .5s linear;width:80px;height:80px;top:'+(e.clientY-rect.top-40)+'px;left:'+(e.clientX-rect.left-40)+'px;';
+    btn.style.position='relative'; btn.style.overflow='hidden';
+    btn.appendChild(r);
+    setTimeout(function(){ r.remove(); }, 600);
+  });
+});
+
+// ── FLOATING PARTICLES in hero ──
+(function(){
+  var hero = document.querySelector('.hero');
+  if(!hero) return;
+  for(var i=0;i<18;i++){
+    var p = document.createElement('div');
+    var size = Math.random()*4+2;
+    var x = Math.random()*100, y = Math.random()*100;
+    var dur = Math.random()*12+8, delay = Math.random()*8;
+    p.style.cssText='position:absolute;border-radius:50%;background:rgba(255,255,255,'+(Math.random()*.12+.04)+');width:'+size+'px;height:'+size+'px;left:'+x+'%;top:'+y+'%;animation:floatP '+dur+'s '+delay+'s ease-in-out infinite alternate;pointer-events:none;z-index:0;';
+    hero.appendChild(p);
+  }
+})();
+</script>
+
+<style>
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+@keyframes floatP{0%{transform:translateY(0) translateX(0)}100%{transform:translateY(-30px) translateX(15px)}}
+
+/* Hero entrance classes */
+.hero-badge,.hero h1,.hero p,.hero-portals,.hero-stats{opacity:0;}
+</style>
+
+<script>
+// تطبيق hero-anim بعد تحميل الـ DOM
+document.querySelectorAll('.hero-badge,.hero h1,.hero p,.hero-portals,.hero-stats').forEach(function(el,i){
+  el.classList.add('hero-anim');
+  el.style.opacity='0';
+  el.style.transform='translateY(22px)';
+  el.style.transition='opacity .55s ease, transform .55s ease';
+  setTimeout(function(){ el.style.opacity='1'; el.style.transform='translateY(0)'; }, 100+i*120);
+});
 </script>
 </body>
 </html>
