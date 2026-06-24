@@ -878,7 +878,8 @@ def init_camp_tables():
         c.execute("ALTER TABLE beneficiaries ADD COLUMN camp_entity_id INTEGER DEFAULT NULL")
         conn.commit()
     except Exception:
-        passاستلام المستفيد لسجلات البرامج
+        pass
+    # استلام المستفيد لسجلات البرامج
     try:
         c.execute("ALTER TABLE program_records ADD COLUMN ben_confirmed INTEGER DEFAULT 0")
         conn.commit()
