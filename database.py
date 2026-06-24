@@ -854,6 +854,12 @@ def init_camp_tables():
         pass
 
     # جدول طلبات انضمام المستفيدين للمخيمات
+    # إذا الجدول موجود بمخطط قديم (بدون id_number) نحذفه ونعيد إنشاؤه
+    try:
+        c.execute("SELECT id_number FROM camp_join_requests LIMIT 1")
+    except Exception:
+        c.execute("DROP TABLE IF EXISTS camp_join_requests")
+        conn.commit()
     try:
         c.execute("""CREATE TABLE IF NOT EXISTS camp_join_requests (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
