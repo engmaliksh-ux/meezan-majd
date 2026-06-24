@@ -919,14 +919,32 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
             <input type="text" id="creg-idnum" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
           </div>
           <div class="mform-group has-icon">
-            <label>رقم الجوال</label>
+            <label>رقم الجوال <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-phone mform-icon"></i>
-            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx">
+            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx" required>
           </div>
-          <div class="mform-group has-icon">
-            <label>المحافظة</label>
+          <div class="mform-group has-icon" style="grid-column:1/-1">
+            <label>المحافظة <span style="color:#e53e3e">*</span></label>
             <i class="fas fa-map-marker-alt mform-icon"></i>
-            <input type="text" id="creg-gov" placeholder="المحافظة">
+            <select id="creg-gov" onchange="updateCities()" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;" required>
+              <option value="">— اختر المحافظة —</option>
+              <option value="شمال غزة">شمال غزة</option>
+              <option value="غزة">غزة</option>
+              <option value="المنطقة الوسطى">المنطقة الوسطى</option>
+              <option value="المنطقة الجنوبية">المنطقة الجنوبية</option>
+            </select>
+          </div>
+          <div class="mform-group has-icon" style="grid-column:1/-1">
+            <label>المدينة / الحي <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-city mform-icon"></i>
+            <select id="creg-city" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;" required>
+              <option value="">— اختر المدينة —</option>
+            </select>
+          </div>
+          <div class="mform-group has-icon" style="grid-column:1/-1">
+            <label>الحي / أقرب معلم</label>
+            <i class="fas fa-location-arrow mform-icon"></i>
+            <input type="text" id="creg-street" placeholder="اسم الحي أو الشارع أو أقرب معلم">
           </div>
           <div class="mform-group has-icon">
             <label>كلمة المرور <span style="color:#e53e3e">*</span></label>
@@ -1168,6 +1186,22 @@ async function benCompleteReg(){
   counters.forEach(function(c){ io2.observe(c); });
 })();
 
+// ── قوائم المحافظات والمدن ──
+var CITIES = {
+  'شمال غزة': ['بيت لاهيا','جباليا','الصفطاوي'],
+  'غزة': ['الشيخ رضوان','الشاطئ','النصر','الشجاعية','التفاح','الصحابة','الثلاثيني','الصبرة','الرمال'],
+  'المنطقة الوسطى': ['النصيرات','البريج','المغازي','دير البلح'],
+  'المنطقة الجنوبية': ['خانيونس القرارة','خانيونس المواصي','خانيونس المعسكر','خانيونس البلد','رفح']
+};
+function updateCities(){
+  var gov = document.getElementById('creg-gov').value;
+  var sel = document.getElementById('creg-city');
+  sel.innerHTML = '<option value="">— اختر المدينة —</option>';
+  if(CITIES[gov]) CITIES[gov].forEach(function(c){
+    var o = document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o);
+  });
+}
+
 // ── تسجيل لجنة جديدة ──
 function cregFlash(msg, type){ setFlash('creg-flash', msg, type); }
 function cregStep(n){
@@ -1209,6 +1243,8 @@ async function cregSubmit(){
     id_number:    document.getElementById('creg-idnum').value.trim(),
     mobile:       document.getElementById('creg-mobile').value.trim(),
     governorate:  document.getElementById('creg-gov').value.trim(),
+    city:         document.getElementById('creg-city').value.trim(),
+    street:       document.getElementById('creg-street').value.trim(),
     password:     document.getElementById('creg-pw').value,
     password2:    document.getElementById('creg-pw2').value,
   };

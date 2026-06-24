@@ -608,6 +608,8 @@ def register_staff():
 def login():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
+    if request.method == "GET":
+        return redirect(url_for("home"))
 
     ip = _get_ip()
     error = None
@@ -5250,6 +5252,8 @@ def api_camps_by_area():
 
 @app.route("/register/camp", methods=["GET", "POST"])
 def register_camp():
+    if request.method == "GET":
+        return redirect(url_for("home"))
     if request.method == "POST":
         action = request.form.get("action","")
 
@@ -5387,6 +5391,8 @@ def register_camp():
 
 @app.route("/camp/login", methods=["GET", "POST"])
 def camp_login():
+    if request.method == "GET":
+        return redirect(url_for("home"))
     import datetime as _dt
     try:
       if request.method == "POST":
@@ -6748,10 +6754,17 @@ def api_camp_reg_submit():
     mobile      = (data.get("mobile") or "").strip()
     governorate = (data.get("governorate") or "").strip()
     city        = (data.get("city") or "").strip()
+    street      = (data.get("street") or "").strip()
     password    = data.get("password","")
     password2   = data.get("password2","")
     if not name or not manager or not password:
         return jsonify({"ok": False, "error": "يرجى تعبئة جميع الحقول المطلوبة"})
+    if not mobile:
+        return jsonify({"ok": False, "error": "رقم الجوال مطلوب"})
+    if not governorate:
+        return jsonify({"ok": False, "error": "يرجى اختيار المحافظة"})
+    if not city:
+        return jsonify({"ok": False, "error": "يرجى اختيار المدينة"})
     if password != password2:
         return jsonify({"ok": False, "error": "كلمتا المرور غير متطابقتين"})
     if len(id_number) != 9 or not id_number.isdigit():
@@ -6761,10 +6774,10 @@ def api_camp_reg_submit():
     try:
         c.execute("""INSERT INTO camp_entities
             (entity_type,name,manager_name,id_number,mobile,email,email_verified,
-             governorate,city,password,is_active)
-            VALUES (?,?,?,?,?,?,1,?,?,?,1)""",
+             governorate,city,street,password,is_active)
+            VALUES (?,?,?,?,?,?,1,?,?,?,?,1)""",
             (entity_type, name, manager, id_number, mobile, email,
-             governorate, city, hashed_pw))
+             governorate, city, street, hashed_pw))
         new_id = c.lastrowid
         conn.commit()
     except Exception as e:
