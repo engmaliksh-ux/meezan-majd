@@ -964,10 +964,16 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
             <i class="fas fa-id-card mform-icon"></i>
             <input type="text" id="creg-idnum" placeholder="9 أرقام" maxlength="9" inputmode="numeric" class="creg-inp">
           </div>
-          <div class="mform-group has-icon creg-compact">
+          <div class="mform-group creg-compact">
             <label>رقم الجوال <span style="color:#e53e3e">*</span></label>
-            <i class="fas fa-phone mform-icon"></i>
-            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx" class="creg-inp">
+            <div style="display:flex;align-items:center;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fafbfc;transition:border .2s,box-shadow .2s;" id="creg-mobile-wrap">
+              <span style="padding:0 10px;font-weight:800;font-size:.9rem;color:#0f3d2e;background:#e8f5ee;border-left:1.5px solid #e2e8f0;height:100%;display:flex;align-items:center;line-height:1;padding-top:10px;padding-bottom:10px;">05</span>
+              <input type="tel" id="creg-mobile" placeholder="xxxxxxxx" maxlength="8" inputmode="numeric"
+                style="flex:1;border:none;outline:none;padding:10px 10px;font-size:.85rem;font-family:inherit;background:transparent;direction:ltr;text-align:left;"
+                oninput="this.value=this.value.replace(/\D/g,'')"
+                onfocus="document.getElementById('creg-mobile-wrap').style.borderColor='#0891b2';document.getElementById('creg-mobile-wrap').style.boxShadow='0 0 0 3px rgba(8,145,178,.1)'"
+                onblur="document.getElementById('creg-mobile-wrap').style.borderColor='#e2e8f0';document.getElementById('creg-mobile-wrap').style.boxShadow='none'">
+            </div>
           </div>
           <!-- صف 3: محافظة + مدينة -->
           <div class="mform-group has-icon creg-compact">
@@ -1296,7 +1302,7 @@ async function cregSubmit(){
     name:         document.getElementById('creg-name').value.trim(),
     manager_name: document.getElementById('creg-manager').value.trim(),
     id_number:    document.getElementById('creg-idnum').value.trim(),
-    mobile:       document.getElementById('creg-mobile').value.trim(),
+    mobile:       '05' + document.getElementById('creg-mobile').value.trim(),
     governorate:  document.getElementById('creg-gov').value.trim(),
     city:         document.getElementById('creg-city').value.trim(),
     street:       document.getElementById('creg-street').value.trim(),
