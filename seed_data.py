@@ -1,370 +1,406 @@
 """
-seed_data.py — بيانات تجريبية شبه حقيقية لمنصة ميزان مجد
-شغّله على السيرفر: python3 seed_data.py
+seed_data.py — بيانات تجريبية لمنصة ميزان مجد
+شغّله: python3 seed_data.py
 """
-import sqlite3, sys
+import sqlite3
 from werkzeug.security import generate_password_hash
-from datetime import datetime, timedelta
 
 DB = "/home/MalikMohs/meezan-majd/database.db"
 
-def get_conn():
-    conn = sqlite3.connect(DB, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=15000")
-    return conn
+def conn():
+    c = sqlite3.connect(DB, timeout=30)
+    c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=15000")
+    return c
+
+def col_exists(db, table, col):
+    cur = db.execute(f"PRAGMA table_info({table})")
+    return any(r[1] == col for r in cur.fetchall())
+
+def safe_insert(db, sql, params):
+    try:
+        db.execute(sql, params)
+        return db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    except Exception as e:
+        print(f"  ⚠️  {e}")
+        return None
 
 def run():
-    conn = get_conn()
-    c = conn.cursor()
-
+    db = conn()
     print("═══ ميزان مجد — إدخال البيانات التجريبية ═══\n")
 
+    # ── تحقق من الأعمدة المتاحة ──
+    orgs_cols   = [r[1] for r in db.execute("PRAGMA table_info(organizations)").fetchall()]
+    users_cols  = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    prods_cols  = [r[1] for r in db.execute("PRAGMA table_info(products)").fetchall()]
+    stock_cols  = [r[1] for r in db.execute("PRAGMA table_info(stock_batches)").fetchall()]
+    inv_cols    = [r[1] for r in db.execute("PRAGMA table_info(incoming_invoices)").fetchall()]
+    ben_cols    = [r[1] for r in db.execute("PRAGMA table_info(beneficiaries)").fetchall()]
+    camp_cols   = [r[1] for r in db.execute("PRAGMA table_info(camp_entities)").fetchall()]
+
+    print(f"✅ تحقق من Schema — organizations: {orgs_cols[:5]}...")
+
     # ══════════════════════════════════════════
-    # 1. المؤسسة الأولى — جمعية الرحمة للإغاثة
+    # 1. المؤسسة الأولى
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM organizations WHERE email='rahma@relief.org' LIMIT 1")
-    org1 = c.fetchone()
-    if not org1:
-        c.execute("""INSERT INTO organizations
-            (name, email, phone, address, area, org_code, is_active, is_verified)
-            VALUES (?,?,?,?,?,?,1,1)""",
-            ("جمعية الرحمة للإغاثة", "rahma@relief.org", "0911234567",
-             "دمشق - الميدان", "دمشق", "RAHMA01"))
-        org1_id = c.lastrowid
+    row = db.execute("SELECT id FROM organizations WHERE email='rahma@relief.org'").fetchone()
+    if not row:
+        # أدرج فقط الأعمدة الموجودة
+        base = {"name": "جمعية الرحمة للإغاثة", "email": "rahma@relief.org", "org_code": "RAHMA01"}
+        extra = {}
+        if "phone"       in orgs_cols: extra["phone"]       = "0911234567"
+        if "address"     in orgs_cols: extra["address"]     = "دمشق - الميدان"
+        if "area"        in orgs_cols: extra["area"]        = "دمشق"
+        if "is_active"   in orgs_cols: extra["is_active"]   = 1
+        if "is_verified" in orgs_cols: extra["is_verified"] = 1
+        all_data = {**base, **extra}
+        cols_str = ", ".join(all_data.keys())
+        vals_str = ", ".join(["?"] * len(all_data))
+        db.execute(f"INSERT INTO organizations ({cols_str}) VALUES ({vals_str})", list(all_data.values()))
+        db.commit()
+        org1_id = db.execute("SELECT id FROM organizations WHERE email='rahma@relief.org'").fetchone()["id"]
         print(f"✅ المؤسسة 1: جمعية الرحمة للإغاثة (id={org1_id})")
     else:
-        org1_id = org1["id"]
+        org1_id = row["id"]
         print(f"ℹ️  المؤسسة 1 موجودة (id={org1_id})")
 
     # مدير المؤسسة 1
-    c.execute("SELECT id FROM users WHERE email='admin@rahma.org' LIMIT 1")
-    if not c.fetchone():
-        c.execute("""INSERT INTO users
-            (org_id, username, password, full_name, email, role, status)
-            VALUES (?,?,?,?,?,?,?)""",
-            (org1_id, "admin_rahma",
-             generate_password_hash("Rahma@2024"),
-             "أحمد محمود السيد", "admin@rahma.org", "admin", "approved"))
-        print(f"✅ مدير المؤسسة 1: admin@rahma.org / Rahma@2024")
+    if not db.execute("SELECT id FROM users WHERE email='admin@rahma.org'").fetchone():
+        udata = {"org_id": org1_id, "username": "admin_rahma",
+                 "password": generate_password_hash("Rahma@2024"),
+                 "full_name": "أحمد محمود السيد", "role": "admin", "status": "approved"}
+        if "email" in users_cols: udata["email"] = "admin@rahma.org"
+        cols_str = ", ".join(udata.keys())
+        vals_str = ", ".join(["?"] * len(udata))
+        db.execute(f"INSERT INTO users ({cols_str}) VALUES ({vals_str})", list(udata.values()))
+        db.commit()
+        print("✅ مدير المؤسسة 1: admin@rahma.org / Rahma@2024")
 
-    # موظف بيانات في المؤسسة 1
-    c.execute("SELECT id FROM users WHERE email='data@rahma.org' LIMIT 1")
-    if not c.fetchone():
-        c.execute("""INSERT INTO users
-            (org_id, username, password, full_name, email, role, status)
-            VALUES (?,?,?,?,?,?,?)""",
-            (org1_id, "data_rahma",
-             generate_password_hash("Data@2024"),
-             "سارة عبد الله حسن", "data@rahma.org", "data_entry", "approved"))
-        print(f"✅ موظف بيانات المؤسسة 1: data@rahma.org / Data@2024")
+    # موظف بيانات
+    if not db.execute("SELECT id FROM users WHERE email='data@rahma.org'").fetchone():
+        udata = {"org_id": org1_id, "username": "data_rahma",
+                 "password": generate_password_hash("Data@2024"),
+                 "full_name": "سارة عبد الله حسن", "role": "data_entry", "status": "approved"}
+        if "email" in users_cols: udata["email"] = "data@rahma.org"
+        cols_str = ", ".join(udata.keys())
+        vals_str = ", ".join(["?"] * len(udata))
+        db.execute(f"INSERT INTO users ({cols_str}) VALUES ({vals_str})", list(udata.values()))
+        db.commit()
+        print("✅ موظف بيانات: data@rahma.org / Data@2024")
 
     # ══════════════════════════════════════════
-    # 2. المؤسسة الثانية — منظمة أمل للتنمية
+    # 2. المؤسسة الثانية
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM organizations WHERE email='amal@ngo.org' LIMIT 1")
-    org2 = c.fetchone()
-    if not org2:
-        c.execute("""INSERT INTO organizations
-            (name, email, phone, address, area, org_code, is_active, is_verified)
-            VALUES (?,?,?,?,?,?,1,1)""",
-            ("منظمة أمل للتنمية", "amal@ngo.org", "0921234567",
-             "حلب - الشعار", "حلب", "AMAL02"))
-        org2_id = c.lastrowid
+    row = db.execute("SELECT id FROM organizations WHERE email='amal@ngo.org'").fetchone()
+    if not row:
+        base = {"name": "منظمة أمل للتنمية", "email": "amal@ngo.org", "org_code": "AMAL02"}
+        extra = {}
+        if "phone"       in orgs_cols: extra["phone"]       = "0921234567"
+        if "area"        in orgs_cols: extra["area"]        = "حلب"
+        if "is_active"   in orgs_cols: extra["is_active"]   = 1
+        if "is_verified" in orgs_cols: extra["is_verified"] = 1
+        all_data = {**base, **extra}
+        cols_str = ", ".join(all_data.keys())
+        vals_str = ", ".join(["?"] * len(all_data))
+        db.execute(f"INSERT INTO organizations ({cols_str}) VALUES ({vals_str})", list(all_data.values()))
+        db.commit()
+        org2_id = db.execute("SELECT id FROM organizations WHERE email='amal@ngo.org'").fetchone()["id"]
         print(f"✅ المؤسسة 2: منظمة أمل للتنمية (id={org2_id})")
     else:
-        org2_id = org2["id"]
+        org2_id = row["id"]
         print(f"ℹ️  المؤسسة 2 موجودة (id={org2_id})")
 
-    # مدير المؤسسة 2
-    c.execute("SELECT id FROM users WHERE email='admin@amal.org' LIMIT 1")
-    if not c.fetchone():
-        c.execute("""INSERT INTO users
-            (org_id, username, password, full_name, email, role, status)
-            VALUES (?,?,?,?,?,?,?)""",
-            (org2_id, "admin_amal",
-             generate_password_hash("Amal@2024"),
-             "خالد يوسف النور", "admin@amal.org", "admin", "approved"))
-        print(f"✅ مدير المؤسسة 2: admin@amal.org / Amal@2024")
-
-    conn.commit()
+    if not db.execute("SELECT id FROM users WHERE email='admin@amal.org'").fetchone():
+        udata = {"org_id": org2_id, "username": "admin_amal",
+                 "password": generate_password_hash("Amal@2024"),
+                 "full_name": "خالد يوسف النور", "role": "admin", "status": "approved"}
+        if "email" in users_cols: udata["email"] = "admin@amal.org"
+        cols_str = ", ".join(udata.keys())
+        vals_str = ", ".join(["?"] * len(udata))
+        db.execute(f"INSERT INTO users ({cols_str}) VALUES ({vals_str})", list(udata.values()))
+        db.commit()
+        print("✅ مدير المؤسسة 2: admin@amal.org / Amal@2024")
 
     # ══════════════════════════════════════════
-    # 3. المخيم — مخيم النور للنازحين
+    # 3. المخيم
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM camp_entities WHERE email='nour@camp.sy' LIMIT 1")
-    camp1 = c.fetchone()
-    if not camp1:
-        c.execute("""INSERT INTO camp_entities
-            (entity_type, name, manager_name, mobile, email, governorate, city,
-             password, is_active, registered_families)
-            VALUES (?,?,?,?,?,?,?,?,1,0)""",
-            ("camp", "مخيم النور للنازحين", "محمد خالد العمر",
-             "0931234567", "nour@camp.sy",
-             "دمشق", "جرمانا",
-             generate_password_hash("Camp@2024")))
-        camp1_id = c.lastrowid
+    row = db.execute("SELECT id FROM camp_entities WHERE email='nour@camp.sy'").fetchone()
+    if not row:
+        cdata = {
+            "name": "مخيم النور للنازحين",
+            "manager_name": "محمد خالد العمر",
+            "email": "nour@camp.sy",
+            "password": generate_password_hash("Camp@2024"),
+            "is_active": 1,
+        }
+        if "entity_type"  in camp_cols: cdata["entity_type"]  = "camp"
+        if "mobile"       in camp_cols: cdata["mobile"]       = "0931234567"
+        if "governorate"  in camp_cols: cdata["governorate"]  = "دمشق"
+        if "city"         in camp_cols: cdata["city"]         = "جرمانا"
+        cols_str = ", ".join(cdata.keys())
+        vals_str = ", ".join(["?"] * len(cdata))
+        db.execute(f"INSERT INTO camp_entities ({cols_str}) VALUES ({vals_str})", list(cdata.values()))
+        db.commit()
+        camp1_id = db.execute("SELECT id FROM camp_entities WHERE email='nour@camp.sy'").fetchone()["id"]
         print(f"✅ المخيم: مخيم النور للنازحين (id={camp1_id})")
     else:
-        camp1_id = camp1["id"]
+        camp1_id = row["id"]
         print(f"ℹ️  المخيم موجود (id={camp1_id})")
 
-    conn.commit()
-
     # ══════════════════════════════════════════
-    # 4. المنتجات والمخزون — المؤسسة 1
+    # 4. المنتجات والمخزون
     # ══════════════════════════════════════════
     products_data = [
-        ("طحين 25 كغ", "كيس", 10, org1_id),
-        ("زيت نباتي 5 لتر", "عبوة", 15, org1_id),
-        ("سكر 5 كغ", "كيس", 20, org1_id),
-        ("بطانيات شتوية", "قطعة", 5, org1_id),
-        ("حفاضات أطفال", "كرتون", 10, org1_id),
+        ("طحين 25 كغ", "كيس"), ("زيت نباتي 5 لتر", "عبوة"),
+        ("سكر 5 كغ", "كيس"), ("بطانيات شتوية", "قطعة"), ("حفاضات أطفال", "كرتون"),
     ]
     prod_ids = []
-    for pname, unit, min_stock, oid in products_data:
-        c.execute("SELECT id FROM products WHERE name=? AND org_id=?", (pname, oid))
-        row = c.fetchone()
+    for pname, unit in products_data:
+        row = db.execute("SELECT id FROM products WHERE name=? AND org_id=?", (pname, org1_id)).fetchone()
         if not row:
-            c.execute("""INSERT INTO products (org_id, name, unit, min_stock, category)
-                VALUES (?,?,?,?,'غذاء')""", (oid, pname, unit, min_stock))
-            pid = c.lastrowid
+            pdata = {"org_id": org1_id, "name": pname, "unit": unit}
+            if "min_stock" in prods_cols: pdata["min_stock"] = 10
+            if "category"  in prods_cols: pdata["category"]  = "غذاء"
+            cols_str = ", ".join(pdata.keys())
+            vals_str = ", ".join(["?"] * len(pdata))
+            db.execute(f"INSERT INTO products ({cols_str}) VALUES ({vals_str})", list(pdata.values()))
+            db.commit()
+            pid = db.execute("SELECT id FROM products WHERE name=? AND org_id=?", (pname, org1_id)).fetchone()["id"]
         else:
             pid = row["id"]
         prod_ids.append(pid)
+    print(f"✅ {len(prod_ids)} منتجات")
 
-    # فاتورة واردة وإضافة مخزون
-    c.execute("SELECT id FROM incoming_invoices WHERE invoice_number='INV-RAHMA-001' LIMIT 1")
-    if not c.fetchone():
-        c.execute("""INSERT INTO incoming_invoices
-            (org_id, invoice_number, supplier_name, invoice_date, total_amount, status, notes)
-            VALUES (?,?,?,?,?,?,?)""",
-            (org1_id, "INV-RAHMA-001", "شركة الوفاء للتوريد",
-             "2024-11-01", 2500000, "closed", "دفعة إغاثة الشتاء"))
-        inv_id = c.lastrowid
-        # إضافة أصناف وتحديث المخزون
+    # فاتورة واردة
+    if not db.execute("SELECT id FROM incoming_invoices WHERE org_id=? LIMIT 1", (org1_id,)).fetchone():
+        # تحديد اسم عمود المورد والإجمالي والحالة
+        sup_col   = "supplier_name" if "supplier_name" in inv_cols else "supplier"
+        total_col = "total_amount"  if "total_amount"  in inv_cols else "grand_total"
+
+        inv_data = {"org_id": org1_id, "invoice_number": "INV-RAHMA-001",
+                    "invoice_date": "2024-11-01", "notes": "دفعة إغاثة الشتاء"}
+        inv_data[sup_col]   = "شركة الوفاء للتوريد"
+        inv_data[total_col] = 2500000
+
+        if "status"    in inv_cols: inv_data["status"]    = "closed"
+        if "is_closed" in inv_cols: inv_data["is_closed"] = 1
+
+        cols_str = ", ".join(inv_data.keys())
+        vals_str = ", ".join(["?"] * len(inv_data))
+        db.execute(f"INSERT INTO incoming_invoices ({cols_str}) VALUES ({vals_str})", list(inv_data.values()))
+        db.commit()
+        inv_id = db.execute("SELECT id FROM incoming_invoices WHERE org_id=? LIMIT 1", (org1_id,)).fetchone()["id"]
+
+        qtys   = [50, 40, 60, 30, 25]
+        prices = [12500, 25000, 8000, 35000, 18000]
         for i, pid in enumerate(prod_ids):
-            qty = [50, 40, 60, 30, 25][i]
-            price = [12500, 25000, 8000, 35000, 18000][i]
-            c.execute("""INSERT INTO incoming_invoice_items
-                (invoice_id, product_id, quantity, unit_price, total)
-                VALUES (?,?,?,?,?)""", (inv_id, pid, qty, price, qty*price))
-            c.execute("""INSERT INTO stock_batches
-                (product_id, org_id, quantity_in, quantity_remaining, unit_price, source)
-                VALUES (?,?,?,?,?,'فاتورة واردة')""",
-                (pid, org1_id, qty, qty, price))
-        print(f"✅ فاتورة واردة + مخزون للمؤسسة 1")
+            qty, price = qtys[i], prices[i]
+            # items
+            item_data = {"invoice_id": inv_id, "product_id": pid,
+                         "quantity": qty, "unit_price": price}
+            if "total_price" in [r[1] for r in db.execute("PRAGMA table_info(incoming_invoice_items)").fetchall()]:
+                item_data["total_price"] = qty * price
+            elif "total" in [r[1] for r in db.execute("PRAGMA table_info(incoming_invoice_items)").fetchall()]:
+                item_data["total"] = qty * price
+            cols_str = ", ".join(item_data.keys())
+            vals_str = ", ".join(["?"] * len(item_data))
+            db.execute(f"INSERT INTO incoming_invoice_items ({cols_str}) VALUES ({vals_str})", list(item_data.values()))
 
-    conn.commit()
+            # مخزون
+            sb_data = {"product_id": pid, "org_id": org1_id,
+                       "quantity_remaining": qty, "unit_price": price}
+            if "quantity_in" in stock_cols: sb_data["quantity_in"] = qty
+            if "source"      in stock_cols: sb_data["source"]      = "فاتورة واردة"
+            if "entry_date"  in stock_cols: sb_data["entry_date"]  = "2024-11-01"
+            cols_str = ", ".join(sb_data.keys())
+            vals_str = ", ".join(["?"] * len(sb_data))
+            db.execute(f"INSERT INTO stock_batches ({cols_str}) VALUES ({vals_str})", list(sb_data.values()))
+        db.commit()
+        print("✅ فاتورة واردة + مخزون")
 
     # ══════════════════════════════════════════
-    # 5. المستفيدون (5 أسر)
+    # 5. المستفيدون
     # ══════════════════════════════════════════
-    beneficiaries_data = [
-        {
-            "full_name": "محمد حسن علي الأحمد",
-            "id_number": "9001234567",
-            "phone": "0941234561",
-            "gender": "male",
-            "family_size": 6,
-            "governorate": "دمشق",
-            "city": "جرمانا",
-            "family_last_name": "الأحمد",
-            "has_orphans": 1,
-            "orphans_count": 2,
-            "camp_entity_id": camp1_id,
-        },
-        {
-            "full_name": "أحمد سليم ناصر الخطيب",
-            "id_number": "9002345678",
-            "phone": "0941234562",
-            "gender": "male",
-            "family_size": 4,
-            "governorate": "دمشق",
-            "city": "جرمانا",
-            "family_last_name": "الخطيب",
-            "wife_pregnant": 1,
-            "camp_entity_id": camp1_id,
-        },
-        {
-            "full_name": "خالد محمود ريد العمر",
-            "id_number": "9003456789",
-            "phone": "0941234563",
-            "gender": "male",
-            "family_size": 8,
-            "governorate": "دمشق",
-            "city": "جرمانا",
-            "family_last_name": "العمر",
-            "has_orphans": 1,
-            "orphans_count": 3,
-            "camp_entity_id": camp1_id,
-        },
-        {
-            "full_name": "سامر عبد الرحمن يوسف السعيد",
-            "id_number": "9004567890",
-            "phone": "0941234564",
-            "gender": "male",
-            "family_size": 5,
-            "governorate": "دمشق",
-            "city": "المزة",
-            "family_last_name": "السعيد",
-            "wife_nursing": 1,
-        },
-        {
-            "full_name": "عمر فريد جابر النعسان",
-            "id_number": "9005678901",
-            "phone": "0941234565",
-            "gender": "male",
-            "family_size": 3,
-            "governorate": "حلب",
-            "city": "الشعار",
-            "family_last_name": "النعسان",
-        },
+    beneficiaries_input = [
+        {"full_name": "محمد حسن علي الأحمد",         "id_number": "9001234567", "phone": "0941234561",
+         "family_size": 6, "has_orphans": 1, "orphans_count": 2, "in_camp": True},
+        {"full_name": "أحمد سليم ناصر الخطيب",        "id_number": "9002345678", "phone": "0941234562",
+         "family_size": 4, "wife_pregnant": 1, "in_camp": True},
+        {"full_name": "خالد محمود ريد العمر",          "id_number": "9003456789", "phone": "0941234563",
+         "family_size": 8, "has_orphans": 1, "orphans_count": 3, "in_camp": True},
+        {"full_name": "سامر عبد الرحمن يوسف السعيد",  "id_number": "9004567890", "phone": "0941234564",
+         "family_size": 5, "wife_nursing": 1, "in_camp": False},
+        {"full_name": "عمر فريد جابر النعسان",         "id_number": "9005678901", "phone": "0941234565",
+         "family_size": 3, "in_camp": False},
     ]
 
     ben_ids = []
-    for bd in beneficiaries_data:
-        c.execute("SELECT id FROM beneficiaries WHERE id_number=?", (bd["id_number"],))
-        row = c.fetchone()
+    for bd in beneficiaries_input:
+        row = db.execute("SELECT id FROM beneficiaries WHERE id_number=?", (bd["id_number"],)).fetchone()
         if not row:
-            c.execute("""INSERT INTO beneficiaries
-                (org_id, full_name, id_number, phone, gender, family_size,
-                 governorate, city, family_last_name,
-                 has_orphans, orphans_count, wife_pregnant, wife_nursing,
-                 camp_entity_id, beneficiary_type, beneficiary_status, self_registered)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'person','active',0)""",
-                (org1_id,
-                 bd["full_name"], bd["id_number"], bd["phone"],
-                 bd["gender"], bd["family_size"],
-                 bd["governorate"], bd["city"], bd["family_last_name"],
-                 bd.get("has_orphans", 0), bd.get("orphans_count", 0),
-                 bd.get("wife_pregnant", 0), bd.get("wife_nursing", 0),
-                 bd.get("camp_entity_id")))
-            bid = c.lastrowid
-            # ربط بالمؤسسة 1
-            c.execute("""INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id)
-                VALUES (?,?)""", (org1_id, bid))
-            print(f"✅ مستفيد: {bd['full_name']} ({bd['id_number']})")
+            parts = bd["full_name"].split()
+            last_name = parts[3] if len(parts) >= 4 else parts[-1]
+            bdata = {
+                "org_id": org1_id, "full_name": bd["full_name"],
+                "id_number": bd["id_number"], "phone": bd["phone"],
+                "gender": "male", "family_size": bd["family_size"],
+                "has_orphans": bd.get("has_orphans", 0),
+                "orphans_count": bd.get("orphans_count", 0),
+                "wife_pregnant": bd.get("wife_pregnant", 0),
+                "wife_nursing": bd.get("wife_nursing", 0),
+            }
+            if "family_last_name"   in ben_cols: bdata["family_last_name"]   = last_name
+            if "governorate"        in ben_cols: bdata["governorate"]        = "دمشق"
+            if "city"               in ben_cols: bdata["city"]               = "جرمانا"
+            if "beneficiary_type"   in ben_cols: bdata["beneficiary_type"]   = "person"
+            if "beneficiary_status" in ben_cols: bdata["beneficiary_status"] = "active"
+            if "self_registered"    in ben_cols: bdata["self_registered"]    = 0
+            if bd.get("in_camp") and "camp_entity_id" in ben_cols:
+                bdata["camp_entity_id"] = camp1_id
+
+            cols_str = ", ".join(bdata.keys())
+            vals_str = ", ".join(["?"] * len(bdata))
+            db.execute(f"INSERT INTO beneficiaries ({cols_str}) VALUES ({vals_str})", list(bdata.values()))
+            db.commit()
+            bid = db.execute("SELECT id FROM beneficiaries WHERE id_number=?", (bd["id_number"],)).fetchone()["id"]
+            # ربط بالمؤسسة
+            try:
+                db.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                           (org1_id, bid))
+                db.commit()
+            except Exception:
+                pass
+            print(f"✅ مستفيد: {bd['full_name']}")
         else:
             bid = row["id"]
-            print(f"ℹ️  مستفيد موجود: {bd['full_name']}")
+            print(f"ℹ️  موجود: {bd['full_name']}")
         ben_ids.append(bid)
 
-    conn.commit()
-
-    # ربط مستفيد 5 بالمؤسسة 2 أيضاً (لاختبار التوحيد)
-    c.execute("""INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id)
-        VALUES (?,?)""", (org2_id, ben_ids[4]))
-    print(f"✅ ربط المستفيد الخامس بالمؤسسة 2 أيضاً (اختبار التوحيد)")
+    # ربط المستفيد الخامس بالمؤسسة 2 أيضاً
+    try:
+        db.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                   (org2_id, ben_ids[4]))
+        db.commit()
+        print("✅ ربط المستفيد 5 بالمؤسسة 2 (اختبار التوحيد)")
+    except Exception as e:
+        print(f"  ⚠️  org_beneficiary_links: {e}")
 
     # ══════════════════════════════════════════
-    # 6. مستفيد واحد مسجّل ذاتياً (للاختبار)
+    # 6. مستفيد مسجّل ذاتياً
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM beneficiaries WHERE id_number='9099887766' LIMIT 1")
-    if not c.fetchone():
-        c.execute("""INSERT INTO beneficiaries
-            (org_id, full_name, id_number, phone, gender, family_size,
-             governorate, city, family_last_name,
-             beneficiary_type, beneficiary_status, self_registered, self_reg_password)
-            VALUES (?,?,?,?,?,?,?,?,?,'person','independent',1,?)""",
-            (1, "نور محمد أحمد الزهراء", "9099887766", "0941111111",
-             "female", 3, "دمشق", "جرمانا", "الزهراء",
-             generate_password_hash("Nour@2024")))
-        self_ben_id = c.lastrowid
-        c.execute("""INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id)
-            VALUES (?,?)""", (org1_id, self_ben_id))
-        print(f"✅ مستفيد ذاتي: 9099887766 / Nour@2024")
-
-    conn.commit()
+    if not db.execute("SELECT id FROM beneficiaries WHERE id_number='9099887766'").fetchone():
+        bdata = {
+            "org_id": 1, "full_name": "نور محمد أحمد الزهراء",
+            "id_number": "9099887766", "phone": "0941111111",
+            "gender": "female", "family_size": 3,
+        }
+        if "family_last_name"   in ben_cols: bdata["family_last_name"]   = "الزهراء"
+        if "beneficiary_type"   in ben_cols: bdata["beneficiary_type"]   = "person"
+        if "beneficiary_status" in ben_cols: bdata["beneficiary_status"] = "independent"
+        if "self_registered"    in ben_cols: bdata["self_registered"]    = 1
+        if "self_reg_password"  in ben_cols: bdata["self_reg_password"]  = generate_password_hash("Nour@2024")
+        if "governorate"        in ben_cols: bdata["governorate"]        = "دمشق"
+        if "city"               in ben_cols: bdata["city"]               = "جرمانا"
+        cols_str = ", ".join(bdata.keys())
+        vals_str = ", ".join(["?"] * len(bdata))
+        db.execute(f"INSERT INTO beneficiaries ({cols_str}) VALUES ({vals_str})", list(bdata.values()))
+        db.commit()
+        self_bid = db.execute("SELECT id FROM beneficiaries WHERE id_number='9099887766'").fetchone()["id"]
+        try:
+            db.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
+                       (org1_id, self_bid))
+            db.commit()
+        except Exception:
+            pass
+        print("✅ مستفيد ذاتي: 9099887766 / Nour@2024")
 
     # ══════════════════════════════════════════
     # 7. برنامج وسجلات استفادة
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM programs WHERE org_id=? AND name='برنامج السلة الغذائية' LIMIT 1", (org1_id,))
-    prog = c.fetchone()
-    if not prog:
-        c.execute("""INSERT INTO programs (org_id, name, description, is_active)
-            VALUES (?,?,?,1)""",
-            (org1_id, "برنامج السلة الغذائية",
-             "توزيع سلة غذائية شهرية تشمل طحين وزيت وسكر"))
-        prog_id = c.lastrowid
-        print(f"✅ برنامج: السلة الغذائية")
+    prog_cols = [r[1] for r in db.execute("PRAGMA table_info(programs)").fetchall()]
+    row = db.execute("SELECT id FROM programs WHERE org_id=? AND name='برنامج السلة الغذائية'", (org1_id,)).fetchone()
+    if not row:
+        pdata = {"org_id": org1_id, "name": "برنامج السلة الغذائية", "is_active": 1}
+        if "description" in prog_cols: pdata["description"] = "توزيع سلة غذائية شهرية"
+        cols_str = ", ".join(pdata.keys())
+        vals_str = ", ".join(["?"] * len(pdata))
+        db.execute(f"INSERT INTO programs ({cols_str}) VALUES ({vals_str})", list(pdata.values()))
+        db.commit()
+        prog_id = db.execute("SELECT id FROM programs WHERE org_id=? AND name='برنامج السلة الغذائية'", (org1_id,)).fetchone()["id"]
+        print("✅ برنامج: السلة الغذائية")
     else:
-        prog_id = prog["id"]
+        prog_id = row["id"]
 
-    # سجلات استفادة للمستفيدين الثلاثة الأوائل
     for i, bid in enumerate(ben_ids[:3]):
-        c.execute("""SELECT id FROM program_records
-            WHERE program_id=? AND beneficiary_id=? LIMIT 1""", (prog_id, bid))
-        if not c.fetchone():
-            c.execute("""INSERT INTO program_records
+        if not db.execute("SELECT id FROM program_records WHERE program_id=? AND beneficiary_id=?",
+                          (prog_id, bid)).fetchone():
+            db.execute("""INSERT INTO program_records
                 (org_id, program_id, beneficiary_id, benefit_date, benefit_type, quantity, notes)
                 VALUES (?,?,?,?,?,?,?)""",
-                (org1_id, prog_id, bid,
-                 f"2024-{11+i:02d}-15", "سلة غذائية", "1 سلة",
-                 "توزيع شهري منتظم"))
-
-    conn.commit()
+                (org1_id, prog_id, bid, f"2024-{11+i:02d}-15", "سلة غذائية", "1 سلة", "توزيع شهري"))
+    db.commit()
 
     # ══════════════════════════════════════════
     # 8. توزيع في المخيم
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM camp_distributions WHERE camp_entity_id=? LIMIT 1", (camp1_id,))
-    if not c.fetchone():
-        c.execute("""INSERT INTO camp_distributions
-            (camp_entity_id, title, distribution_date, donor_name, status, notes)
-            VALUES (?,?,?,?,?,?)""",
-            (camp1_id, "توزيع الشتاء الأول", "2024-12-01",
-             "جمعية الرحمة للإغاثة", "closed",
-             "توزيع بطانيات ومستلزمات شتاء"))
-        dist_id = c.lastrowid
-        # سجلات التوزيع للمستفيدين في المخيم
-        camp_bens = [bid for i, bid in enumerate(ben_ids) if beneficiaries_data[i].get("camp_entity_id") == camp1_id]
+    dist_cols = [r[1] for r in db.execute("PRAGMA table_info(camp_distributions)").fetchall()]
+    if not db.execute("SELECT id FROM camp_distributions WHERE camp_entity_id=?", (camp1_id,)).fetchone():
+        ddata = {"camp_entity_id": camp1_id, "title": "توزيع الشتاء الأول",
+                 "distribution_date": "2024-12-01", "status": "closed", "notes": "بطانيات ومستلزمات"}
+        if "donor_name" in dist_cols: ddata["donor_name"] = "جمعية الرحمة للإغاثة"
+        cols_str = ", ".join(ddata.keys())
+        vals_str = ", ".join(["?"] * len(ddata))
+        db.execute(f"INSERT INTO camp_distributions ({cols_str}) VALUES ({vals_str})", list(ddata.values()))
+        db.commit()
+        dist_id = db.execute("SELECT id FROM camp_distributions WHERE camp_entity_id=?", (camp1_id,)).fetchone()["id"]
+        camp_bens = ben_ids[:3]
         for bid in camp_bens:
-            c.execute("""INSERT OR IGNORE INTO camp_dist_records
-                (distribution_id, camp_entity_id, beneficiary_id, item_name, quantity, value, received)
-                VALUES (?,?,?,?,?,?,1)""",
-                (dist_id, camp1_id, bid, "بطانية شتوية + حقيبة إغاثة", "1 طقم", "35000"))
-        print(f"✅ توزيع المخيم: بطانيات الشتاء ({len(camp_bens)} مستفيد)")
-
-    conn.commit()
+            try:
+                db.execute("""INSERT OR IGNORE INTO camp_dist_records
+                    (distribution_id, camp_entity_id, beneficiary_id, item_name, quantity, value, received)
+                    VALUES (?,?,?,?,?,?,1)""",
+                    (dist_id, camp1_id, bid, "بطانية شتوية + حقيبة إغاثة", "1 طقم", "35000"))
+            except Exception as e:
+                print(f"  ⚠️  dist_record: {e}")
+        db.commit()
+        print(f"✅ توزيع المخيم: {len(camp_bens)} مستفيد")
 
     # ══════════════════════════════════════════
     # 9. نشاط في المخيم
     # ══════════════════════════════════════════
-    c.execute("SELECT id FROM camp_activities WHERE camp_entity_id=? LIMIT 1", (camp1_id,))
-    if not c.fetchone():
-        c.execute("""INSERT INTO camp_activities
-            (camp_entity_id, activity_date, title, description, activity_type)
-            VALUES (?,?,?,?,?)""",
-            (camp1_id, "2024-12-05", "فحص طبي مجاني",
-             "زيارة فريق طبي تطوعي لفحص سكان المخيم وتوزيع الأدوية",
-             "medical"))
-        print(f"✅ نشاط: فحص طبي مجاني")
+    if not db.execute("SELECT id FROM camp_activities WHERE camp_entity_id=?", (camp1_id,)).fetchone():
+        try:
+            db.execute("""INSERT INTO camp_activities
+                (camp_entity_id, activity_date, title, description, activity_type)
+                VALUES (?,?,?,?,?)""",
+                (camp1_id, "2024-12-05", "فحص طبي مجاني",
+                 "زيارة فريق طبي تطوعي لفحص سكان المخيم", "medical"))
+            db.commit()
+            print("✅ نشاط: فحص طبي مجاني")
+        except Exception as e:
+            print(f"  ⚠️  activity: {e}")
 
     # ══════════════════════════════════════════
-    # 10. طلب انضمام معلّق للمخيم
+    # 10. طلب انضمام معلّق
     # ══════════════════════════════════════════
-    # المستفيد الرابع (خارج المخيم) يطلب الانضمام
-    c.execute("""SELECT id FROM camp_join_requests
-        WHERE beneficiary_id=? AND camp_entity_id=? LIMIT 1""",
-        (ben_ids[3], camp1_id))
-    if not c.fetchone():
-        c.execute("""INSERT INTO camp_join_requests
-            (beneficiary_id, camp_entity_id, status)
-            VALUES (?,?,'pending')""", (ben_ids[3], camp1_id))
-        print(f"✅ طلب انضمام معلّق للمخيم (المستفيد 4)")
+    if not db.execute("SELECT id FROM camp_join_requests WHERE beneficiary_id=? AND camp_entity_id=?",
+                      (ben_ids[3], camp1_id)).fetchone():
+        try:
+            db.execute("INSERT INTO camp_join_requests (beneficiary_id, camp_entity_id, status) VALUES (?,?,'pending')",
+                       (ben_ids[3], camp1_id))
+            db.commit()
+            print("✅ طلب انضمام معلّق (المستفيد 4)")
+        except Exception as e:
+            print(f"  ⚠️  join_request: {e}")
 
-    conn.commit()
-    conn.close()
+    db.close()
 
-    print("\n═══ اكتمل إدخال البيانات ═══\n")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("🏢 المؤسسة 1:  admin@rahma.org     / Rahma@2024  (مدير)")
-    print("🏢 المؤسسة 1:  data@rahma.org      / Data@2024   (موظف بيانات)")
-    print("🏢 المؤسسة 2:  admin@amal.org      / Amal@2024   (مدير)")
-    print("🏕️  المخيم:     nour@camp.sy        / Camp@2024")
-    print("👤 مستفيد ذاتي: رقم الهوية 9099887766 / Nour@2024")
+    print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("🏢 المؤسسة 1 (مدير):    admin@rahma.org  / Rahma@2024")
+    print("🏢 المؤسسة 1 (بيانات):  data@rahma.org   / Data@2024")
+    print("🏢 المؤسسة 2 (مدير):    admin@amal.org   / Amal@2024")
+    print("🏕️  المخيم:              nour@camp.sy     / Camp@2024")
+    print("👤 مستفيد ذاتي:         هوية 9099887766  / Nour@2024")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 if __name__ == "__main__":
