@@ -891,7 +891,7 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         <h3>تسجيل لجنة جديدة</h3>
         <p id="creg-step-label">الخطوة 1 من 3 — التحقق من البريد</p>
       </div>
-      <button class="modal-close" onclick="closeModal('campRegModal')"><i class="fas fa-times"></i></button>
+      <button class="modal-close" onclick="closeCampReg()" style="position:relative;z-index:10;"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="mflash" id="creg-flash" style="display:none"></div>
@@ -1035,7 +1035,23 @@ function closeModal(id){
   setTimeout(function(){ el.classList.remove('active','closing'); }, 220);
   document.body.style.overflow='';
 }
-function closeOnBg(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
+function closeCampReg(){
+  var el = document.getElementById('campRegModal');
+  el.classList.add('closing');
+  setTimeout(function(){
+    el.classList.remove('active','closing','creg-fullscreen');
+    cregStep(1);
+    document.getElementById('creg-flash').style.display='none';
+    document.getElementById('creg-email').value='';
+    document.querySelectorAll('#creg-otp-inputs input').forEach(function(i){ i.value=''; });
+  }, 220);
+  document.body.style.overflow='';
+}
+function closeOnBg(e,id){
+  if(e.target!==document.getElementById(id)) return;
+  if(id==='campRegModal') closeCampReg();
+  else closeModal(id);
+}
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active')); document.body.style.overflow=''; });
 
 function switchTab(modal, tab){
