@@ -818,21 +818,19 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
     </div>
     <div class="modal-body">
       <div class="mflash" id="camp-login-flash" style="display:none"></div>
-      <form method="POST" action="/camp/login" id="campLoginForm">
-        <div class="mform-group has-icon">
-          <label>البريد الإلكتروني</label>
-          <i class="fas fa-envelope mform-icon"></i>
-          <input type="email" name="email" placeholder="email@example.com" dir="ltr" required>
-        </div>
-        <div class="mform-group has-icon">
-          <label>كلمة المرور</label>
-          <i class="fas fa-lock mform-icon"></i>
-          <input type="password" name="password" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="mbtn mbtn-primary">
-          <i class="fas fa-sign-in-alt"></i> دخول
-        </button>
-      </form>
+      <div class="mform-group has-icon">
+        <label>البريد الإلكتروني</label>
+        <i class="fas fa-envelope mform-icon"></i>
+        <input type="email" id="camp-email" placeholder="email@example.com" dir="ltr">
+      </div>
+      <div class="mform-group has-icon">
+        <label>كلمة المرور</label>
+        <i class="fas fa-lock mform-icon"></i>
+        <input type="password" id="camp-pw" placeholder="••••••••">
+      </div>
+      <button class="mbtn mbtn-primary" onclick="campLogin()">
+        <i class="fas fa-sign-in-alt"></i> دخول
+      </button>
       <div class="modal-sep">أو</div>
       <button onclick="closeModal('campModal');openModal('campRegModal')" class="mbtn mbtn-outline" style="margin-top:0;">
         <i class="fas fa-plus-circle"></i> تسجيل لجنة جديدة
@@ -1282,6 +1280,24 @@ async function benCompleteReg(){
   }, {threshold: 0.3});
   counters.forEach(function(c){ io2.observe(c); });
 })();
+
+// ── دخول المخيم ──
+async function campLogin(){
+  var email = document.getElementById('camp-email').value.trim();
+  var pw    = document.getElementById('camp-pw').value;
+  var flash = document.getElementById('camp-login-flash');
+  if(!email || !pw){ flash.textContent='أدخل البريد وكلمة المرور'; flash.className='mflash error'; flash.style.display='block'; return; }
+  var btn = event.currentTarget; btn.disabled=true;
+  try{
+    var r = await fetch('/api/camp/login',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw})
+    }).then(x=>x.json());
+    if(r.ok){ window.location.href = r.redirect || '/camp/dashboard'; }
+    else { flash.textContent = r.error || 'خطأ في الدخول'; flash.className='mflash error'; flash.style.display='block'; }
+  }catch(e){ flash.textContent='خطأ في الاتصال'; flash.className='mflash error'; flash.style.display='block'; }
+  btn.disabled=false;
+}
 
 // ── قوائم المحافظات والمدن ──
 var CITIES = {

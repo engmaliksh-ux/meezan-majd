@@ -5472,6 +5472,72 @@ def camp_login():
         return f"<pre style='direction:ltr'>{traceback.format_exc()}</pre>", 500
 
 
+# ── دخول المخيم عبر JSON (للنافذة المنبثقة) ──
+@app.route("/api/camp/login", methods=["POST"])
+def api_camp_login():
+    import datetime as _dt
+    data     = request.get_json(force=True) or {}
+    email    = (data.get("email") or "").strip().lower()
+    password = (data.get("password") or "").strip()
+    ip       = request.remote_addr or "0.0.0.0"
+    now      = _dt.datetime.now()
+    if not email or not password:
+        return jsonify({"ok": False, "error": "أدخل البريد وكلمة المرور"})
+    conn = get_connection(); c = conn.cursor()
+    try:
+        c.execute("""SELECT COUNT(*) as cnt FROM login_attempts
+                     WHERE ip_address=? AND attempt_type='camp'
+                     AND success=0 AND created_at >= datetime('now','-15 minutes','localtime')""", (ip,))
+        if c.fetchone()["cnt"] >= 10:
+            conn.close()
+            return jsonify({"ok": False, "error": "تم تجاوز الحد المسموح — حاول بعد 15 دقيقة"})
+        c.execute("SELECT * FROM camp_entities WHERE LOWER(email)=? AND is_active=1", (email,))
+        _row = c.fetchone()
+        entity = dict(_row) if _row else None
+        if entity and entity.get("locked_until"):
+            try:
+                lock_dt = _dt.datetime.fromisoformat(entity["locked_until"])
+                if now < lock_dt:
+                    remaining = int((lock_dt - now).total_seconds() // 60) + 1
+                    conn.close()
+                    return jsonify({"ok": False, "error": f"الحساب مقفل — حاول بعد {remaining} دقيقة"})
+                else:
+                    c.execute("UPDATE camp_entities SET failed_attempts=0, locked_until=NULL WHERE id=?", (entity["id"],))
+                    conn.commit()
+            except Exception:
+                pass
+        if entity and entity["password"] and check_password_hash(entity["password"], password):
+            c.execute("UPDATE camp_entities SET failed_attempts=0, locked_until=NULL WHERE id=?", (entity["id"],))
+            c.execute("INSERT INTO login_attempts (identifier,attempt_type,ip_address,success) VALUES (?,?,?,1)",
+                      (email, "camp", ip))
+            conn.commit(); conn.close()
+            session["camp_id"]   = entity["id"]
+            session["camp_name"] = entity["name"]
+            session["camp_type"] = entity["entity_type"]
+            session["camp_last_active"] = _dt.datetime.utcnow().isoformat()
+            return jsonify({"ok": True, "redirect": url_for("camp_dashboard")})
+        c.execute("INSERT INTO login_attempts (identifier,attempt_type,ip_address,success) VALUES (?,?,?,0)",
+                  (email, "camp", ip))
+        if entity:
+            fails = (entity.get("failed_attempts") or 0) + 1
+            locked = None
+            if fails >= 5:
+                locked = (now + _dt.timedelta(minutes=30)).isoformat()
+                fails  = 0
+            c.execute("UPDATE camp_entities SET failed_attempts=?, locked_until=? WHERE id=?",
+                      (fails, locked, entity["id"]))
+            conn.commit(); conn.close()
+            if locked:
+                return jsonify({"ok": False, "error": "تم قفل الحساب 30 دقيقة بسبب المحاولات المتكررة"})
+            return jsonify({"ok": False, "error": f"كلمة المرور غير صحيحة — تبقى {5 - fails} محاولة"})
+        conn.commit(); conn.close()
+        return jsonify({"ok": False, "error": "البريد الإلكتروني غير مسجل"})
+    except Exception as e:
+        try: conn.close()
+        except: pass
+        return jsonify({"ok": False, "error": str(e)})
+
+
 # ── نسيت كلمة مرور المخيم ──
 @app.route("/api/camp/forgot-password", methods=["POST"])
 def api_camp_forgot_password():
