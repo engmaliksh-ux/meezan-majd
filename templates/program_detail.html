@@ -87,6 +87,7 @@
           <th>{{ t.col_quantity_value }}</th>
           <th>{{ t.form_notes }}</th>
           <th>{{ t.col_created_by }}</th>
+          <th>الاستلام</th>
           <th></th>
         </tr>
       </thead>
@@ -111,6 +112,23 @@
           <td style="font-weight:600;">{{ r.quantity or '—' }}</td>
           <td style="font-size:.82rem;color:#6c7a72;">{{ r.notes or '—' }}</td>
           <td style="font-size:.78rem;color:#6c7a72;">{{ r.created_by or '—' }}</td>
+          <td>
+            {% if r.ben_confirmed %}
+            <span style="background:#d1fae5;color:#065f46;padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;">
+              <i class="fas fa-check-circle"></i> استلم
+              {% if r.ben_confirmed_at %}<span style="opacity:.6;font-size:.65rem;"> {{ r.ben_confirmed_at[:10] }}</span>{% endif %}
+            </span>
+            {% else %}
+            {% if session.get('role') != 'observer' %}
+            <button onclick="orgConfirmBenefit({{ r.id }}, this)"
+                    style="background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:7px;padding:3px 10px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+              <i class="fas fa-check"></i> تأكيد
+            </button>
+            {% else %}
+            <span style="color:#94a3b8;font-size:.75rem;">—</span>
+            {% endif %}
+            {% endif %}
+          </td>
           <td>
             {% if session.get('role') != 'observer' %}
             <a href="/program/{{ program.id }}/delete_record/{{ r.id }}"
@@ -141,4 +159,22 @@
   border-radius:50%;font-weight:800;font-size:.75rem;
 }
 </style>
+<script>
+async function orgConfirmBenefit(recordId, btn){
+  if(!confirm('تأكيد استلام هذا المستفيد؟ سيظهر كـ "تم الاستلام" في بوابة المستفيد مباشرة.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  const r = await fetch('/api/org/confirm-benefit',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({record_id: recordId})
+  }).then(x=>x.json());
+  if(r.ok){
+    btn.outerHTML = '<span style="background:#d1fae5;color:#065f46;padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;"><i class="fas fa-check-circle"></i> استلم</span>';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> تأكيد';
+    alert(r.error || 'حدث خطأ');
+  }
+}
+</script>
 {% endblock %}

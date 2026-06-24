@@ -1804,23 +1804,32 @@ def edit_beneficiary(id):
                    wife_pregnant=?,wife_nursing=?,has_orphans=?,orphans_count=?,notes=?,
                    beneficiary_type=?,camp_manager_name=?,camp_coordinator=?,
                    camp_coordinator_phone=?,camp_address=?,camp_family_count=?
-               WHERE id=? AND org_id=?""",
+               WHERE id=? AND (
+                   org_id=? OR
+                   EXISTS (SELECT 1 FROM org_beneficiary_links obl WHERE obl.beneficiary_id=beneficiaries.id AND obl.org_id=?)
+               )""",
             (full_name, gender, phone, address, address2, camp_name,
              id_number, family_size, marital_status, children_count,
              wife_pregnant, wife_nursing, has_orphans, orphans_count, notes,
              beneficiary_type, camp_manager_name, camp_coordinator,
-             camp_coordinator_phone, camp_address, camp_family_count, id, org_id)
+             camp_coordinator_phone, camp_address, camp_family_count, id, org_id, org_id)
         )
         conn.commit()
         conn.close()
         flash("✅ تم تعديل بيانات المستفيد", "success")
         return redirect(url_for("beneficiaries"))
 
-    c.execute("SELECT * FROM beneficiaries WHERE id=? AND org_id=?", (id, org_id))
+    c.execute("""
+        SELECT b.* FROM beneficiaries b
+        WHERE b.id=? AND (
+            b.org_id=? OR
+            EXISTS (SELECT 1 FROM org_beneficiary_links obl WHERE obl.beneficiary_id=b.id AND obl.org_id=?)
+        )
+    """, (id, org_id, org_id))
     row = c.fetchone()
     conn.close()
     if not row:
-        flash("المستفيد غير موجود", "danger")
+        flash("المستفيد غير موجود أو غير مرتبط بمؤسستك", "danger")
         return redirect(url_for("beneficiaries"))
     b = row_to_dict(row, BENEF_KEYS)
     b.setdefault("address2", "")
@@ -2507,6 +2516,7 @@ def program_detail(id):
 
     c.execute("""
         SELECT pr.id, pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes, pr.created_by,
+               pr.ben_confirmed, pr.ben_confirmed_at,
                b.seq_num, b.full_name, b.id_number
         FROM program_records pr
         JOIN beneficiaries b ON b.id = pr.beneficiary_id
@@ -2548,16 +2558,21 @@ def add_program_record(id):
         flash("البرنامج غير موجود", "danger")
         return redirect(url_for("programs_list"))
 
-    c.execute("SELECT id FROM beneficiaries WHERE id=? AND org_id=?", (beneficiary_id, org_id))
+    c.execute("""
+        SELECT id FROM beneficiaries WHERE id=? AND (
+            org_id=? OR
+            EXISTS (SELECT 1 FROM org_beneficiary_links obl WHERE obl.beneficiary_id=beneficiaries.id AND obl.org_id=?)
+        )
+    """, (beneficiary_id, org_id, org_id))
     if not c.fetchone():
         conn.close()
-        flash("المستفيد غير موجود", "danger")
+        flash("المستفيد غير موجود أو غير مرتبط بمؤسستك", "danger")
         return redirect(url_for("program_detail", id=id))
 
     c.execute("""
         INSERT INTO program_records
-            (org_id, program_id, beneficiary_id, benefit_date, benefit_type, quantity, notes, created_by)
-        VALUES (?,?,?,?,?,?,?,?)
+            (org_id, program_id, beneficiary_id, benefit_date, benefit_type, quantity, notes, created_by, ben_confirmed)
+        VALUES (?,?,?,?,?,?,?,?,0)
     """, (org_id, id, beneficiary_id, benefit_date, benefit_type, quantity, notes, session["user"]))
     conn.commit()
     conn.close()
@@ -6505,6 +6520,29 @@ def camp_smart_classify():
     return render_template("camp_smart_classify.html",
                            entity=entity, beneficiaries=beneficiaries,
                            orphans=orphans, pregnant=pregnant, nursing=nursing)
+
+
+# ══════════════════════════════════════════════════════════
+# تأكيد الاستلام من طرف المؤسسة (بدون انتظار المستفيد)
+# ══════════════════════════════════════════════════════════
+@app.route("/api/org/confirm-benefit", methods=["POST"])
+@login_required
+def api_org_confirm_benefit():
+    import datetime
+    org_id = session["org_id"]
+    data      = request.get_json(force=True) or {}
+    record_id = data.get("record_id")
+    if not record_id:
+        return jsonify({"ok": False, "error": "معرّف السجل مطلوب"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id FROM program_records WHERE id=? AND org_id=?", (record_id, org_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "السجل غير موجود"})
+    now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("UPDATE program_records SET ben_confirmed=1, ben_confirmed_at=? WHERE id=?", (now_str, record_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════════════════════════════════════
