@@ -47,19 +47,20 @@ body{background:var(--sand-50);color:var(--ink-900);}
 .hero::before{content:'';position:absolute;inset:0;
   background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);
   background-size:28px 28px;}
-.hero-inner{max-width:1140px;margin:0 auto;padding:90px 24px 100px;
-            display:grid;grid-template-columns:1.2fr 1fr;gap:48px;
-            align-items:center;position:relative;z-index:1;}
+.hero-inner{max-width:860px;margin:0 auto;padding:90px 24px 100px;
+            text-align:center;position:relative;z-index:1;}
+.hero-portals{justify-content:center;}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;
              background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
              border-radius:999px;padding:6px 16px;font-size:.75rem;
-             color:rgba(255,255,255,.85);margin-bottom:22px;}
+             color:rgba(255,255,255,.85);margin-bottom:22px;
+             justify-content:center;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--amber-400);
            animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .hero h1{font-size:2.9rem;font-weight:900;color:#fff;line-height:1.2;margin-bottom:18px;}
 .hero h1 em{color:var(--amber-400);font-style:normal;}
-.hero p{font-size:.95rem;color:rgba(255,255,255,.8);line-height:1.8;max-width:520px;margin-bottom:32px;}
+.hero p{font-size:.95rem;color:rgba(255,255,255,.8);line-height:1.8;max-width:620px;margin:0 auto 32px;}
 .hero-btns{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
 .btn-amber{display:inline-flex;align-items:center;gap:9px;background:var(--amber-500);
             color:var(--teal-900);padding:14px 30px;border-radius:14px;font-weight:800;
@@ -78,8 +79,7 @@ body{background:var(--sand-50);color:var(--ink-900);}
 .btn-wh:active{transform:translateY(0);}
 
 /* STATS CARD */
-.hero-card{background:rgba(255,255,255,.07);backdrop-filter:blur(8px);
-            border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:24px;}
+.hero-card{display:none!important;}
 .hero-card-top{display:flex;justify-content:space-between;font-size:.72rem;
                 color:rgba(255,255,255,.5);margin-bottom:16px;}
 .stats-g{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -181,30 +181,20 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 
 
 /* PORTAL BUTTONS */
-.hero-portals{display:flex;gap:14px;flex-wrap:wrap;margin-top:32px;}
-.portal-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:10px;width:130px;padding:18px 12px;border-radius:18px;border:none;cursor:pointer;
-  text-decoration:none;transition:all .2s ease;font-family:inherit;}
-.portal-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;
-  justify-content:center;font-size:1.3rem;transition:.2s;}
-.portal-label{font-size:.85rem;font-weight:800;white-space:nowrap;}
+.hero-portals{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px;}
+.portal-btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;
+  border-radius:14px;font-weight:800;font-size:.92rem;text-decoration:none;
+  border:none;cursor:pointer;transition:all .2s ease;font-family:inherit;white-space:nowrap;}
 .portal-ben{background:var(--amber-500);color:var(--teal-900);
   box-shadow:0 6px 20px rgba(232,160,32,.45);}
-.portal-ben:hover{background:var(--amber-400);transform:translateY(-4px);box-shadow:0 10px 28px rgba(232,160,32,.55);}
-.portal-ben .portal-icon{background:rgba(255,255,255,.25);}
-.portal-camp{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;
-  backdrop-filter:blur(6px);}
-.portal-camp:hover{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.7);transform:translateY(-4px);}
-.portal-camp .portal-icon{background:rgba(14,116,144,.5);}
-.portal-org{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;
-  backdrop-filter:blur(6px);}
-.portal-org:hover{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.7);transform:translateY(-4px);}
-.portal-org .portal-icon{background:rgba(45,138,80,.5);}
+.portal-ben:hover{background:var(--amber-400);transform:translateY(-3px);box-shadow:0 10px 28px rgba(232,160,32,.55);}
+.portal-camp,.portal-org{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);
+  color:#fff;backdrop-filter:blur(6px);}
+.portal-camp:hover,.portal-org:hover{background:rgba(255,255,255,.25);
+  border-color:rgba(255,255,255,.7);transform:translateY(-3px);}
 @media(max-width:580px){
   .hero-portals{justify-content:center;}
-  .portal-btn{width:100px;padding:14px 8px;}
-  .portal-icon{width:40px;height:40px;font-size:1.1rem;}
-  .portal-label{font-size:.78rem;}
+  .portal-btn{padding:13px 18px;font-size:.85rem;}
 }
 
 /* SCROLL ANIMATIONS */
@@ -276,16 +266,13 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       <p>ميزان مجد يربط إدارات المخيمات والمؤسسات الإنسانية والمبادرين والمستفيدين في شبكة واحدة: سجل موحد، مساعدات موثقة، شراكات مرنة، وإحصاءات فورية لدعم القرار.</p>
       <div class="hero-portals">
         <button onclick="openModal('benModal')" class="portal-btn portal-ben">
-          <div class="portal-icon"><i class="fas fa-user-circle"></i></div>
-          <div class="portal-label">دخول مستفيد</div>
+          <i class="fas fa-user-circle"></i> دخول مستفيد
         </button>
         <a href="/camp/login" class="portal-btn portal-camp">
-          <div class="portal-icon"><i class="fas fa-campground"></i></div>
-          <div class="portal-label">دخول إيواء</div>
+          <i class="fas fa-campground"></i> دخول إيواء
         </a>
         <a href="/login" class="portal-btn portal-org">
-          <div class="portal-icon"><i class="fas fa-building"></i></div>
-          <div class="portal-label">دخول مؤسسة</div>
+          <i class="fas fa-building"></i> دخول مؤسسة
         </a>
       </div>
     </div>
@@ -429,16 +416,13 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
     <p class="cta-desc">مخيم، مؤسسة، مبادرة، أو مستفيد — مكانك جاهز وبياناتك محمية.</p>
     <div class="hero-portals" style="justify-content:center;">
       <button onclick="openModal('benModal')" class="portal-btn portal-ben">
-        <div class="portal-icon"><i class="fas fa-user-circle"></i></div>
-        <div class="portal-label">دخول مستفيد</div>
+        <i class="fas fa-user-circle"></i> دخول مستفيد
       </button>
       <a href="/camp/login" class="portal-btn portal-camp">
-        <div class="portal-icon"><i class="fas fa-campground"></i></div>
-        <div class="portal-label">دخول إيواء</div>
+        <i class="fas fa-campground"></i> دخول إيواء
       </a>
       <a href="/login" class="portal-btn portal-org">
-        <div class="portal-icon"><i class="fas fa-building"></i></div>
-        <div class="portal-label">دخول مؤسسة</div>
+        <i class="fas fa-building"></i> دخول مؤسسة
       </a>
     </div>
   </div>
