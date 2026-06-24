@@ -797,9 +797,9 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
         </button>
       </form>
       <div class="modal-sep">أو</div>
-      <a href="/register/camp" class="mbtn mbtn-outline" style="text-decoration:none;margin-top:0;">
+      <button onclick="closeModal('campModal');openModal('campRegModal')" class="mbtn mbtn-outline" style="margin-top:0;">
         <i class="fas fa-plus-circle"></i> تسجيل لجنة جديدة
-      </a>
+      </button>
     </div>
   </div>
 </div>
@@ -845,6 +845,108 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
   </div>
 </div>
 
+<!-- ════ MODAL: تسجيل لجنة جديدة ════ -->
+<div class="modal-overlay" id="campRegModal" onclick="closeOnBg(event,'campRegModal')">
+  <div class="modal modal-camp">
+    <div class="modal-head">
+      <div class="modal-head-icon"><i class="fas fa-plus-circle"></i></div>
+      <div class="modal-head-text">
+        <h3>تسجيل لجنة جديدة</h3>
+        <p id="creg-step-label">الخطوة 1 من 3 — التحقق من البريد</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('campRegModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="mflash" id="creg-flash" style="display:none"></div>
+
+      <!-- خطوة 1: البريد -->
+      <div id="creg-s1">
+        <div class="mform-group has-icon">
+          <label>البريد الإلكتروني <span style="color:#e53e3e">*</span></label>
+          <i class="fas fa-envelope mform-icon"></i>
+          <input type="email" id="creg-email" placeholder="example@gmail.com" dir="ltr" onkeydown="if(event.key==='Enter') cregSendOtp()">
+        </div>
+        <button class="mbtn mbtn-primary" onclick="cregSendOtp()">
+          <i class="fas fa-paper-plane"></i> إرسال رمز التحقق
+        </button>
+      </div>
+
+      <!-- خطوة 2: OTP -->
+      <div id="creg-s2" style="display:none">
+        <p style="text-align:center;font-size:.84rem;color:#64748b;margin-bottom:4px;">تم إرسال رمز إلى بريدك</p>
+        <p style="text-align:center;font-weight:700;color:#0891b2;font-size:.88rem;margin-bottom:14px;" id="creg-email-show"></p>
+        <div class="otp-row" id="creg-otp-inputs">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+        </div>
+        <button class="mbtn mbtn-primary" onclick="cregVerifyOtp()">
+          <i class="fas fa-check-circle"></i> تأكيد الرمز
+        </button>
+        <button class="mbtn mbtn-outline" onclick="cregSendOtp(true)">
+          <i class="fas fa-redo"></i> إعادة الإرسال
+        </button>
+      </div>
+
+      <!-- خطوة 3: بيانات التسجيل -->
+      <div id="creg-s3" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="mform-group has-icon" style="grid-column:1/-1">
+            <label>نوع الجهة <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-tag mform-icon"></i>
+            <select id="creg-type" style="width:100%;padding:12px 14px 12px 36px;border:1.5px solid #e2e8f0;border-radius:11px;font-size:.88rem;font-family:inherit;background:#fafbfc;">
+              <option value="camp">مخيم</option>
+              <option value="committee">لجنة</option>
+              <option value="family">عائلة</option>
+            </select>
+          </div>
+          <div class="mform-group has-icon" style="grid-column:1/-1">
+            <label>اسم الجهة <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-tent mform-icon"></i>
+            <input type="text" id="creg-name" placeholder="اسم المخيم أو اللجنة">
+          </div>
+          <div class="mform-group has-icon">
+            <label>اسم المسؤول <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-user mform-icon"></i>
+            <input type="text" id="creg-manager" placeholder="الاسم الكامل">
+          </div>
+          <div class="mform-group has-icon">
+            <label>رقم الهوية <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-id-card mform-icon"></i>
+            <input type="text" id="creg-idnum" placeholder="9 أرقام" maxlength="9" inputmode="numeric">
+          </div>
+          <div class="mform-group has-icon">
+            <label>رقم الجوال</label>
+            <i class="fas fa-phone mform-icon"></i>
+            <input type="tel" id="creg-mobile" placeholder="05xxxxxxxx">
+          </div>
+          <div class="mform-group has-icon">
+            <label>المحافظة</label>
+            <i class="fas fa-map-marker-alt mform-icon"></i>
+            <input type="text" id="creg-gov" placeholder="المحافظة">
+          </div>
+          <div class="mform-group has-icon">
+            <label>كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-lock mform-icon"></i>
+            <input type="password" id="creg-pw" placeholder="8 أحرف على الأقل">
+          </div>
+          <div class="mform-group has-icon">
+            <label>تأكيد كلمة المرور <span style="color:#e53e3e">*</span></label>
+            <i class="fas fa-lock mform-icon"></i>
+            <input type="password" id="creg-pw2" placeholder="أعد الكتابة">
+          </div>
+        </div>
+        <button class="mbtn mbtn-primary" onclick="cregSubmit()">
+          <i class="fas fa-check-double"></i> إنشاء الحساب
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ════ MODAL SCRIPTS ════ -->
 <script>
 // فتح/إغلاق مع أنيميشن
@@ -878,7 +980,7 @@ function setFlash(id, msg, type){
 }
 
 // OTP inputs auto-focus
-document.querySelectorAll('.otp-row').forEach(row => {
+document.querySelectorAll('.otp-row').forEach(function(row) {
   const inputs = row.querySelectorAll('input');
   inputs.forEach((inp, i) => {
     inp.addEventListener('input', () => {
@@ -1065,6 +1167,60 @@ async function benCompleteReg(){
   }, {threshold: 0.3});
   counters.forEach(function(c){ io2.observe(c); });
 })();
+
+// ── تسجيل لجنة جديدة ──
+function cregFlash(msg, type){ setFlash('creg-flash', msg, type); }
+function cregStep(n){
+  ['creg-s1','creg-s2','creg-s3'].forEach((id,i)=>{
+    document.getElementById(id).style.display = (i===n-1)?'block':'none';
+  });
+  const labels = ['الخطوة 1 من 3 — التحقق من البريد','الخطوة 2 من 3 — رمز التحقق','الخطوة 3 من 3 — بيانات التسجيل'];
+  document.getElementById('creg-step-label').textContent = labels[n-1];
+}
+async function cregSendOtp(resend){
+  const email = document.getElementById('creg-email').value.trim();
+  if(!email){ cregFlash('أدخل بريدك الإلكتروني','error'); return; }
+  const r = await fetch('/api/camp/register/send-otp',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email})
+  }).then(x=>x.json());
+  if(r.ok){
+    document.getElementById('creg-email-show').textContent = email;
+    cregFlash('تم إرسال الرمز إلى بريدك','success');
+    cregStep(2);
+  } else { cregFlash(r.error||'خطأ','error'); }
+}
+async function cregVerifyOtp(){
+  const email = document.getElementById('creg-email').value.trim();
+  const code  = [...document.querySelectorAll('#creg-otp-inputs input')].map(i=>i.value).join('');
+  if(code.length<6){ cregFlash('أدخل الرمز كاملاً','error'); return; }
+  const r = await fetch('/api/camp/register/verify-otp',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email,code})
+  }).then(x=>x.json());
+  if(r.ok){ cregFlash('تم التحقق! أكمل بياناتك','success'); cregStep(3); }
+  else { cregFlash(r.error||'خطأ','error'); }
+}
+async function cregSubmit(){
+  const d = {
+    entity_type: document.getElementById('creg-type').value,
+    name:         document.getElementById('creg-name').value.trim(),
+    manager_name: document.getElementById('creg-manager').value.trim(),
+    id_number:    document.getElementById('creg-idnum').value.trim(),
+    mobile:       document.getElementById('creg-mobile').value.trim(),
+    governorate:  document.getElementById('creg-gov').value.trim(),
+    password:     document.getElementById('creg-pw').value,
+    password2:    document.getElementById('creg-pw2').value,
+  };
+  const r = await fetch('/api/camp/register/submit',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(d)
+  }).then(x=>x.json());
+  if(r.ok){
+    cregFlash('تم إنشاء الحساب بنجاح! يمكنك الدخول الآن','success');
+    setTimeout(()=>{ closeModal('campRegModal'); openModal('campModal'); }, 2000);
+  } else { cregFlash(r.error||'خطأ','error'); }
+}
 
 // ── HERO ENTRANCE ANIMATION ──
 (function(){

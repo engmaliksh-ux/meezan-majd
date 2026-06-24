@@ -6690,6 +6690,92 @@ def api_camp_confirm_delivery():
     return jsonify({"ok": True})
 
 
+# ── API: تسجيل لجنة جديدة (3 خطوات JSON) ──
+
+@app.route("/api/camp/register/send-otp", methods=["POST"])
+def api_camp_reg_send_otp():
+    data  = request.get_json(force=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"ok": False, "error": "يرجى إدخال البريد الإلكتروني"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id FROM camp_entities WHERE LOWER(email)=?", (email,))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "هذا البريد مسجل مسبقاً"})
+    code    = generate_verification_code()
+    expires = (datetime.now() + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT INTO verification_codes (email,code,purpose,expires_at) VALUES (?,?,'camp_register',?)",
+              (email, code, expires))
+    conn.commit(); conn.close()
+    try:
+        send_org_verification(email, code)
+    except Exception:
+        pass
+    session["camp_reg_email"] = email
+    return jsonify({"ok": True})
+
+@app.route("/api/camp/register/verify-otp", methods=["POST"])
+def api_camp_reg_verify_otp():
+    data  = request.get_json(force=True) or {}
+    email = (data.get("email") or session.get("camp_reg_email","")).strip().lower()
+    code  = (data.get("code") or "").strip()
+    conn  = get_connection(); c = conn.cursor()
+    c.execute("""SELECT id FROM verification_codes
+                 WHERE email=? AND code=? AND purpose='camp_register'
+                   AND used=0 AND expires_at > datetime('now','localtime')
+                 ORDER BY id DESC LIMIT 1""", (email, code))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "الرمز غير صحيح أو منتهي الصلاحية"})
+    c.execute("UPDATE verification_codes SET used=1 WHERE id=?", (row["id"],))
+    conn.commit(); conn.close()
+    session["camp_reg_email"]    = email
+    session["camp_reg_verified"] = True
+    return jsonify({"ok": True})
+
+@app.route("/api/camp/register/submit", methods=["POST"])
+def api_camp_reg_submit():
+    if not session.get("camp_reg_verified"):
+        return jsonify({"ok": False, "error": "يرجى التحقق من بريدك الإلكتروني أولاً"})
+    data        = request.get_json(force=True) or {}
+    email       = session.get("camp_reg_email","")
+    entity_type = data.get("entity_type","camp")
+    name        = (data.get("name") or "").strip()
+    manager     = (data.get("manager_name") or "").strip()
+    id_number   = (data.get("id_number") or "").strip()
+    mobile      = (data.get("mobile") or "").strip()
+    governorate = (data.get("governorate") or "").strip()
+    city        = (data.get("city") or "").strip()
+    password    = data.get("password","")
+    password2   = data.get("password2","")
+    if not name or not manager or not password:
+        return jsonify({"ok": False, "error": "يرجى تعبئة جميع الحقول المطلوبة"})
+    if password != password2:
+        return jsonify({"ok": False, "error": "كلمتا المرور غير متطابقتين"})
+    if len(id_number) != 9 or not id_number.isdigit():
+        return jsonify({"ok": False, "error": "رقم الهوية يجب أن يكون 9 أرقام"})
+    hashed_pw = generate_password_hash(password)
+    conn = get_connection(); c = conn.cursor()
+    try:
+        c.execute("""INSERT INTO camp_entities
+            (entity_type,name,manager_name,id_number,mobile,email,email_verified,
+             governorate,city,password,is_active)
+            VALUES (?,?,?,?,?,?,1,?,?,?,1)""",
+            (entity_type, name, manager, id_number, mobile, email,
+             governorate, city, hashed_pw))
+        new_id = c.lastrowid
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        return jsonify({"ok": False, "error": f"خطأ: {e}"})
+    session.pop("camp_reg_email", None)
+    session.pop("camp_reg_verified", None)
+    conn.close()
+    return jsonify({"ok": True})
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)
