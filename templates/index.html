@@ -1057,13 +1057,39 @@ document.querySelectorAll('.otp-row').forEach(function(row) {
   const inputs = row.querySelectorAll('input');
   inputs.forEach((inp, i) => {
     inp.addEventListener('input', () => {
-      inp.value = inp.value.replace(/\D/g, '');
+      inp.value = inp.value.replace(/\D/g, '').slice(0,1);
       if(inp.value && i < inputs.length-1) inputs[i+1].focus();
     });
     inp.addEventListener('keydown', e => {
       if(e.key==='Backspace' && !inp.value && i>0) inputs[i-1].focus();
+      if(e.key==='Enter'){
+        e.preventDefault();
+        // ابحث عن أول زر mbtn-primary مرئي داخل نفس الـ modal
+        var modal = row.closest('.modal-overlay');
+        var btn = modal ? modal.querySelector('.mbtn-primary:not([style*="display:none"])') : null;
+        if(btn) btn.click();
+      }
+    });
+    inp.addEventListener('paste', function(e){
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+      inputs.forEach((box,j) => { box.value = text[j] || ''; });
+      var last = Math.min(text.length, inputs.length) - 1;
+      if(last >= 0) inputs[last].focus();
     });
   });
+});
+
+// Enter في أي input داخل modal يضغط أول mbtn-primary مرئي
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  var active = document.activeElement;
+  if(!active || active.tagName === 'TEXTAREA') return;
+  var overlay = active.closest('.modal-overlay');
+  if(!overlay || !overlay.classList.contains('active')) return;
+  if(active.closest('.otp-row')) return; // OTP تتعامل معها بنفسها
+  var btn = overlay.querySelector('.mbtn-primary');
+  if(btn){ e.preventDefault(); btn.click(); }
 });
 
 function getOTP(rowId){
@@ -1266,6 +1292,7 @@ function cregStep(n){
   document.getElementById('creg-s1').style.display = (n===1)?'block':'none';
   document.getElementById('creg-s2').style.display = (n===2)?'block':'none';
   document.getElementById('creg-s3').style.display = (n===3)?'flex':'none';
+  if(n===2){ setTimeout(()=>{ var f=document.querySelector('#creg-otp-inputs input'); if(f) f.focus(); },200); }
   const labels = ['الخطوة 1 من 3 — التحقق من البريد','الخطوة 2 من 3 — رمز التحقق','الخطوة 3 من 3 — بيانات التسجيل'];
   document.getElementById('creg-step-label').textContent = labels[n-1];
   var overlay = document.getElementById('campRegModal');
