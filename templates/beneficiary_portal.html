@@ -786,6 +786,8 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       {% else %}
       <div style="margin-top:8px;font-size:.75rem;color:var(--ink-4);">مستفيد مستقل</div>
       {% endif %}
+      <!-- طلبات انضمام المخيمات -->
+      <div id="camp-requests-box" style="margin-top:10px;"></div>
       <!-- العائلة — مستقلة عن المخيم/اللجنة -->
       {% if ben.family_name %}
       <div style="margin-top:6px;background:#fef3c7;border-radius:8px;padding:8px 10px;font-size:.75rem;color:#92400e;display:flex;align-items:center;gap:6px;">
@@ -1383,6 +1385,48 @@ async function confirmBenefit(recordId, btn){
     alert(r.error || 'حدث خطأ');
   }
 }
+
+/* ══ طلبات انضمام المخيم ══ */
+async function loadCampRequests() {
+  var box = document.getElementById('camp-requests-box');
+  if (!box) return;
+  try {
+    var r = await fetch('/api/beneficiary/camp-requests').then(x => x.json());
+    if (!r.ok || !r.requests.length) { box.innerHTML = ''; return; }
+    box.innerHTML = r.requests.map(req => `
+      <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:.78rem;font-weight:700;color:#92400e;margin-bottom:6px;">
+          <i class="fas fa-campground" style="color:#d97706;margin-left:4px;"></i>
+          طلب انضمام من: <strong>${req.camp_name}</strong>
+        </div>
+        <div style="font-size:.73rem;color:#b45309;margin-bottom:8px;">${req.camp_gov || ''}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="respondRequest(${req.id},'approve')"
+            style="flex:1;padding:6px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-size:.78rem;font-family:inherit;cursor:pointer;font-weight:700;">
+            <i class="fas fa-check"></i> قبول
+          </button>
+          <button onclick="respondRequest(${req.id},'reject')"
+            style="flex:1;padding:6px;border-radius:8px;border:none;background:#fee2e2;color:#991b1b;font-size:.78rem;font-family:inherit;cursor:pointer;font-weight:700;">
+            <i class="fas fa-times"></i> رفض
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function respondRequest(reqId, action) {
+  var r = await fetch('/api/beneficiary/camp-request/respond', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({request_id: reqId, action: action})
+  }).then(x => x.json());
+  if (r.ok) {
+    loadCampRequests();
+    if (action === 'approve') location.reload();
+  } else { alert(r.error || 'خطأ'); }
+}
+
+loadCampRequests();
 </script>
 </body>
 </html>

@@ -6858,6 +6858,193 @@ def api_camp_reg_submit():
     return jsonify({"ok": True})
 
 
+# ══════════════════════════════════════════════════════
+# نظام طلبات انضمام المستفيدين للمخيمات
+# ══════════════════════════════════════════════════════
+
+@app.route("/api/camp/join-request/add", methods=["POST"])
+def api_camp_join_request_add():
+    """المخيم يضيف مستفيد بالاسم + رقم الهوية"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    data      = request.get_json(force=True) or {}
+    id_number = (data.get("id_number") or "").strip()
+    full_name = (data.get("full_name") or "").strip()
+    camp_id   = session["camp_id"]
+    if not id_number or not full_name:
+        return jsonify({"ok": False, "error": "أدخل الاسم الرباعي ورقم الهوية"})
+    if len(id_number) != 9 or not id_number.isdigit():
+        return jsonify({"ok": False, "error": "رقم الهوية يجب أن يكون 9 أرقام"})
+    conn = get_connection(); c = conn.cursor()
+    try:
+        # هل المستفيد مسجل في النظام؟
+        c.execute("SELECT id, full_name, camp_entity_id FROM beneficiaries WHERE id_number=?", (id_number,))
+        ben = c.fetchone()
+        ben_id = None
+        if ben:
+            ben = dict(ben)
+            ben_id = ben["id"]
+            # هل مرتبط بمخيم آخر؟
+            if ben.get("camp_entity_id") and ben["camp_entity_id"] != camp_id:
+                conn.close()
+                return jsonify({"ok": False, "error": "هذا المستفيد مرتبط بمخيم آخر"})
+        # هل يوجد طلب سابق من نفس المخيم؟
+        c.execute("SELECT id, status FROM camp_join_requests WHERE camp_entity_id=? AND id_number=?",
+                  (camp_id, id_number))
+        existing = c.fetchone()
+        if existing:
+            existing = dict(existing)
+            if existing["status"] == "approved":
+                conn.close()
+                return jsonify({"ok": False, "error": "المستفيد مضاف ومقبول مسبقاً"})
+            if existing["status"] == "pending":
+                conn.close()
+                return jsonify({"ok": False, "error": "يوجد طلب انتظار مسبق لهذا المستفيد"})
+            # مرفوض → نعيد الطلب
+            c.execute("""UPDATE camp_join_requests SET status='pending', full_name=?,
+                         beneficiary_id=?, responded_at=NULL, created_at=datetime('now','localtime')
+                         WHERE id=?""", (full_name, ben_id, existing["id"]))
+        else:
+            c.execute("""INSERT INTO camp_join_requests
+                         (camp_entity_id, beneficiary_id, id_number, full_name, status)
+                         VALUES (?,?,?,?,'pending')""",
+                      (camp_id, ben_id, id_number, full_name))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True, "registered": ben_id is not None})
+    except Exception as e:
+        try: conn.close()
+        except: pass
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/camp/join-requests", methods=["GET"])
+def api_camp_join_requests_list():
+    """المخيم يشوف كل طلباته"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""SELECT cjr.*, b.full_name as ben_name, b.phone as ben_phone,
+                        b.governorate, b.city
+                 FROM camp_join_requests cjr
+                 LEFT JOIN beneficiaries b ON b.id = cjr.beneficiary_id
+                 WHERE cjr.camp_entity_id=?
+                 ORDER BY cjr.created_at DESC""", (session["camp_id"],))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"ok": True, "requests": rows})
+
+
+@app.route("/api/camp/join-request/cancel", methods=["POST"])
+def api_camp_join_request_cancel():
+    """المخيم يلغي طلب"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    data = request.get_json(force=True) or {}
+    req_id = data.get("request_id")
+    conn = get_connection(); c = conn.cursor()
+    c.execute("DELETE FROM camp_join_requests WHERE id=? AND camp_entity_id=? AND status='pending'",
+              (req_id, session["camp_id"]))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/beneficiary/camp-requests", methods=["GET"])
+def api_ben_camp_requests():
+    """المستفيد يشوف طلبات الانضمام الواردة له"""
+    if "beneficiary_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    ben_id = session["beneficiary_id"]
+    conn = get_connection(); c = conn.cursor()
+    # اجلب رقم الهوية
+    c.execute("SELECT id_number FROM beneficiaries WHERE id=?", (ben_id,))
+    ben = c.fetchone()
+    if not ben:
+        conn.close()
+        return jsonify({"ok": True, "requests": []})
+    c.execute("""SELECT cjr.*, ce.name as camp_name, ce.governorate as camp_gov,
+                        ce.entity_type
+                 FROM camp_join_requests cjr
+                 JOIN camp_entities ce ON ce.id = cjr.camp_entity_id
+                 WHERE cjr.id_number=? AND cjr.status='pending'
+                 ORDER BY cjr.created_at DESC""", (ben["id_number"],))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"ok": True, "requests": rows})
+
+
+@app.route("/api/beneficiary/camp-request/respond", methods=["POST"])
+def api_ben_camp_request_respond():
+    """المستفيد يقبل أو يرفض طلب انضمام"""
+    if "beneficiary_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    data    = request.get_json(force=True) or {}
+    req_id  = data.get("request_id")
+    action  = data.get("action")  # 'approve' or 'reject'
+    ben_id  = session["beneficiary_id"]
+    if action not in ("approve", "reject"):
+        return jsonify({"ok": False, "error": "إجراء غير صحيح"})
+    conn = get_connection(); c = conn.cursor()
+    try:
+        c.execute("SELECT id_number FROM beneficiaries WHERE id=?", (ben_id,))
+        ben = c.fetchone()
+        if not ben:
+            conn.close()
+            return jsonify({"ok": False, "error": "حساب غير موجود"})
+        c.execute("SELECT * FROM camp_join_requests WHERE id=? AND id_number=? AND status='pending'",
+                  (req_id, ben["id_number"]))
+        req = c.fetchone()
+        if not req:
+            conn.close()
+            return jsonify({"ok": False, "error": "الطلب غير موجود أو منتهي"})
+        req = dict(req)
+        if action == "approve":
+            # تحقق: هل مرتبط بمخيم آخر؟
+            c.execute("SELECT camp_entity_id FROM beneficiaries WHERE id=?", (ben_id,))
+            current = c.fetchone()
+            if current and current["camp_entity_id"]:
+                conn.close()
+                return jsonify({"ok": False, "error": "أنت مرتبط بمخيم آخر — يجب إلغاء الارتباط أولاً"})
+            # قبول: ربط المستفيد بالمخيم
+            c.execute("UPDATE beneficiaries SET camp_entity_id=? WHERE id=?",
+                      (req["camp_entity_id"], ben_id))
+            c.execute("""UPDATE camp_join_requests SET status='approved', beneficiary_id=?,
+                         responded_at=datetime('now','localtime') WHERE id=?""", (ben_id, req_id))
+            # رفض أي طلبات أخرى معلقة لنفس المستفيد
+            c.execute("""UPDATE camp_join_requests SET status='rejected',
+                         responded_at=datetime('now','localtime')
+                         WHERE id_number=? AND status='pending' AND id!=?""",
+                      (ben["id_number"], req_id))
+        else:
+            c.execute("""UPDATE camp_join_requests SET status='rejected',
+                         responded_at=datetime('now','localtime') WHERE id=?""", (req_id,))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        try: conn.close()
+        except: pass
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/beneficiary/camp/leave", methods=["POST"])
+def api_ben_camp_leave():
+    """المستفيد يفك ارتباطه بالمخيم"""
+    if "beneficiary_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    ben_id = session["beneficiary_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT camp_entity_id, id_number FROM beneficiaries WHERE id=?", (ben_id,))
+    ben = c.fetchone()
+    if not ben or not ben["camp_entity_id"]:
+        conn.close()
+        return jsonify({"ok": False, "error": "لست مرتبطاً بأي مخيم"})
+    c.execute("UPDATE beneficiaries SET camp_entity_id=NULL WHERE id=?", (ben_id,))
+    c.execute("""UPDATE camp_join_requests SET status='left',
+                 responded_at=datetime('now','localtime')
+                 WHERE id_number=? AND status='approved'""", (ben["id_number"],))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)

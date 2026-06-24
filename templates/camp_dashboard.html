@@ -175,6 +175,14 @@ tr:hover td{background:#fafaf7;}
 .flash.warning{background:#fef3c7;color:#92400e;}
 .rlink{color:var(--g7);text-decoration:none;font-weight:600;font-size:.8rem;}
 .rlink:hover{text-decoration:underline;}
+.filt-btn{padding:6px 14px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;font-size:.8rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:all .15s;}
+.filt-btn:hover{border-color:var(--g6);}
+.filt-active{background:var(--g7);color:#fff;border-color:var(--g7)!important;}
+.badge-st{padding:3px 10px;border-radius:20px;font-size:.74rem;font-weight:700;}
+.st-approved{background:#dcfce7;color:#16a34a;}
+.st-pending{background:#fef9c3;color:#b45309;}
+.st-rejected{background:#fee2e2;color:#dc2626;}
+.st-left{background:#e0e7ff;color:#4338ca;}
 .fg{display:flex;flex-direction:column;gap:5px;}
 .fg label{font-size:.75rem;font-weight:700;color:var(--ink6);}
 .fg input,.fg select,.fg textarea{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.84rem;font-family:inherit;color:var(--ink);transition:.15s;}
@@ -433,31 +441,54 @@ tr:hover td{background:#fafaf7;}
 
     <!-- ══ كشف المستفيدين ══ -->
     <div id="page-members" class="page">
-      <div class="sec">
-        <div class="sec-hd">
-          <span><i class="fas fa-users" style="color:var(--g6);margin-left:6px;"></i>المستفيدون المقبولون ({{ members|length }})</span>
-          <a href="{{ url_for('camp_add_beneficiary') }}" class="btn btn-g"><i class="fas fa-user-plus"></i> إضافة مستفيد</a>
+
+      <!-- نموذج إضافة مستفيد -->
+      <div class="sec" style="margin-bottom:16px;">
+        <div class="sec-hd"><span><i class="fas fa-user-plus" style="color:var(--g6);margin-left:6px;"></i>إضافة مستفيد للكشف</span></div>
+        <div id="mem-flash" style="display:none;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:10px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+          <div>
+            <label style="font-size:.76rem;font-weight:700;color:var(--ink6);display:block;margin-bottom:4px;">الاسم الرباعي <span style="color:#e53e3e">*</span></label>
+            <input id="req-name" type="text" placeholder="الاسم الكامل رباعياً"
+              style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.85rem;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:.76rem;font-weight:700;color:var(--ink6);display:block;margin-bottom:4px;">رقم الهوية <span style="color:#e53e3e">*</span></label>
+            <input id="req-id" type="text" placeholder="9 أرقام" maxlength="9" inputmode="numeric"
+              style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.85rem;font-family:inherit;direction:ltr;">
+          </div>
+          <button onclick="sendJoinRequest()" class="btn btn-g" style="white-space:nowrap;padding:9px 18px;">
+            <i class="fas fa-paper-plane"></i> إرسال طلب
+          </button>
         </div>
-        {% if members %}
-        <table>
-          <thead><tr><th>#</th><th>الاسم</th><th>رقم الهوية</th><th>الجوال</th><th>الجنس</th><th>حجم الأسرة</th><th>ملف</th></tr></thead>
-          <tbody>
-          {% for m in members %}
-          <tr>
-            <td style="color:var(--ink4);font-size:.76rem;">{{ loop.index }}</td>
-            <td><strong>{{ m.full_name }}</strong></td>
-            <td dir="ltr" style="font-size:.8rem;">{{ m.id_number or '—' }}</td>
-            <td style="font-size:.8rem;">{{ m.phone or '—' }}</td>
-            <td>{{ 'ذكر' if m.gender=='male' else 'أنثى' }}</td>
-            <td style="text-align:center;">{{ m.family_size or 1 }}</td>
-            <td><a href="/camp/beneficiary/{{ m.id }}" class="rlink"><i class="fas fa-eye"></i> عرض</a></td>
-          </tr>
-          {% endfor %}
-          </tbody>
+        <p style="font-size:.75rem;color:var(--ink4);margin-top:8px;">
+          <i class="fas fa-info-circle"></i>
+          سيصل إشعار للمستفيد في بوابته ليوافق على الانضمام — مخيم واحد فقط لكل مستفيد
+        </p>
+      </div>
+
+      <!-- فلاتر الحالة -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="mem-filter-btns">
+        <button onclick="filterMembers('all',this)" class="filt-btn filt-active">الكل</button>
+        <button onclick="filterMembers('approved',this)" class="filt-btn"><i class="fas fa-check-circle" style="color:#16a34a;"></i> مقبول</button>
+        <button onclick="filterMembers('pending',this)" class="filt-btn"><i class="fas fa-clock" style="color:#d97706;"></i> في الانتظار</button>
+        <button onclick="filterMembers('rejected',this)" class="filt-btn"><i class="fas fa-times-circle" style="color:#dc2626;"></i> مرفوض</button>
+      </div>
+
+      <!-- كشف الطلبات -->
+      <div class="sec" id="mem-table-wrap">
+        <div id="mem-loading" style="text-align:center;padding:30px;color:var(--ink4);">
+          <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+        </div>
+        <table id="mem-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>#</th><th>الاسم</th><th>رقم الهوية</th><th>الحالة</th><th>مسجل</th><th>تاريخ الطلب</th><th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="mem-tbody"></tbody>
         </table>
-        {% else %}
-        <div class="empty"><i class="fas fa-users"></i>لا يوجد مستفيدون مقبولون بعد</div>
-        {% endif %}
+        <div id="mem-empty" style="display:none;" class="empty"><i class="fas fa-users"></i> لا توجد سجلات</div>
       </div>
     </div>
 
@@ -532,6 +563,160 @@ tr:hover td{background:#fafaf7;}
             </div>
             <div class="fg">
               <label>الكمية</label>
+              <input type="text" name="quantity" placeholder="مثال: 3 كراتين">
+            </div>
+            <div class="fg">
+              <label>ملاحظات</label>
+              <input type="text" name="notes" placeholder="اختياري">
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <button type="submit" class="btn btn-g"><i class="fas fa-save"></i> تسجيل الاستفادة</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="empty"><i class="fas fa-users"></i>أضف مستفيدين أولاً لتسجيل الاستفادة</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+const PAGE_TITLES = {
+  overview:'الرئيسية', members:'كشف المستفيدين',
+  requests:'طلبات الانضمام', benefits:'تسجيل استفادة'
+};
+
+function showPage(name, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[name] || '';
+  document.querySelectorAll('.ni').forEach(i => i.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  if (name === 'members') loadMembers();
+}
+
+function toggleSub(id, el) {
+  const sub = document.getElementById(id);
+  const wasOpen = sub.classList.contains('open');
+  document.querySelectorAll('.nsub').forEach(s => s.classList.remove('open'));
+  document.querySelectorAll('.ni').forEach(i => i.classList.remove('open'));
+  if (!wasOpen) {
+    sub.classList.add('open');
+    el.classList.add('open', 'active');
+  }
+}
+
+{% if pending_n > 0 %}
+(function(){
+  var el = document.getElementById('nav-members-parent');
+  if (el) { el.classList.add('open','active'); document.getElementById('sub-members').classList.add('open'); }
+})();
+{% endif %}
+
+function uploadLogo(inp) {
+  if (!inp.files.length) return;
+  var fd = new FormData();
+  fd.append('logo', inp.files[0]);
+  fetch('/camp/upload-logo', {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        var av = document.getElementById('avatar-img');
+        av.innerHTML = '<img src="' + d.url + '?t=' + Date.now() + '" alt="شعار">';
+      } else { alert(d.error || 'خطأ في الرفع'); }
+    });
+}
+
+/* ══ كشف المستفيدين — نظام الطلبات الجديد ══ */
+var allRequests = [];
+var currentFilter = 'all';
+
+async function loadMembers() {
+  document.getElementById('mem-loading').style.display = 'block';
+  document.getElementById('mem-table').style.display = 'none';
+  document.getElementById('mem-empty').style.display = 'none';
+  try {
+    var r = await fetch('/api/camp/join-requests').then(x => x.json());
+    if (r.ok) { allRequests = r.requests; renderMembers(); }
+  } catch(e) {}
+  document.getElementById('mem-loading').style.display = 'none';
+}
+
+function renderMembers() {
+  var filtered = currentFilter === 'all' ? allRequests
+    : allRequests.filter(x => x.status === currentFilter);
+  var tbody = document.getElementById('mem-tbody');
+  if (!filtered.length) {
+    document.getElementById('mem-table').style.display = 'none';
+    document.getElementById('mem-empty').style.display = 'block';
+    return;
+  }
+  var statusMap = {approved:'مقبول',pending:'في الانتظار',rejected:'مرفوض',left:'غادر'};
+  var clsMap = {approved:'st-approved',pending:'st-pending',rejected:'st-rejected',left:'st-left'};
+  tbody.innerHTML = filtered.map((r,i) => `
+    <tr>
+      <td style="color:var(--ink4);font-size:.75rem;">${i+1}</td>
+      <td><strong>${r.full_name}</strong></td>
+      <td dir="ltr" style="font-size:.8rem;">${r.id_number}</td>
+      <td><span class="badge-st ${clsMap[r.status]||'st-pending'}">${statusMap[r.status]||r.status}</span></td>
+      <td style="font-size:.8rem;">${r.beneficiary_id ? '<i class="fas fa-check-circle" style="color:#16a34a;"></i> مسجل' : '<i class="fas fa-clock" style="color:#d97706;"></i> غير مسجل'}</td>
+      <td style="font-size:.78rem;color:var(--ink4);">${(r.created_at||'').slice(0,10)}</td>
+      <td>${r.status==='pending' ? `<button onclick="cancelRequest(${r.id})" class="btn btn-r" style="padding:4px 10px;font-size:.76rem;"><i class="fas fa-times"></i> إلغاء</button>` : ''}</td>
+    </tr>
+  `).join('');
+  document.getElementById('mem-table').style.display = 'table';
+  document.getElementById('mem-empty').style.display = 'none';
+}
+
+function filterMembers(status, btn) {
+  currentFilter = status;
+  document.querySelectorAll('.filt-btn').forEach(b => b.classList.remove('filt-active'));
+  if (btn) btn.classList.add('filt-active');
+  renderMembers();
+}
+
+async function sendJoinRequest() {
+  var name = document.getElementById('req-name').value.trim();
+  var id   = document.getElementById('req-id').value.trim();
+  var flash = document.getElementById('mem-flash');
+  flash.style.display = 'none';
+  if (!name || !id) { showMemFlash('أدخل الاسم الرباعي ورقم الهوية', 'error'); return; }
+  var r = await fetch('/api/camp/join-request/add', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({full_name: name, id_number: id})
+  }).then(x => x.json());
+  if (r.ok) {
+    showMemFlash(r.registered ? 'تم إرسال الطلب — سيصل إشعار للمستفيد في بوابته' : 'تم حفظ الطلب — سيُفعّل عند تسجيل المستفيد', 'success');
+    document.getElementById('req-name').value = '';
+    document.getElementById('req-id').value = '';
+    loadMembers();
+  } else { showMemFlash(r.error || 'خطأ', 'error'); }
+}
+
+async function cancelRequest(reqId) {
+  if (!confirm('إلغاء هذا الطلب؟')) return;
+  var r = await fetch('/api/camp/join-request/cancel', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({request_id: reqId})
+  }).then(x => x.json());
+  if (r.ok) loadMembers();
+  else alert(r.error || 'خطأ');
+}
+
+function showMemFlash(msg, type) {
+  var f = document.getElementById('mem-flash');
+  f.textContent = msg;
+  f.style.display = 'block';
+  f.style.background = type === 'error' ? '#fee2e2' : '#dcfce7';
+  f.style.color = type === 'error' ? '#991b1b' : '#166534';
+}
+</script>
+</body>
+</html>
               <input type="text" name="quantity" placeholder="مثال: 3 كراتين">
             </div>
             <div class="fg">
