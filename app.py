@@ -2525,7 +2525,13 @@ def program_detail(id):
     """, (org_id, id))
     records = [dict(r) for r in c.fetchall()]
 
-    c.execute("SELECT id, seq_num, full_name FROM beneficiaries WHERE org_id=? ORDER BY full_name", (org_id,))
+    c.execute("""
+        SELECT DISTINCT b.id, b.seq_num, b.full_name
+        FROM beneficiaries b
+        WHERE b.org_id=?
+           OR EXISTS (SELECT 1 FROM org_beneficiary_links obl WHERE obl.beneficiary_id=b.id AND obl.org_id=?)
+        ORDER BY b.full_name
+    """, (org_id, org_id))
     beneficiaries = [dict(r) for r in c.fetchall()]
 
     conn.close()
@@ -2632,7 +2638,12 @@ def outgoing_invoice():
     def get_render_data():
         c.execute("SELECT id, name FROM products WHERE org_id=? ORDER BY name", (org_id,))
         pl = c.fetchall()
-        c.execute("SELECT id, full_name FROM beneficiaries WHERE org_id=? ORDER BY full_name", (org_id,))
+        c.execute("""
+            SELECT DISTINCT b.id, b.full_name FROM beneficiaries b
+            WHERE b.org_id=?
+               OR EXISTS (SELECT 1 FROM org_beneficiary_links obl WHERE obl.beneficiary_id=b.id AND obl.org_id=?)
+            ORDER BY b.full_name
+        """, (org_id, org_id))
         bl = c.fetchall()
         c.execute("SELECT * FROM programs WHERE org_id=? AND is_active=1 ORDER BY name", (org_id,))
         rows = c.fetchall()
