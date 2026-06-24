@@ -112,6 +112,40 @@ def send_org_verification(to_email, org_name, admin_name, code, org_code, userna
     return _send(to_email, admin_name, subject, html)
 
 
+def send_otp_code(to_email: str, code: str, purpose: str = "التحقق") -> bool:
+    """إرسال رمز OTP بسيط لأي غرض (تسجيل لجنة، مستفيد، إلخ)"""
+    subject = f"رمز التحقق — ميزان مجد"
+    html = f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8">
+<style>
+  body{{font-family:Arial,sans-serif;background:#f4f7f5;margin:0;padding:20px;direction:rtl;}}
+  .box{{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);}}
+  .hd{{background:linear-gradient(135deg,#0f3d2e,#2d8a50);padding:26px 24px;text-align:center;color:#fff;}}
+  .hd h2{{margin:0;font-size:20px;}}
+  .bd{{padding:28px 24px;text-align:center;}}
+  .code-box{{background:#f0fdf4;border:2px dashed #2d8a50;border-radius:14px;padding:22px;margin:20px 0;}}
+  .code-val{{font-size:42px;font-weight:900;color:#0f3d2e;letter-spacing:10px;font-family:monospace;}}
+  .code-exp{{font-size:12px;color:#e8a020;margin-top:8px;font-weight:700;}}
+  .ft{{background:#f4f7f5;padding:12px;text-align:center;font-size:11px;color:#aaa;}}
+</style></head>
+<body>
+<div class="box">
+  <div class="hd"><h2>⚖️ ميزان مجد</h2><p style="margin:4px 0 0;opacity:.8;font-size:13px;">{purpose}</p></div>
+  <div class="bd">
+    <p style="color:#475569;font-size:14px;margin-bottom:6px;">رمز التحقق الخاص بك:</p>
+    <div class="code-box">
+      <div class="code-val">{code}</div>
+      <div class="code-exp">⏱ صالح لمدة 30 دقيقة فقط</div>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;">إذا لم تطلب هذا الرمز، تجاهل هذا البريد.</p>
+  </div>
+  <div class="ft">ميزان مجد — منظومة موحدة للعمل الإنساني</div>
+</div>
+</body></html>"""
+    return _send(to_email, "", subject, html)
+
+
 def send_staff_notification(to_email, admin_name, staff_name, staff_role, org_name):
     role_ar = "محاسب" if staff_role == "accountant" else "مدخل بيانات"
     subject = f"طلب تسجيل جديد في {org_name}"

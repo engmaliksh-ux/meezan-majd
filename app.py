@@ -5,7 +5,7 @@ from database import get_connection, init_db, generate_org_code
 from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-from email_service import generate_verification_code, send_org_verification, send_staff_notification
+from email_service import generate_verification_code, send_org_verification, send_staff_notification, send_otp_code
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -5177,7 +5177,7 @@ def api_ben_request_email_change():
               (new_email, code, "ben_email_change", expires_at))
     conn.commit(); conn.close()
     try:
-        send_org_verification(new_email, "تأكيد تغيير البريد الإلكتروني", "", code, "", "")
+        send_otp_code(new_email, code, "تأكيد تغيير البريد الإلكتروني")
     except Exception as e:
         app.logger.error(f"Email change OTP error: {e}")
         return jsonify({"ok": False, "error": "فشل إرسال الرمز"})
@@ -5276,7 +5276,7 @@ def register_camp():
             conn.commit()
             conn.close()
             try:
-                send_org_verification(email, code)
+                send_otp_code(email, code, "تسجيل لجنة")
                 flash(f"تم إرسال رمز التحقق إلى {email}", "success")
             except Exception:
                 flash(f"كود التحقق: {code} (تعذر إرسال البريد)", "warning")
@@ -6065,7 +6065,7 @@ def api_beneficiary_forgot_password():
     conn.commit()
     conn.close()
     try:
-        send_org_verification(ben["email"], "إعادة تعيين كلمة المرور", ben["full_name"], code, "", "")
+        send_otp_code(ben["email"], code, "إعادة تعيين كلمة المرور")
     except Exception as e:
         app.logger.error(f"Reset email error: {e}")
         return jsonify({"ok": False, "error": "فشل إرسال البريد"})
@@ -6138,7 +6138,7 @@ def api_beneficiary_send_otp():
     session["ben_reg_id_number"] = id_number
     # إرسال البريد
     try:
-        send_org_verification(email, "تسجيل مستفيد جديد", "مستفيد عزيز", code, "", "")
+        send_otp_code(email, code, "تسجيل مستفيد جديد")
     except Exception as e:
         app.logger.error(f"OTP email error: {e}")
         return jsonify({"ok": False, "error": "فشل إرسال البريد، تحقق من العنوان وأعد المحاولة"})
@@ -6709,9 +6709,9 @@ def api_camp_reg_send_otp():
               (email, code, expires))
     conn.commit(); conn.close()
     try:
-        send_org_verification(email, code)
-    except Exception:
-        pass
+        send_otp_code(email, code, "تسجيل لجنة جديدة")
+    except Exception as e:
+        app.logger.error(f"Camp OTP email error: {e}")
     session["camp_reg_email"] = email
     return jsonify({"ok": True})
 
