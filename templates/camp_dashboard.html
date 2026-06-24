@@ -562,7 +562,7 @@ tr:hover td{background:#fafaf7;}
               <input type="text" name="value" placeholder="مثال: 50 دولار">
             </div>
             <div class="fg">
-              <label>الكمية</label>
+              <              <label>الكمية</label>
               <input type="text" name="quantity" placeholder="مثال: 3 كراتين">
             </div>
             <div class="fg">
@@ -604,100 +604,83 @@ function toggleSub(id, el) {
   const wasOpen = sub.classList.contains('open');
   document.querySelectorAll('.nsub').forEach(s => s.classList.remove('open'));
   document.querySelectorAll('.ni').forEach(i => i.classList.remove('open'));
-  if (!wasOpen) {
-    sub.classList.add('open');
-    el.classList.add('open', 'active');
-  }
+  if (!wasOpen) { sub.classList.add('open'); el.classList.add('open', 'active'); }
 }
-
-{% if pending_n > 0 %}
-(function(){
-  var el = document.getElementById('nav-members-parent');
-  if (el) { el.classList.add('open','active'); document.getElementById('sub-members').classList.add('open'); }
-})();
-{% endif %}
 
 function uploadLogo(inp) {
   if (!inp.files.length) return;
-  var fd = new FormData();
-  fd.append('logo', inp.files[0]);
-  fetch('/camp/upload-logo', {method:'POST', body:fd})
-    .then(r => r.json())
-    .then(d => {
-      if (d.ok) {
-        var av = document.getElementById('avatar-img');
-        av.innerHTML = '<img src="' + d.url + '?t=' + Date.now() + '" alt="شعار">';
-      } else { alert(d.error || 'خطأ في الرفع'); }
-    });
+  var fd = new FormData(); fd.append('logo', inp.files[0]);
+  fetch('/camp/upload-logo', {method:'POST', body:fd}).then(r=>r.json()).then(d=>{
+    if (d.ok) { document.getElementById('avatar-img').innerHTML='<img src="'+d.url+'?t='+Date.now()+'" alt="شعار">'; }
+    else { alert(d.error||'خطأ في الرفع'); }
+  });
 }
 
-/* ══ كشف المستفيدين — نظام الطلبات الجديد ══ */
-var allRequests = [];
-var currentFilter = 'all';
-
+var allRequests = []; var currentFilter = 'all';
 async function loadMembers() {
-  document.getElementById('mem-loading').style.display = 'block';
-  document.getElementById('mem-table').style.display = 'none';
-  document.getElementById('mem-empty').style.display = 'none';
+  document.getElementById('mem-loading').style.display='block';
+  document.getElementById('mem-table').style.display='none';
+  document.getElementById('mem-empty').style.display='none';
   try {
-    var r = await fetch('/api/camp/join-requests').then(x => x.json());
-    if (r.ok) { allRequests = r.requests; renderMembers(); }
+    var r = await fetch('/api/camp/join-requests').then(x=>x.json());
+    if (r.ok) { allRequests=r.requests; renderMembers(); }
   } catch(e) {}
-  document.getElementById('mem-loading').style.display = 'none';
+  document.getElementById('mem-loading').style.display='none';
 }
 
 function renderMembers() {
-  var filtered = currentFilter === 'all' ? allRequests
-    : allRequests.filter(x => x.status === currentFilter);
+  var filtered = currentFilter==='all' ? allRequests : allRequests.filter(x=>x.status===currentFilter);
   var tbody = document.getElementById('mem-tbody');
-  if (!filtered.length) {
-    document.getElementById('mem-table').style.display = 'none';
-    document.getElementById('mem-empty').style.display = 'block';
-    return;
-  }
-  var statusMap = {approved:'مقبول',pending:'في الانتظار',rejected:'مرفوض',left:'غادر'};
-  var clsMap = {approved:'st-approved',pending:'st-pending',rejected:'st-rejected',left:'st-left'};
-  tbody.innerHTML = filtered.map((r,i) => `
+  if (!filtered.length) { document.getElementById('mem-table').style.display='none'; document.getElementById('mem-empty').style.display='block'; return; }
+  var statusMap={approved:'مقبول',pending:'في الانتظار',rejected:'مرفوض',left:'غادر'};
+  var clsMap={approved:'st-approved',pending:'st-pending',rejected:'st-rejected',left:'st-left'};
+  tbody.innerHTML = filtered.map((r,i)=>`
     <tr>
       <td style="color:var(--ink4);font-size:.75rem;">${i+1}</td>
       <td><strong>${r.full_name}</strong></td>
       <td dir="ltr" style="font-size:.8rem;">${r.id_number}</td>
       <td><span class="badge-st ${clsMap[r.status]||'st-pending'}">${statusMap[r.status]||r.status}</span></td>
-      <td style="font-size:.8rem;">${r.beneficiary_id ? '<i class="fas fa-check-circle" style="color:#16a34a;"></i> مسجل' : '<i class="fas fa-clock" style="color:#d97706;"></i> غير مسجل'}</td>
+      <td style="font-size:.8rem;">${r.beneficiary_id?'<i class="fas fa-check-circle" style="color:#16a34a;"></i> مسجل':'<i class="fas fa-clock" style="color:#d97706;"></i> غير مسجل'}</td>
       <td style="font-size:.78rem;color:var(--ink4);">${(r.created_at||'').slice(0,10)}</td>
-      <td>${r.status==='pending' ? `<button onclick="cancelRequest(${r.id})" class="btn btn-r" style="padding:4px 10px;font-size:.76rem;"><i class="fas fa-times"></i> إلغاء</button>` : ''}</td>
+      <td>${r.status==='pending'?`<button onclick="cancelRequest(${r.id})" class="btn btn-r" style="padding:4px 10px;font-size:.76rem;"><i class="fas fa-times"></i> إلغاء</button>`:''}</td>
     </tr>
   `).join('');
-  document.getElementById('mem-table').style.display = 'table';
-  document.getElementById('mem-empty').style.display = 'none';
+  document.getElementById('mem-table').style.display='table';
+  document.getElementById('mem-empty').style.display='none';
 }
 
 function filterMembers(status, btn) {
-  currentFilter = status;
-  document.querySelectorAll('.filt-btn').forEach(b => b.classList.remove('filt-active'));
-  if (btn) btn.classList.add('filt-active');
+  currentFilter=status;
+  document.querySelectorAll('.filt-btn').forEach(b=>b.classList.remove('filt-active'));
+  if(btn) btn.classList.add('filt-active');
   renderMembers();
 }
 
 async function sendJoinRequest() {
-  var name = document.getElementById('req-name').value.trim();
-  var id   = document.getElementById('req-id').value.trim();
-  var flash = document.getElementById('mem-flash');
-  flash.style.display = 'none';
-  if (!name || !id) { showMemFlash('أدخل الاسم الرباعي ورقم الهوية', 'error'); return; }
-  var r = await fetch('/api/camp/join-request/add', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({full_name: name, id_number: id})
-  }).then(x => x.json());
-  if (r.ok) {
-    showMemFlash(r.registered ? 'تم إرسال الطلب — سيصل إشعار للمستفيد في بوابته' : 'تم حفظ الطلب — سيُفعّل عند تسجيل المستفيد', 'success');
-    document.getElementById('req-name').value = '';
-    document.getElementById('req-id').value = '';
-    loadMembers();
-  } else { showMemFlash(r.error || 'خطأ', 'error'); }
+  var name=document.getElementById('req-name').value.trim();
+  var id=document.getElementById('req-id').value.trim();
+  if(!name||!id){ showMemFlash('أدخل الاسم الرباعي ورقم الهوية','error'); return; }
+  var r=await fetch('/api/camp/join-request/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,id_number:id})}).then(x=>x.json());
+  if(r.ok){ showMemFlash(r.registered?'تم إرسال الطلب — سيصل إشعار للمستفيد في بوابته':'تم حفظ الطلب — سيُفعّل عند تسجيل المستفيد','success'); document.getElementById('req-name').value=''; document.getElementById('req-id').value=''; loadMembers(); }
+  else { showMemFlash(r.error||'خطأ','error'); }
 }
 
 async function cancelRequest(reqId) {
+  if(!confirm('إلغاء هذا الطلب؟')) return;
+  var r=await fetch('/api/camp/join-request/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:reqId})}).then(x=>x.json());
+  if(r.ok) loadMembers(); else alert(r.error||'خطأ');
+}
+
+function showMemFlash(msg,type) {
+  var f=document.getElementById('mem-flash');
+  f.textContent=msg; f.style.display='block';
+  f.style.background=type==='error'?'#fee2e2':'#dcfce7';
+  f.style.color=type==='error'?'#991b1b':'#166534';
+}
+</script>
+</body>
+</html>
+unction cancelRequest(reqId) {
   if (!confirm('إلغاء هذا الطلب؟')) return;
   var r = await fetch('/api/camp/join-request/cancel', {
     method:'POST', headers:{'Content-Type':'application/json'},
