@@ -836,4 +836,21 @@ def init_camp_tables():
             pass
 
     conn.commit()
+
+    # جدول
+
+    # جدول مرفقات الأنشطة (كان مفقوداً)
+    try:
+        c.execute("""CREATE TABLE IF NOT EXISTS camp_activity_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            activity_id INTEGER NOT NULL,
+            file_path TEXT,
+            file_name TEXT,
+            uploaded_at TEXT DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (activity_id) REFERENCES camp_activities(id)
+        )""")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()

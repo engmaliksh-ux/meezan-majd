@@ -4667,6 +4667,12 @@ def register_beneficiary():
 
         conn.close()
 
+        # ضع session للمستفيد فوراً بعد التسجيل
+        import datetime as _dt2
+        session["beneficiary_id"]   = beneficiary_id
+        session["beneficiary_name"] = full_name
+        session["ben_last_active"]  = _dt2.datetime.utcnow().isoformat()
+
         if beneficiary_status == "pending":
             flash("تم تسجيلك بنجاح! طلب انضمامك للمخيم قيد المراجعة.", "success")
         else:
@@ -4791,7 +4797,21 @@ def beneficiary_portal():
         pass
     # ترتيب موحّد من الأحدث للأقدم
     benefits.sort(key=lambda x: (x.get("benefit_date") or ""), reverse=True)
+    # المؤسسات التي أضافت هذا المستفيد
+    linked_orgs = []
+    try:
+        c.execute("""
+            SELECT o.name, o.phone, o.area, obl.added_at
+            FROM org_beneficiary_links obl
+            JOIN organizations o ON obl.org_id = o.id
+            WHERE obl.beneficiary_id = ?
+            ORDER BY obl.added_at ASC
+        """, (ben["id"],))
+        linked_orgs = [dict(r) for r in c.fetchall()]
+    except Exception:
+        pass
     conn.close()
+
     # قائمة المخيمات واللجان — مفلترة حسب محافظة/مدينة المستفيد
     ben_dict = dict(ben)
     ben_gov  = ben_dict.get("governorate") or ""
@@ -4804,20 +4824,19 @@ def beneficiary_portal():
     def _match(e):
         eg = (e.get("governorate") or "").strip()
         ec = (e.get("city") or "").strip()
-        if not eg: return True          # بدون محافظة → يظهر للكل
+        if not eg: return True
         if eg != ben_gov: return False
         if ec and ben_city and ec != ben_city: return False
         return True
-    camps      = [e for e in all_entities if e["entity_type"] == "camp"      and _match(e)]
-    committees = [e for e in all_entities if e["entity_type"] != "camp"      and _match(e)]
-    # لو ما في نتائج في منطقته اعرض كل المخيمات (fallback)
+    camps      = [e for e in all_entities if e["entity_type"] == "camp"  and _match(e)]
+    committees = [e for e in all_entities if e["entity_type"] != "camp"  and _match(e)]
     if not camps:      camps      = [e for e in all_entities if e["entity_type"] == "camp"]
     if not committees: committees = [e for e in all_entities if e["entity_type"] != "camp"]
     return render_template("beneficiary_portal.html",
                            ben=dict(ben), join_req=join_req, benefits=benefits,
                            spouse=spouse, children=children, health=health,
                            widowed_info=widowed_info, orphans=orphans,
-                           dependents=dependents,
+                           dependents=dependents, linked_orgs=linked_orgs,
                            camps=camps, committees=committees)
 
 
@@ -6456,16 +6475,32 @@ def camp_alerts_route():
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
     entity = dict(c.fetchone())
-    # المستفيدون مع حالاتهم
     c.execute("""SELECT b.* FROM beneficiaries b
                  JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
                  WHERE jr.camp_entity_id=? AND jr.status='approved'
                  ORDER BY b.full_name""", (camp_id,))
     beneficiaries = [dict(r) for r in c.fetchall()]
     conn.close()
-    orphans   = [b for b in beneficiaries if b.get("has_orphans")]
-    pregnant  = [b for b in beneficiaries if b.get("wife_pregnant")]
-    nursing   = [b for b in beneficiaries if b.get("wife_nursing")]
+    return render_template("camp_alerts.html", entity=entity, beneficiaries=beneficiaries)
+
+
+# ── التصنيف الذكي ──
+@app.route("/camp/smart-classify")
+@camp_login_required
+def camp_smart_classify():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
+    entity = dict(c.fetchone())
+    c.execute("""SELECT b.* FROM beneficiaries b
+                 JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
+                 WHERE jr.camp_entity_id=? AND jr.status='approved'
+                 ORDER BY b.full_name""", (camp_id,))
+    beneficiaries = [dict(r) for r in c.fetchall()]
+    conn.close()
+    orphans  = [b for b in beneficiaries if b.get("has_orphans")]
+    pregnant = [b for b in beneficiaries if b.get("wife_pregnant")]
+    nursing  = [b for b in beneficiaries if b.get("wife_nursing")]
     return render_template("camp_smart_classify.html",
                            entity=entity, beneficiaries=beneficiaries,
                            orphans=orphans, pregnant=pregnant, nursing=nursing)
