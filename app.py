@@ -4550,6 +4550,74 @@ def sa_notify_all():
 
 
 
+@app.route('/om-sys-77k/security')
+@_sa_required
+def sa_security():
+    """عرض الـ IPs المحجوبة والحسابات المقفلة"""
+    now = datetime.now()
+    # IPs المحجوبة في الذاكرة
+    blocked_ips = []
+    for ip, rec in list(_login_attempts.items()):
+        if rec.get("blocked_until") and now < rec["blocked_until"]:
+            blocked_ips.append({
+                "ip": ip,
+                "count": rec["count"],
+                "until": rec["blocked_until"].strftime("%H:%M:%S")
+            })
+    # حسابات مقفلة في قاعدة البيانات
+    conn = get_connection()
+    c = conn.cursor()
+    locked_accounts = []
+    # مؤسسات
+    c.execute("""SELECT id, username, email, 'org' as type, failed_attempts, locked_until
+                 FROM users WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
+    for r in c.fetchall():
+        locked_accounts.append(dict(r))
+    # مخيمات
+    c.execute("""SELECT id, camp_name as username, email, 'camp' as type, failed_attempts, locked_until
+                 FROM camp_entities WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
+    for r in c.fetchall():
+        locked_accounts.append(dict(r))
+    # مستفيدون
+    c.execute("""SELECT id, full_name as username, phone as email, 'beneficiary' as type, failed_attempts, locked_until
+                 FROM beneficiaries WHERE locked_until IS NOT NULL AND locked_until > datetime('now','localtime')""")
+    for r in c.fetchall():
+        locked_accounts.append(dict(r))
+    conn.close()
+    return jsonify({"blocked_ips": blocked_ips, "locked_accounts": locked_accounts})
+
+
+@app.route('/om-sys-77k/unblock-ip', methods=['POST'])
+@_sa_required
+def sa_unblock_ip():
+    ip = request.json.get("ip", "").strip()
+    if ip and ip in _login_attempts:
+        _login_attempts.pop(ip)
+    return jsonify({"ok": True})
+
+
+@app.route('/om-sys-77k/unlock-account', methods=['POST'])
+@_sa_required
+def sa_unlock_account():
+    data = request.json or {}
+    acc_type = data.get("type")
+    acc_id   = data.get("id")
+    if not acc_type or not acc_id:
+        return jsonify({"ok": False, "error": "بيانات ناقصة"})
+    conn = get_connection()
+    try:
+        if acc_type == "org":
+            conn.execute("UPDATE users SET failed_attempts=0, locked_until=NULL WHERE id=?", (acc_id,))
+        elif acc_type == "camp":
+            conn.execute("UPDATE camp_entities SET failed_attempts=0, locked_until=NULL WHERE id=?", (acc_id,))
+        elif acc_type == "beneficiary":
+            conn.execute("UPDATE beneficiaries SET failed_attempts=0, locked_until=NULL WHERE id=?", (acc_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/sys_notifications/<int:nid>/delete", methods=["POST"])
 @login_required
 def sys_notif_delete(nid):

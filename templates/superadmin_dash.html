@@ -183,6 +183,31 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
   <p style="color:#8b949e;text-align:center;padding:30px;">لا توجد مؤسسات مسجلة</p>
   {% endfor %}
 
+  <!-- ═══ قسم الأمان: IPs مقفلة + حسابات مقفلة ═══ -->
+  <div class="section-title" style="margin-top:36px;">
+    <i class="fas fa-shield-alt"></i> الأمان — إلغاء الحجب
+    <button onclick="loadSecurity()" class="btn btn-info" style="margin-right:auto;font-size:.75rem;padding:5px 14px;">
+      <i class="fas fa-sync-alt"></i> تحديث
+    </button>
+  </div>
+  <div id="security-box" style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;">
+    <p style="color:#8b949e;text-align:center;" id="sec-loading">جارٍ التحميل…</p>
+    <div id="sec-content" style="display:none;">
+      <div style="margin-bottom:18px;">
+        <div style="font-size:.82rem;color:#f0883e;font-weight:700;margin-bottom:10px;">
+          <i class="fas fa-ban"></i> IPs محجوبة مؤقتاً
+        </div>
+        <div id="ips-list"></div>
+      </div>
+      <div>
+        <div style="font-size:.82rem;color:#f85149;font-weight:700;margin-bottom:10px;">
+          <i class="fas fa-lock"></i> حسابات مقفلة
+        </div>
+        <div id="accounts-list"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- إرسال إشعار للكل -->
   <div class="section-title" style="margin-top:36px;"><i class="fas fa-paper-plane"></i> إرسال إشعار لجميع المؤسسات</div>
   <div class="notif-box">
@@ -236,6 +261,60 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
 </div>
 
 <script>
+// ═══ Security Section ═══
+async function loadSecurity() {
+  document.getElementById('sec-loading').style.display = 'block';
+  document.getElementById('sec-content').style.display = 'none';
+  try {
+    var d = await fetch('/om-sys-77k/security').then(r => r.json());
+    // IPs
+    var ipsEl = document.getElementById('ips-list');
+    if (!d.blocked_ips || !d.blocked_ips.length) {
+      ipsEl.innerHTML = '<span style="color:#8b949e;font-size:.8rem;">لا توجد IPs محجوبة</span>';
+    } else {
+      ipsEl.innerHTML = d.blocked_ips.map(x => `
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:#0d1117;border-radius:7px;margin-bottom:6px;">
+          <code style="color:#58a6ff;flex:1;">${x.ip}</code>
+          <span style="color:#8b949e;font-size:.75rem;">محاولات: ${x.count} | حتى: ${x.until}</span>
+          <button onclick="unblockIp('${x.ip}')" class="btn btn-success" style="padding:4px 12px;font-size:.74rem;">
+            <i class="fas fa-unlock"></i> إلغاء حجب
+          </button>
+        </div>`).join('');
+    }
+    // Accounts
+    var accEl = document.getElementById('accounts-list');
+    var typeMap = {org:'مؤسسة', camp:'مخيم', beneficiary:'مستفيد'};
+    if (!d.locked_accounts || !d.locked_accounts.length) {
+      accEl.innerHTML = '<span style="color:#8b949e;font-size:.8rem;">لا توجد حسابات مقفلة</span>';
+    } else {
+      accEl.innerHTML = d.locked_accounts.map(x => `
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:#0d1117;border-radius:7px;margin-bottom:6px;">
+          <span style="background:#21262d;border-radius:20px;padding:2px 10px;font-size:.7rem;color:#f0883e;">${typeMap[x.type]||x.type}</span>
+          <span style="flex:1;color:#e6edf3;font-size:.85rem;">${x.username||'—'}</span>
+          <span style="color:#8b949e;font-size:.74rem;">${(x.locked_until||'').slice(0,16)}</span>
+          <button onclick="unlockAccount('${x.type}',${x.id})" class="btn btn-success" style="padding:4px 12px;font-size:.74rem;">
+            <i class="fas fa-unlock"></i> فتح القفل
+          </button>
+        </div>`).join('');
+    }
+    document.getElementById('sec-loading').style.display = 'none';
+    document.getElementById('sec-content').style.display = 'block';
+  } catch(e) {
+    document.getElementById('sec-loading').textContent = 'خطأ في التحميل';
+  }
+}
+
+async function unblockIp(ip) {
+  await fetch('/om-sys-77k/unblock-ip', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip})});
+  loadSecurity();
+}
+async function unlockAccount(type, id) {
+  await fetch('/om-sys-77k/unlock-account', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type, id})});
+  loadSecurity();
+}
+
+window.addEventListener('load', loadSecurity);
+
 function openDeleteModal(id, name) {
   document.getElementById('delete-msg').textContent =
     'هل أنت متأكد من حذف مؤسسة "' + name + '"؟ سيتم حذف جميع بياناتها نهائياً.';
