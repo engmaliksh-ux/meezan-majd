@@ -198,17 +198,25 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 }
 
 /* HERO STATS */
-.hero-stats{display:flex;align-items:center;justify-content:center;gap:0;
-  margin-top:36px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-  border-radius:16px;padding:18px 28px;backdrop-filter:blur(8px);}
-.hstat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 24px;}
-.hstat-n{font-size:1.8rem;font-weight:900;color:var(--amber-400);line-height:1;}
-.hstat-l{font-size:.72rem;color:rgba(255,255,255,.65);white-space:nowrap;}
-.hstat-div{width:1px;height:36px;background:rgba(255,255,255,.2);}
+.hero-stats{margin-top:36px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.15);border-radius:20px;
+  overflow:hidden;backdrop-filter:blur(10px);}
+.hstat-header{display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 24px;border-bottom:1px solid rgba(255,255,255,.1);
+  font-size:.72rem;color:rgba(255,255,255,.55);letter-spacing:.08em;}
+.hstat-row{display:flex;align-items:center;justify-content:center;padding:20px 28px;}
+.hstat{display:flex;flex-direction:column;align-items:center;gap:5px;padding:0 24px;}
+.hstat-n{font-size:2rem;font-weight:900;color:var(--amber-400);line-height:1;}
+.hstat-l{font-size:.7rem;color:rgba(255,255,255,.6);white-space:nowrap;}
+.hstat-div{width:1px;height:40px;background:rgba(255,255,255,.18);}
+.hstat-footer{text-align:center;padding:10px 24px;border-top:1px solid rgba(255,255,255,.1);
+  font-size:.72rem;color:rgba(255,255,255,.5);}
+/* إخفاء stats-bar المكرر */
+.stats-bar{display:none;}
 @media(max-width:580px){
-  .hero-stats{gap:0;padding:14px 12px;}
+  .hstat-row{padding:16px 8px;}
   .hstat{padding:0 12px;}
-  .hstat-n{font-size:1.4rem;}
+  .hstat-n{font-size:1.5rem;}
 }
 
 /* SCROLL ANIMATIONS */
@@ -291,24 +299,33 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       </div>
 
       <div class="hero-stats">
-        <div class="hstat">
-          <span class="hstat-n">{{ total_benef }}</span>
-          <span class="hstat-l">مستفيد مسجّل</span>
+        <div class="hstat-header">
+          <span class="live-dot"></span> نبض المنظومة
         </div>
-        <div class="hstat-div"></div>
-        <div class="hstat">
-          <span class="hstat-n">{{ total_camps }}</span>
-          <span class="hstat-l">مخيم في المنظومة</span>
+        <div class="hstat-row">
+          <div class="hstat">
+            <span class="hstat-n">{{ total_benef }}</span>
+            <span class="hstat-l">مستفيد مسجّل</span>
+          </div>
+          <div class="hstat-div"></div>
+          <div class="hstat">
+            <span class="hstat-n">{{ total_camps }}</span>
+            <span class="hstat-l">مخيم في المنظومة</span>
+          </div>
+          <div class="hstat-div"></div>
+          <div class="hstat">
+            <span class="hstat-n">{{ total_orgs }}</span>
+            <span class="hstat-l">مؤسسة معتمدة</span>
+          </div>
+          <div class="hstat-div"></div>
+          <div class="hstat">
+            <span class="hstat-n">24/7</span>
+            <span class="hstat-l">خدمة مستمرة</span>
+          </div>
         </div>
-        <div class="hstat-div"></div>
-        <div class="hstat">
-          <span class="hstat-n">{{ total_orgs }}</span>
-          <span class="hstat-l">مؤسسة معتمدة</span>
-        </div>
-        <div class="hstat-div"></div>
-        <div class="hstat">
-          <span class="hstat-n">24/7</span>
-          <span class="hstat-l">خدمة مستمرة</span>
+        <div class="hstat-footer">
+          <i class="fas fa-circle" style="color:var(--amber-400);font-size:.45rem;margin-left:6px;vertical-align:middle;"></i>
+          منظومة موحدة تربط المستفيدين والمخيمات والمؤسسات
         </div>
       </div>
     </div>
