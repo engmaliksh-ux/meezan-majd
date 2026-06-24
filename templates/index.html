@@ -180,6 +180,33 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
 .foot-links a:hover{color:var(--teal-700);}
 
 
+/* PORTAL BUTTONS */
+.hero-portals{display:flex;gap:14px;flex-wrap:wrap;margin-top:32px;}
+.portal-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;width:130px;padding:18px 12px;border-radius:18px;border:none;cursor:pointer;
+  text-decoration:none;transition:all .2s ease;font-family:inherit;}
+.portal-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:1.3rem;transition:.2s;}
+.portal-label{font-size:.85rem;font-weight:800;white-space:nowrap;}
+.portal-ben{background:var(--amber-500);color:var(--teal-900);
+  box-shadow:0 6px 20px rgba(232,160,32,.45);}
+.portal-ben:hover{background:var(--amber-400);transform:translateY(-4px);box-shadow:0 10px 28px rgba(232,160,32,.55);}
+.portal-ben .portal-icon{background:rgba(255,255,255,.25);}
+.portal-camp{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;
+  backdrop-filter:blur(6px);}
+.portal-camp:hover{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.7);transform:translateY(-4px);}
+.portal-camp .portal-icon{background:rgba(14,116,144,.5);}
+.portal-org{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;
+  backdrop-filter:blur(6px);}
+.portal-org:hover{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.7);transform:translateY(-4px);}
+.portal-org .portal-icon{background:rgba(45,138,80,.5);}
+@media(max-width:580px){
+  .hero-portals{justify-content:center;}
+  .portal-btn{width:100px;padding:14px 8px;}
+  .portal-icon{width:40px;height:40px;font-size:1.1rem;}
+  .portal-label{font-size:.78rem;}
+}
+
 /* SCROLL ANIMATIONS */
 .reveal{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease;}
 .reveal.visible{opacity:1;transform:translateY(0);}
@@ -247,9 +274,19 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
       </div>
       <h1>عدالةُ التوزيع تبدأ<br><em>ببياناتٍ دقيقة</em></h1>
       <p>ميزان مجد يربط إدارات المخيمات والمؤسسات الإنسانية والمبادرين والمستفيدين في شبكة واحدة: سجل موحد، مساعدات موثقة، شراكات مرنة، وإحصاءات فورية لدعم القرار.</p>
-      <div class="hero-btns">
-        <button onclick="openModal('benModal')" class="btn-amber"><i class="fas fa-user-circle" style="font-size:.8rem;"></i> دخول مستفيد</button>
-        <button onclick="openModal('adminModal')" class="btn-wh"><i class="fas fa-shield-alt" style="font-size:.8rem;"></i> دخول إداري</button>
+      <div class="hero-portals">
+        <button onclick="openModal('benModal')" class="portal-btn portal-ben">
+          <div class="portal-icon"><i class="fas fa-user-circle"></i></div>
+          <div class="portal-label">دخول مستفيد</div>
+        </button>
+        <a href="/camp/login" class="portal-btn portal-camp">
+          <div class="portal-icon"><i class="fas fa-campground"></i></div>
+          <div class="portal-label">دخول إيواء</div>
+        </a>
+        <a href="/login" class="portal-btn portal-org">
+          <div class="portal-icon"><i class="fas fa-building"></i></div>
+          <div class="portal-label">دخول مؤسسة</div>
+        </a>
       </div>
     </div>
 
@@ -390,9 +427,19 @@ footer{background:var(--sand-50);border-top:1px solid var(--sand-200);padding:28
     <div style="font-size:2rem;color:var(--amber-400);margin-bottom:16px;"><i class="fas fa-balance-scale"></i></div>
     <h2 class="cta-title">انضم إلى منظومة العمل الإنساني الموحدة</h2>
     <p class="cta-desc">مخيم، مؤسسة، مبادرة، أو مستفيد — مكانك جاهز وبياناتك محمية.</p>
-    <div class="cta-btns">
-      <button onclick="openModal('benModal')" class="btn-amber"><i class="fas fa-user-circle"></i> دخول مستفيد</button>
-      <button onclick="openModal('adminModal')" class="btn-wh"><i class="fas fa-shield-alt"></i> دخول إداري</button>
+    <div class="hero-portals" style="justify-content:center;">
+      <button onclick="openModal('benModal')" class="portal-btn portal-ben">
+        <div class="portal-icon"><i class="fas fa-user-circle"></i></div>
+        <div class="portal-label">دخول مستفيد</div>
+      </button>
+      <a href="/camp/login" class="portal-btn portal-camp">
+        <div class="portal-icon"><i class="fas fa-campground"></i></div>
+        <div class="portal-label">دخول إيواء</div>
+      </a>
+      <a href="/login" class="portal-btn portal-org">
+        <div class="portal-icon"><i class="fas fa-building"></i></div>
+        <div class="portal-label">دخول مؤسسة</div>
+      </a>
     </div>
   </div>
 </section>
