@@ -288,10 +288,10 @@ def run():
     # ══════════════════════════════════════════
     # 6. مستفيد مسجّل ذاتياً
     # ══════════════════════════════════════════
-    if not db.execute("SELECT id FROM beneficiaries WHERE id_number='9099887766'").fetchone():
+    if not db.execute("SELECT id FROM beneficiaries WHERE id_number='909988776'").fetchone():
         bdata = {
             "org_id": 1, "full_name": "نور محمد أحمد الزهراء",
-            "id_number": "9099887766", "phone": "0941111111",
+            "id_number": "909988776", "phone": "0941111111",
             "gender": "female", "family_size": 3,
         }
         if "family_last_name"   in ben_cols: bdata["family_last_name"]   = "الزهراء"
@@ -305,14 +305,14 @@ def run():
         vals_str = ", ".join(["?"] * len(bdata))
         db.execute(f"INSERT INTO beneficiaries ({cols_str}) VALUES ({vals_str})", list(bdata.values()))
         db.commit()
-        self_bid = db.execute("SELECT id FROM beneficiaries WHERE id_number='9099887766'").fetchone()["id"]
+        self_bid = db.execute("SELECT id FROM beneficiaries WHERE id_number='909988776'").fetchone()["id"]
         try:
             db.execute("INSERT OR IGNORE INTO org_beneficiary_links (org_id, beneficiary_id) VALUES (?,?)",
                        (org1_id, self_bid))
             db.commit()
         except Exception:
             pass
-        print("✅ مستفيد ذاتي: 9099887766 / Nour@2024")
+        print("✅ مستفيد ذاتي: 909988776 / Nour@2024")
 
     # ══════════════════════════════════════════
     # 7. برنامج وسجلات استفادة
@@ -400,7 +400,7 @@ def run():
     print("🏢 المؤسسة 1 (بيانات):  data@rahma.org   / Data@2024")
     print("🏢 المؤسسة 2 (مدير):    admin@amal.org   / Amal@2024")
     print("🏕️  المخيم:              nour@camp.sy     / Camp@2024")
-    print("👤 مستفيد ذاتي:         هوية 9099887766  / Nour@2024")
+    print("👤 مستفيد ذاتي:         هوية 909988776   / Nour@2024")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 if __name__ == "__main__":

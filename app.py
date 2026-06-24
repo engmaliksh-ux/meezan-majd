@@ -4801,7 +4801,7 @@ def beneficiary_portal():
     linked_orgs = []
     try:
         c.execute("""
-            SELECT o.name, o.phone, o.area, obl.added_at
+            SELECT o.name, o.email, obl.added_at
             FROM org_beneficiary_links obl
             JOIN organizations o ON obl.org_id = o.id
             WHERE obl.beneficiary_id = ?
