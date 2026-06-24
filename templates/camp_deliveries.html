@@ -1,0 +1,149 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تسليمات المؤسسات — ميزان مجد</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--g9:#0f3d2e;--g7:#1a6b3a;--g6:#2d8a50;--g5:#3da866;--amber:#e8a020;--sand:#f4f4ee;--ink:#1a1a2e;--ink6:#475569;--ink4:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;}
+body{background:var(--sand);color:var(--ink);}
+.topbar{background:linear-gradient(90deg,var(--g9),var(--g7));color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.brand{font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.topbar-nav{display:flex;gap:8px;font-size:.82rem;}
+.topbar-nav a{color:rgba(255,255,255,.8);text-decoration:none;padding:5px 10px;border-radius:7px;display:flex;align-items:center;gap:4px;}
+.topbar-nav a:hover{color:#fff;background:rgba(255,255,255,.1);}
+.wrap{max-width:960px;margin:0 auto;padding:24px 20px;}
+.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:14px;}
+.badge-pending{background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;}
+.badge-confirmed{background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;}
+.btn-confirm{background:var(--g6);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn-confirm:hover{background:var(--g7);}
+.btn-confirm:disabled{opacity:.5;cursor:default;}
+.empty{text-align:center;padding:50px;color:var(--ink4);}
+.meta{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem;color:var(--ink6);margin:6px 0 10px;}
+.meta span{display:flex;align-items:center;gap:5px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <i class="fas fa-truck-loading"></i>
+    تسليمات المؤسسات
+  </div>
+  <nav class="topbar-nav">
+    <a href="{{ url_for('camp_dashboard') }}"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
+    <a href="{{ url_for('camp_logout') }}"><i class="fas fa-sign-out-alt"></i> خروج</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <h5 style="font-weight:800;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-boxes" style="color:var(--g6);"></i>
+      التسليمات الواردة من المؤسسات
+    </h5>
+    <div style="display:flex;gap:8px;font-size:.82rem;">
+      {% set pending_count = deliveries | selectattr('confirmed','equalto',0) | list | length %}
+      {% set confirmed_count = deliveries | selectattr('confirmed','equalto',1) | list | length %}
+      <span class="badge-pending"><i class="fas fa-hourglass-half"></i> {{ pending_count }} بانتظار التأكيد</span>
+      <span class="badge-confirmed"><i class="fas fa-check-circle"></i> {{ confirmed_count }} مؤكد</span>
+    </div>
+  </div>
+
+  <div id="flash-msg" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;font-weight:700;font-size:.85rem;"></div>
+
+  {% if not deliveries %}
+  <div class="card empty">
+    <i class="fas fa-truck" style="font-size:2.5rem;display:block;margin-bottom:12px;color:var(--ink4);"></i>
+    لا توجد تسليمات واردة بعد
+  </div>
+  {% else %}
+
+  <!-- بانتظار التأكيد أولاً -->
+  {% set pending = deliveries | selectattr('confirmed','equalto',0) | list %}
+  {% set confirmed = deliveries | selectattr('confirmed','equalto',1) | list %}
+
+  {% if pending %}
+  <h6 style="font-size:.82rem;font-weight:700;color:#92400e;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+    <i class="fas fa-hourglass-half"></i> بانتظار تأكيد الاستلام ({{ pending|length }})
+  </h6>
+  {% for d in pending %}
+  <div class="card" style="border-right:4px solid #f59e0b;" id="del-{{ d.id }}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:.95rem;margin-bottom:4px;">{{ d.title }}</div>
+        <div class="meta">
+          <span><i class="fas fa-building"></i> {{ d.org_name }}</span>
+          <span><i class="fas fa-calendar"></i> {{ d.delivery_date }}</span>
+          {% if d.items %}<span><i class="fas fa-box"></i> {{ d.items }}</span>{% endif %}
+          {% if d.quantity %}<span><i class="fas fa-sort-amount-up"></i> {{ d.quantity }}</span>{% endif %}
+        </div>
+        {% if d.notes %}<div style="font-size:.78rem;color:var(--ink4);">{{ d.notes }}</div>{% endif %}
+      </div>
+      <button class="btn-confirm" onclick="confirmDelivery({{ d.id }}, this)">
+        <i class="fas fa-check"></i> تأكيد الاستلام
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if confirmed %}
+  <h6 style="font-size:.82rem;font-weight:700;color:#065f46;margin:20px 0 10px;display:flex;align-items:center;gap:6px;">
+    <i class="fas fa-check-circle"></i> تم تأكيد الاستلام ({{ confirmed|length }})
+  </h6>
+  {% for d in confirmed %}
+  <div class="card" style="border-right:4px solid #10b981;opacity:.85;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:.9rem;margin-bottom:4px;">{{ d.title }}</div>
+        <div class="meta">
+          <span><i class="fas fa-building"></i> {{ d.org_name }}</span>
+          <span><i class="fas fa-calendar"></i> {{ d.delivery_date }}</span>
+          {% if d.items %}<span><i class="fas fa-box"></i> {{ d.items }}</span>{% endif %}
+          {% if d.quantity %}<span><i class="fas fa-sort-amount-up"></i> {{ d.quantity }}</span>{% endif %}
+        </div>
+      </div>
+      <span class="badge-confirmed">
+        <i class="fas fa-check-circle"></i> تم الاستلام
+        {% if d.confirmed_at %}<span style="font-size:.68rem;opacity:.7;margin-right:4px;">{{ d.confirmed_at[:10] }}</span>{% endif %}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% endif %}
+</div>
+
+<script>
+async function confirmDelivery(id, btn){
+  if(!confirm('هل تؤكد استلام هذا التسليم؟')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+  const r = await fetch('/api/camp/confirm-delivery',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({delivery_id: id})
+  }).then(x=>x.json());
+  if(r.ok){
+    const card = document.getElementById('del-'+id);
+    card.style.borderRightColor = '#10b981';
+    card.querySelector('.btn-confirm').outerHTML = '<span class="badge-confirmed"><i class="fas fa-check-circle"></i> تم الاستلام</span>';
+    showFlash('✅ تم تأكيد الاستلام بنجاح', '#d1fae5', '#065f46');
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> تأكيد الاستلام';
+    showFlash(r.error || 'حدث خطأ', '#fee2e2', '#991b1b');
+  }
+}
+function showFlash(msg, bg, color){
+  const el = document.getElementById('flash-msg');
+  el.style.display = 'block';
+  el.style.background = bg;
+  el.style.color = color;
+  el.textContent = msg;
+  setTimeout(()=>el.style.display='none', 4000);
+}
+</script>
+</body></html>

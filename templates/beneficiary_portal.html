@@ -702,7 +702,53 @@ body{background:var(--sand);color:var(--ink);min-height:100vh;}
       </span>
       <span style="font-size:.75rem;color:var(--ink-4);">{{ org_list|length }} سجل</span>
     </div>
-    {{ ben_table(org_list) }}
+    <div class="tbl-wrap">
+      <table class="benefits-table">
+        <thead><tr>
+          <th>نوع الاستفادة</th><th>المؤسسة</th>
+          <th>القيمة/الكمية</th><th>التاريخ</th><th>ملاحظات</th>
+          <th>الاستلام</th>
+        </tr></thead>
+        <tbody>
+        {% for b in org_list %}
+        <tr>
+          <td>
+            <strong>{{ b.benefit_type or b.program_name or '—' }}</strong>
+            {% if b.program_name and b.benefit_type and b.program_name != b.benefit_type %}
+            <br><small style="color:var(--ink-4);">{{ b.program_name }}</small>
+            {% endif %}
+            <br><span style="font-size:.68rem;background:#f3e8ff;color:#7c3aed;padding:2px 6px;border-radius:999px;font-weight:700;">🏛️ برنامج</span>
+          </td>
+          <td>
+            {% if b.org_name %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--sand-100);padding:3px 8px;border-radius:20px;font-size:.75rem;font-weight:600;">
+              <i class="fas fa-building" style="color:var(--teal-600);font-size:.65rem;"></i>{{ b.org_name }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-weight:700;color:var(--teal-700);">{{ b.quantity or '—' }}</td>
+          <td style="font-size:.8rem;color:var(--ink-6);white-space:nowrap;">{{ b.benefit_date }}</td>
+          <td style="font-size:.8rem;color:var(--ink-4);">{{ b.notes or '—' }}</td>
+          <td>
+            {% if b.ben_confirmed %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:700;">
+              <i class="fas fa-check-circle"></i> تم الاستلام
+            </span>
+            {% if b.ben_confirmed_at %}
+            <div style="font-size:.65rem;color:var(--ink-4);margin-top:2px;">{{ b.ben_confirmed_at[:10] }}</div>
+            {% endif %}
+            {% else %}
+            <button onclick="confirmBenefit({{ b.id }}, this)"
+                    style="background:var(--teal-600);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+              <i class="fas fa-hand-holding-heart"></i> تأكيد الاستلام
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
 
     {% else %}
@@ -1318,6 +1364,23 @@ async function saveAffil(){
     setTimeout(()=>location.reload(),2000);
   } else {
     setFlash('affil', r.error||'خطأ','error');
+  }
+}
+
+async function confirmBenefit(recordId, btn){
+  if(!confirm('هل تؤكد استلام هذه المساعدة؟')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+  const r = await fetch('/api/beneficiary/confirm-benefit',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({record_id: recordId})
+  }).then(x=>x.json());
+  if(r.ok){
+    btn.closest('td').innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:700;"><i class="fas fa-check-circle"></i> تم الاستلام</span>';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-hand-holding-heart"></i> تأكيد الاستلام';
+    alert(r.error || 'حدث خطأ');
   }
 }
 </script>

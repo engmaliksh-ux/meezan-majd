@@ -853,4 +853,39 @@ def init_camp_tables():
     except Exception:
         pass
 
+    # تأكيد استلام المستفيد لسجلات البرامج
+    try:
+        c.execute("ALTER TABLE program_records ADD COLUMN ben_confirmed INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE program_records ADD COLUMN ben_confirmed_at TEXT")
+        conn.commit()
+    except Exception:
+        pass
+
+    # جدول تسليمات المؤسسة للمخيمات
+    try:
+        c.execute("""CREATE TABLE IF NOT EXISTS org_camp_deliveries (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            org_id          INTEGER NOT NULL,
+            camp_entity_id  INTEGER NOT NULL,
+            delivery_date   TEXT    NOT NULL,
+            title           TEXT    NOT NULL,
+            items           TEXT,
+            quantity        TEXT,
+            notes           TEXT,
+            confirmed       INTEGER DEFAULT 0,
+            confirmed_at    TEXT,
+            confirmed_by    TEXT,
+            created_by      TEXT,
+            created_at      TEXT DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (org_id)         REFERENCES organizations(id),
+            FOREIGN KEY (camp_entity_id) REFERENCES camp_entities(id)
+        )""")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()

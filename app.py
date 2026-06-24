@@ -4744,7 +4744,8 @@ def beneficiary_portal():
     # 1. برامج المؤسسات
     try:
         c.execute("""
-            SELECT pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
+            SELECT pr.id, pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
+                   pr.ben_confirmed, pr.ben_confirmed_at,
                    p.name as program_name, p.program_type,
                    o.name as org_name, NULL as camp_name, 'program' as source
             FROM program_records pr
@@ -6504,6 +6505,139 @@ def camp_smart_classify():
     return render_template("camp_smart_classify.html",
                            entity=entity, beneficiaries=beneficiaries,
                            orphans=orphans, pregnant=pregnant, nursing=nursing)
+
+
+# ══════════════════════════════════════════════════════════
+# تأكيد استلام المستفيد لسجل برنامج
+# ══════════════════════════════════════════════════════════
+@app.route("/api/beneficiary/confirm-benefit", methods=["POST"])
+def api_ben_confirm_benefit():
+    import datetime
+    ben_id = session.get("beneficiary_id")
+    if not ben_id:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    data      = request.get_json(force=True) or {}
+    record_id = data.get("record_id")
+    if not record_id:
+        return jsonify({"ok": False, "error": "معرّف السجل مطلوب"})
+    conn = get_connection(); c = conn.cursor()
+    # تأكد أن السجل يخص هذا المستفيد
+    c.execute("SELECT id FROM program_records WHERE id=? AND beneficiary_id=?", (record_id, ben_id))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "السجل غير موجود"})
+    now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("UPDATE program_records SET ben_confirmed=1, ben_confirmed_at=? WHERE id=?", (now_str, record_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════
+# تسليمات المؤسسة للمخيمات
+# ══════════════════════════════════════════════════════════
+@app.route("/org/camp-deliveries")
+@login_required
+def org_camp_deliveries():
+    org_id = session["org_id"]
+    conn = get_connection(); c = conn.cursor()
+    # جلب المخيمات
+    c.execute("SELECT id, name, entity_type FROM camp_entities WHERE is_active=1 ORDER BY name")
+    camps = [dict(r) for r in c.fetchall()]
+    # جلب سجلات التسليم
+    c.execute("""
+        SELECT ocd.*, ce.name as camp_name, ce.entity_type
+        FROM org_camp_deliveries ocd
+        JOIN camp_entities ce ON ocd.camp_entity_id = ce.id
+        WHERE ocd.org_id=?
+        ORDER BY ocd.delivery_date DESC, ocd.id DESC
+    """, (org_id,))
+    deliveries = [dict(r) for r in c.fetchall()]
+    conn.close()
+    import datetime as _dt_ocd
+    now_date = _dt_ocd.date.today().isoformat()
+    return render_template("org_camp_deliveries.html", camps=camps, deliveries=deliveries, now_date=now_date)
+
+
+@app.route("/org/camp-deliveries/add", methods=["POST"])
+@login_required
+def org_camp_delivery_add():
+    org_id = session["org_id"]
+    camp_entity_id = request.form.get("camp_entity_id", "").strip()
+    delivery_date  = request.form.get("delivery_date", "").strip()
+    title          = request.form.get("title", "").strip()
+    items          = request.form.get("items", "").strip()
+    quantity       = request.form.get("quantity", "").strip()
+    notes          = request.form.get("notes", "").strip()
+    if not camp_entity_id or not delivery_date or not title:
+        flash("يرجى تعبئة الحقول المطلوبة", "danger")
+        return redirect(url_for("org_camp_deliveries"))
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""
+        INSERT INTO org_camp_deliveries
+            (org_id, camp_entity_id, delivery_date, title, items, quantity, notes, created_by)
+        VALUES (?,?,?,?,?,?,?,?)
+    """, (org_id, camp_entity_id, delivery_date, title, items, quantity, notes, session.get("user", "")))
+    conn.commit(); conn.close()
+    flash("تم تسجيل التسليم بنجاح — في انتظار تأكيد المخيم", "success")
+    return redirect(url_for("org_camp_deliveries"))
+
+
+@app.route("/org/camp-deliveries/delete/<int:did>", methods=["POST"])
+@login_required
+def org_camp_delivery_delete(did):
+    org_id = session["org_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("DELETE FROM org_camp_deliveries WHERE id=? AND org_id=? AND confirmed=0", (did, org_id))
+    conn.commit(); conn.close()
+    flash("تم حذف التسليم", "info")
+    return redirect(url_for("org_camp_deliveries"))
+
+
+# ══════════════════════════════════════════════════════════
+# تأكيد استلام المخيم للتسليمات الواردة من المؤسسات
+# ══════════════════════════════════════════════════════════
+@app.route("/camp/deliveries")
+@camp_login_required
+def camp_deliveries():
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("""
+        SELECT ocd.*, o.name as org_name
+        FROM org_camp_deliveries ocd
+        JOIN organizations o ON ocd.org_id = o.id
+        WHERE ocd.camp_entity_id=?
+        ORDER BY ocd.confirmed ASC, ocd.delivery_date DESC
+    """, (camp_id,))
+    deliveries = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return render_template("camp_deliveries.html", deliveries=deliveries)
+
+
+@app.route("/api/camp/confirm-delivery", methods=["POST"])
+@camp_login_required
+def api_camp_confirm_delivery():
+    import datetime
+    camp_id = session["camp_id"]
+    data        = request.get_json(force=True) or {}
+    delivery_id = data.get("delivery_id")
+    if not delivery_id:
+        return jsonify({"ok": False, "error": "معرّف التسليم مطلوب"})
+    conn = get_connection(); c = conn.cursor()
+    c.execute("SELECT id FROM org_camp_deliveries WHERE id=? AND camp_entity_id=?", (delivery_id, camp_id))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "التسليم غير موجود"})
+    now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    confirmed_by = session.get("camp_name", "")
+    c.execute("""
+        UPDATE org_camp_deliveries
+        SET confirmed=1, confirmed_at=?, confirmed_by=?
+        WHERE id=?
+    """, (now_str, confirmed_by, delivery_id))
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

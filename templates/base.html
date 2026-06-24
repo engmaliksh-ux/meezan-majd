@@ -209,6 +209,9 @@
       <a href="/workers" class="nav-item {% if '/worker' in request.path %}active{% endif %}">
         <i class="fas fa-hard-hat nav-icon"></i><span>العاملين</span>
       </a>
+      <a href="/org/camp-deliveries" class="nav-item {% if '/camp-deliveries' in request.path %}active{% endif %}">
+        <i class="fas fa-truck nav-icon"></i><span>تسليمات للمخيمات</span>
+      </a>
       {% endif %}
 
       {% if session.get('role') in ['admin','data_entry','observer'] %}

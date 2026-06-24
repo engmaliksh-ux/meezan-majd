@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}تسليمات للمخيمات – ميزان مجد{% endblock %}
+{% block page_title %}<i class="fas fa-truck"></i> تسليمات للمخيمات{% endblock %}
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat=='danger' else 'info' }}" style="margin-bottom:16px;">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div style="display:grid;grid-template-columns:1fr 1.8fr;gap:24px;align-items:start;">
+
+  <!-- نموذج إضافة تسليم -->
+  <div class="card" style="padding:20px;">
+    <h6 style="font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-plus-circle" style="color:var(--teal-600);"></i> تسجيل تسليم جديد
+    </h6>
+    <form method="POST" action="{{ url_for('org_camp_delivery_add') }}">
+      <input type="hidden" name="_csrf_token" value="{{ session.get('csrf_token','') }}">
+      <div class="mb-3">
+        <label class="form-label fw-bold">المخيم / اللجنة <span class="text-danger">*</span></label>
+        <select name="camp_entity_id" class="form-select" required>
+          <option value="">اختر...</option>
+          {% for c in camps %}
+          <option value="{{ c.id }}">{{ c.name }}{% if c.entity_type=='committee' %} (لجنة){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">عنوان التسليم <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control" placeholder="مثال: دفعة مواد غذائية أولى" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">تاريخ التسليم <span class="text-danger">*</span></label>
+        <input type="date" name="delivery_date" class="form-control" required value="{{ now_date if now_date else '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">المواد / الأصناف</label>
+        <input type="text" name="items" class="form-control" placeholder="مثال: طحين، زيت، سكر">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">الكمية</label>
+        <input type="text" name="quantity" class="form-control" placeholder="مثال: 50 كرتون">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">ملاحظات</label>
+        <textarea name="notes" class="form-control" rows="2"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="fas fa-paper-plane"></i> إرسال للمخيم
+      </button>
+    </form>
+  </div>
+
+  <!-- قائمة التسليمات -->
+  <div>
+    <h6 style="font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-list" style="color:var(--teal-600);"></i> سجل التسليمات
+      <span style="background:var(--sand-100);color:var(--ink-6);padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:600;">{{ deliveries|length }}</span>
+    </h6>
+
+    {% if not deliveries %}
+    <div class="card" style="text-align:center;padding:40px;color:var(--ink-4);">
+      <i class="fas fa-truck" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+      لا توجد تسليمات مسجلة بعد
+    </div>
+    {% else %}
+    {% for d in deliveries %}
+    <div class="card" style="margin-bottom:12px;padding:16px 18px;border-right:4px solid {{ '#10b981' if d.confirmed else '#f59e0b' }};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:.95rem;color:var(--ink);margin-bottom:4px;">{{ d.title }}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:.78rem;color:var(--ink-6);margin-bottom:6px;">
+            <span><i class="fas fa-campground"></i> {{ d.camp_name }}</span>
+            <span><i class="fas fa-calendar"></i> {{ d.delivery_date }}</span>
+            {% if d.items %}<span><i class="fas fa-box"></i> {{ d.items }}</span>{% endif %}
+            {% if d.quantity %}<span><i class="fas fa-sort-amount-up"></i> {{ d.quantity }}</span>{% endif %}
+          </div>
+          {% if d.notes %}<div style="font-size:.78rem;color:var(--ink-4);">{{ d.notes }}</div>{% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+          {% if d.confirmed %}
+          <span style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;white-space:nowrap;">
+            <i class="fas fa-check-circle"></i> تم الاستلام
+          </span>
+          {% if d.confirmed_at %}
+          <span style="font-size:.68rem;color:var(--ink-4);">{{ d.confirmed_at[:10] }}</span>
+          {% endif %}
+          {% else %}
+          <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:700;white-space:nowrap;">
+            <i class="fas fa-hourglass-half"></i> في انتظار التأكيد
+          </span>
+          <form method="POST" action="{{ url_for('org_camp_delivery_delete', did=d.id) }}"
+                onsubmit="return confirm('حذف هذا التسليم؟')">
+            <input type="hidden" name="_csrf_token" value="{{ session.get('csrf_token','') }}">
+            <button type="submit" style="background:none;border:none;color:#dc2626;font-size:.75rem;cursor:pointer;">
+              <i class="fas fa-trash-alt"></i> حذف
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
