@@ -349,9 +349,12 @@ def home():
         conn = get_connection()
         c = conn.cursor()
         try:
-            c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type != 'camp'")
+            c.execute("SELECT COUNT(*) FROM beneficiaries")
             total_benef = c.fetchone()[0]
-            c.execute("SELECT COUNT(*) FROM beneficiaries WHERE beneficiary_type = 'camp'")
+        except Exception:
+            pass
+        try:
+            c.execute("SELECT COUNT(*) FROM camp_entities WHERE is_active=1")
             total_camps = c.fetchone()[0]
         except Exception:
             pass
