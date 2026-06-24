@@ -4772,7 +4772,7 @@ def beneficiary_portal():
         c.execute("""
             SELECT pr.id, pr.benefit_date, pr.benefit_type, pr.quantity, pr.notes,
                    pr.ben_confirmed, pr.ben_confirmed_at,
-                   p.name as program_name, p.program_type,
+                   p.name as program_name,
                    o.name as org_name, NULL as camp_name, 'program' as source
             FROM program_records pr
             JOIN programs p ON pr.program_id = p.id
