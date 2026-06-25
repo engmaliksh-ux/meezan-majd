@@ -1523,7 +1523,7 @@ def beneficiaries():
         camp_key = camp["camp_name"].strip().lower() if camp["camp_name"] else ""
         camp["persons"] = []
         for p in persons:
-            if p.get("camp_name","").strip().lower() == camp_key and camp_key:
+            if (p.get("camp_name") or "").strip().lower() == camp_key and camp_key:
                 camp["persons"].append(p)
                 linked_ids.add(p["id"])
 
