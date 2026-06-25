@@ -7,29 +7,32 @@
 <!-- ═══ مودال إضافة صنف ═══ -->
 {% if session.get('role') != 'observer' %}
 <div id="add-prod-overlay" onclick="closeAddProductModal()"
-     style="display:none;position:fixed;inset:0;background:#0005;z-index:1050;"></div>
+     style="display:none;position:fixed;inset:0;background:#0005;z-index:1050;animation:fadeIn .2s;"></div>
 <div id="add-prod-modal"
      style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-            z-index:1051;width:min(95vw,420px);background:#fff;border-radius:16px;
-            box-shadow:0 8px 40px #0003;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5a);padding:14px 20px;
+            z-index:1051;width:min(95vw,420px);background:#fff;border-radius:20px;
+            box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;animation:slideUp .25s ease;">
+  <div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5a);padding:16px 20px;
               display:flex;align-items:center;justify-content:space-between;">
     <span style="color:#fff;font-weight:800;font-size:.95rem;">
       <i class="fas fa-plus-circle me-2"></i>إضافة صنف جديد
     </span>
     <button onclick="closeAddProductModal()"
-            style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;line-height:1;">
+            style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:.9rem;
+                   cursor:pointer;width:28px;height:28px;border-radius:50%;transition:background .2s;"
+            onmouseover="this.style.background='rgba(255,255,255,.35)'"
+            onmouseout="this.style.background='rgba(255,255,255,.2)'">
       <i class="fas fa-times"></i>
     </button>
   </div>
-  <div style="padding:22px;">
+  <div style="padding:24px;">
     <div id="add-prod-error" style="display:none;" class="alert alert-danger"></div>
     <form id="add-prod-form" onsubmit="submitAddProduct(event)">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
         <label class="form-label fw-bold">اسم الصنف <span class="text-danger">*</span></label>
         <input type="text" class="form-control" id="add-prod-name" name="name"
-               placeholder="مثال: طحين" required autofocus>
+               placeholder="مثال: طحين" required>
       </div>
       <div class="mb-4">
         <label class="form-label fw-bold">الوحدة <span class="text-danger">*</span></label>
@@ -44,7 +47,154 @@
 </div>
 {% endif %}
 
+<!-- ═══ مودال التقارير ═══ -->
+<div id="rpt-overlay" onclick="closeRptModal()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1050;animation:fadeIn .25s;"></div>
+<div id="rpt-modal"
+     style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:1051;width:min(95vw,520px);background:#fff;border-radius:24px;
+            box-shadow:0 24px 80px rgba(0,0,0,.25);overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.56,.64,1);">
+
+  <!-- رأس المودال -->
+  <div style="background:linear-gradient(135deg,#1a6b3a 0%,#2d9e5a 60%,#3dbf6e 100%);
+              padding:20px 22px;position:relative;overflow:hidden;">
+    <!-- دوائر زخرفية -->
+    <div style="position:absolute;top:-30px;left:-30px;width:120px;height:120px;
+                border-radius:50%;background:rgba(255,255,255,.06);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:-20px;right:60px;width:80px;height:80px;
+                border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;position:relative;">
+      <div>
+        <div style="color:#fff;font-weight:900;font-size:1.05rem;">
+          <i class="fas fa-chart-bar me-2"></i>تقرير المخزون
+        </div>
+        <div style="color:rgba(255,255,255,.7);font-size:.75rem;margin-top:3px;">
+          اختر الفترة والفئة ثم صدّر
+        </div>
+      </div>
+      <button onclick="closeRptModal()"
+              style="background:rgba(255,255,255,.15);border:none;color:#fff;
+                     width:34px;height:34px;border-radius:50%;font-size:.9rem;cursor:pointer;
+                     transition:background .2s;"
+              onmouseover="this.style.background='rgba(255,255,255,.3)'"
+              onmouseout="this.style.background='rgba(255,255,255,.15)'">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- جسم المودال -->
+  <div style="padding:24px;">
+
+    <!-- الفترة الزمنية -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:10px;">
+        <i class="fas fa-calendar-alt me-1" style="color:#1a6b3a;"></i> الفترة الزمنية
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="rpt-pill rpt-pill-active" id="pill-daily"   onclick="selectPeriod('daily')">
+          <i class="fas fa-sun me-1"></i>يومي
+        </button>
+        <button class="rpt-pill" id="pill-weekly"  onclick="selectPeriod('weekly')">
+          <i class="fas fa-calendar-week me-1"></i>أسبوعي
+        </button>
+        <button class="rpt-pill" id="pill-monthly" onclick="selectPeriod('monthly')">
+          <i class="fas fa-calendar-alt me-1"></i>شهري
+        </button>
+        <button class="rpt-pill" id="pill-all"     onclick="selectPeriod('all')">
+          <i class="fas fa-infinity me-1"></i>شامل
+        </button>
+      </div>
+    </div>
+
+    <!-- الفئة -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:10px;">
+        <i class="fas fa-filter me-1" style="color:#1a6b3a;"></i> فئة المخزون
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="rpt-status-pill rpt-status-active" id="spill-all"   onclick="selectStatus('all')"
+                data-color="#475569">
+          <i class="fas fa-th-list me-1"></i>الكل
+        </button>
+        <button class="rpt-status-pill" id="spill-ok"    onclick="selectStatus('ok')"
+                data-color="#16a34a" style="border-color:#16a34a;color:#16a34a;">
+          <i class="fas fa-check-circle me-1"></i>متوفر
+        </button>
+        <button class="rpt-status-pill" id="spill-low"   onclick="selectStatus('low')"
+                data-color="#d97706" style="border-color:#d97706;color:#d97706;">
+          <i class="fas fa-exclamation-triangle me-1"></i>منخفض
+        </button>
+        <button class="rpt-status-pill" id="spill-empty" onclick="selectStatus('empty')"
+                data-color="#dc2626" style="border-color:#dc2626;color:#dc2626;">
+          <i class="fas fa-times-circle me-1"></i>نافذ
+        </button>
+      </div>
+    </div>
+
+    <!-- معاينة سريعة للإحصاء -->
+    <div id="rpt-summary"
+         style="background:linear-gradient(135deg,#f0f7f2,#e8f5ee);border-radius:12px;
+                padding:14px 16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;
+                border:1px solid #c8e6d4;">
+      <div style="text-align:center;flex:1;min-width:60px;">
+        <div style="font-size:1.4rem;font-weight:900;color:#1a6b3a;" id="sum-total">—</div>
+        <div style="font-size:.72rem;color:#6b7280;">إجمالي الأصناف</div>
+      </div>
+      <div style="width:1px;background:#c8e6d4;"></div>
+      <div style="text-align:center;flex:1;min-width:60px;">
+        <div style="font-size:1.4rem;font-weight:900;color:#16a34a;" id="sum-ok">—</div>
+        <div style="font-size:.72rem;color:#6b7280;">متوفر</div>
+      </div>
+      <div style="width:1px;background:#c8e6d4;"></div>
+      <div style="text-align:center;flex:1;min-width:60px;">
+        <div style="font-size:1.4rem;font-weight:900;color:#d97706;" id="sum-low">—</div>
+        <div style="font-size:.72rem;color:#6b7280;">منخفض</div>
+      </div>
+      <div style="width:1px;background:#c8e6d4;"></div>
+      <div style="text-align:center;flex:1;min-width:60px;">
+        <div style="font-size:1.4rem;font-weight:900;color:#dc2626;" id="sum-empty">—</div>
+        <div style="font-size:.72rem;color:#6b7280;">نافذ</div>
+      </div>
+    </div>
+
+    <!-- زر التصدير -->
+    <button onclick="exportReportPNG()" id="png-btn"
+            style="width:100%;padding:14px;background:linear-gradient(135deg,#1a6b3a,#2d9e5a);
+                   color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:800;
+                   cursor:pointer;transition:all .2s;display:flex;align-items:center;
+                   justify-content:center;gap:10px;font-family:inherit;"
+            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(26,107,58,.4)'"
+            onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+      <i class="fas fa-download" style="font-size:1rem;"></i>
+      تصدير كصورة PNG
+    </button>
+
+  </div>
+</div>
+
 <style>
+@keyframes fadeIn  { from{opacity:0}          to{opacity:1} }
+@keyframes slideUp { from{opacity:0;transform:translate(-50%,-42%)} to{opacity:1;transform:translate(-50%,-50%)} }
+
+.rpt-pill {
+  padding:8px 16px;border-radius:20px;border:1.5px solid #d1d5db;
+  background:#fff;color:#6b7280;font-size:.82rem;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.rpt-pill:hover { border-color:#1a6b3a;color:#1a6b3a;background:#f0f7f2; }
+.rpt-pill-active { background:#1a6b3a !important;color:#fff !important;
+  border-color:#1a6b3a !important;box-shadow:0 4px 12px rgba(26,107,58,.3); }
+
+.rpt-status-pill {
+  padding:8px 16px;border-radius:20px;border:1.5px solid #94a3b8;
+  background:#fff;color:#475569;font-size:.82rem;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.rpt-status-active { color:#fff !important;box-shadow:0 4px 12px rgba(0,0,0,.15); }
+
 .stock-chips{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .stock-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;
   border:1.5px solid;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;
@@ -94,20 +244,8 @@
     <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.products_list }}</h5>
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <span class="badge" style="background:#e8f5ee;color:#1a6b3a;" id="products-count">{{ products|length }} {{ t.stat_products }}</span>
-      <select id="rpt-period" class="form-select form-select-sm" style="width:auto;font-size:.82rem;">
-        <option value="daily">يومي</option>
-        <option value="weekly">أسبوعي</option>
-        <option value="monthly">شهري</option>
-        <option value="all">شامل</option>
-      </select>
-      <select id="rpt-status" class="form-select form-select-sm" style="width:auto;font-size:.82rem;">
-        <option value="all">كل الأصناف</option>
-        <option value="ok">متوفر</option>
-        <option value="low">منخفض</option>
-        <option value="empty">نافذ</option>
-      </select>
-      <button class="btn btn-outline-success btn-sm" onclick="exportReportPNG()" id="png-btn">
-        <i class="fas fa-image me-1"></i> PNG
+      <button class="btn btn-outline-success btn-sm" onclick="openRptModal()">
+        <i class="fas fa-chart-bar me-1"></i> التقارير
       </button>
       {% if session.get('role') != 'observer' %}
       <button class="btn btn-primary btn-sm" onclick="openAddProductModal()">
@@ -164,7 +302,7 @@
     </table>
   </div>
   {% else %}
-  <div class="text-center py-5" style="color:#6c7a72;" id="empty-state">
+  <div class="text-center py-5" style="color:#6c7a72;">
     <i class="fas fa-box-open fa-3x mb-3" style="color:#d8e8de;"></i>
     <p class="fw-bold">{{ t.no_products }}</p>
     {% if session.get('role') != 'observer' %}
@@ -177,13 +315,17 @@
 
 {% block scripts %}
 <script>
-var _currentPeriod = 'daily';
+var _rptPeriod = 'daily';
+var _rptStatus = 'all';
+var _rptData   = null;
 
 /* ══ مودال إضافة الصنف ══ */
 function openAddProductModal() {
-  document.getElementById('add-prod-overlay').style.display = 'block';
-  document.getElementById('add-prod-modal').style.display = 'block';
-  document.getElementById('add-prod-name').focus();
+  var ov = document.getElementById('add-prod-overlay');
+  var md = document.getElementById('add-prod-modal');
+  ov.style.display = 'block'; ov.style.animation = 'fadeIn .2s';
+  md.style.display = 'block'; md.style.animation = 'slideUp .25s ease';
+  setTimeout(function(){ document.getElementById('add-prod-name').focus(); }, 50);
 }
 function closeAddProductModal() {
   document.getElementById('add-prod-overlay').style.display = 'none';
@@ -202,118 +344,178 @@ async function submitAddProduct(e) {
     var fd = new FormData(document.getElementById('add-prod-form'));
     var res = await fetch('/add_product', { method:'POST', body: fd });
     var data = await res.json();
-    if (data.ok) {
-      closeAddProductModal();
-      window.location.reload();
-    } else {
-      err.textContent = data.error || 'حدث خطأ';
-      err.style.display = 'block';
-    }
+    if (data.ok) { closeAddProductModal(); window.location.reload(); }
+    else { err.textContent = data.error || 'حدث خطأ'; err.style.display = 'block'; }
   } catch(ex) {
-    err.textContent = 'خطأ في الاتصال';
-    err.style.display = 'block';
+    err.textContent = 'خطأ في الاتصال'; err.style.display = 'block';
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ الصنف';
 }
 
+/* ══ مودال التقارير ══ */
+async function openRptModal() {
+  var ov = document.getElementById('rpt-overlay');
+  var md = document.getElementById('rpt-modal');
+  ov.style.display = 'block'; ov.style.animation = 'fadeIn .25s';
+  md.style.display = 'block'; md.style.animation = 'slideUp .3s cubic-bezier(.34,1.56,.64,1)';
+  await loadRptSummary();
+}
+function closeRptModal() {
+  document.getElementById('rpt-overlay').style.display = 'none';
+  document.getElementById('rpt-modal').style.display  = 'none';
+}
+function selectPeriod(p) {
+  _rptPeriod = p;
+  _rptData = null;
+  ['daily','weekly','monthly','all'].forEach(function(x) {
+    document.getElementById('pill-'+x).classList.toggle('rpt-pill-active', x===p);
+  });
+  loadRptSummary();
+}
+var _statusColors = {all:'#475569', ok:'#16a34a', low:'#d97706', empty:'#dc2626'};
+function selectStatus(s) {
+  _rptStatus = s;
+  ['all','ok','low','empty'].forEach(function(x) {
+    var el = document.getElementById('spill-'+x);
+    var c = _statusColors[x];
+    el.classList.toggle('rpt-status-active', x===s);
+    if (x === s) {
+      el.style.background = c;
+      el.style.borderColor = c;
+      el.style.color = '#fff';
+    } else {
+      el.style.background = '#fff';
+      el.style.borderColor = c;
+      el.style.color = c;
+    }
+  });
+  updateSummaryDisplay();
+}
+async function loadRptSummary() {
+  document.getElementById('sum-total').textContent = '…';
+  document.getElementById('sum-ok').textContent    = '…';
+  document.getElementById('sum-low').textContent   = '…';
+  document.getElementById('sum-empty').textContent = '…';
+  try {
+    var d = await fetch('/api/inventory/report?period=' + _rptPeriod).then(function(r){return r.json();});
+    if (!d.ok) return;
+    _rptData = d;
+    updateSummaryDisplay();
+  } catch(e) {}
+}
+function updateSummaryDisplay() {
+  if (!_rptData || !_rptData.rows) return;
+  var rows = _rptData.rows;
+  var filtered = rows.filter(function(r) {
+    var q = parseFloat(r.current_qty)||0;
+    if (_rptStatus==='ok')    return q>=10;
+    if (_rptStatus==='low')   return q>0&&q<10;
+    if (_rptStatus==='empty') return q===0;
+    return true;
+  });
+  document.getElementById('sum-total').textContent = filtered.length;
+  document.getElementById('sum-ok').textContent    = filtered.filter(function(r){return (parseFloat(r.current_qty)||0)>=10;}).length;
+  document.getElementById('sum-low').textContent   = filtered.filter(function(r){var q=parseFloat(r.current_qty)||0;return q>0&&q<10;}).length;
+  document.getElementById('sum-empty').textContent = filtered.filter(function(r){return (parseFloat(r.current_qty)||0)===0;}).length;
+}
+
 /* ══ تصدير PNG ══ */
-function statusLabel(qty) {
-  qty = parseFloat(qty) || 0;
-  if (qty === 0) return {text:'نافذ',   bg:'#fee2e2', color:'#dc2626'};
-  if (qty < 10)  return {text:'منخفض', bg:'#fef3c7', color:'#d97706'};
-  return               {text:'متوفر',  bg:'#dcfce7', color:'#16a34a'};
+function _statusLabel(qty) {
+  qty = parseFloat(qty)||0;
+  if (qty===0) return {text:'نافذ',   bg:'#fee2e2',color:'#dc2626'};
+  if (qty<10)  return {text:'منخفض', bg:'#fef3c7',color:'#d97706'};
+  return              {text:'متوفر',  bg:'#dcfce7',color:'#16a34a'};
 }
 async function exportReportPNG() {
-  var period = document.getElementById('rpt-period').value;
-  var statusFilter = document.getElementById('rpt-status').value;
   var btn = document.getElementById('png-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جارٍ التصدير…';
   try {
-    var d = await fetch('/api/inventory/report?period=' + period).then(function(r){return r.json();});
-    if (!d.ok || !d.rows) { alert('خطأ في تحميل البيانات'); btn.disabled=false; btn.innerHTML='<i class="fas fa-image me-1"></i> PNG'; return; }
-    var periodLabels = {daily:'يومي', weekly:'أسبوعي', monthly:'شهري', all:'شامل'};
-    var statusLabels = {all:'كل الأصناف', ok:'متوفر', low:'منخفض', empty:'نافذ'};
-    // فلترة حسب الحالة
-    var rows = d.rows.filter(function(r) {
-      var qty = parseFloat(r.current_qty) || 0;
-      if (statusFilter === 'ok')    return qty >= 10;
-      if (statusFilter === 'low')   return qty > 0 && qty < 10;
-      if (statusFilter === 'empty') return qty === 0;
+    if (!_rptData) {
+      var d = await fetch('/api/inventory/report?period='+_rptPeriod).then(function(r){return r.json();});
+      if (!d.ok) throw new Error('فشل تحميل البيانات');
+      _rptData = d;
+    }
+    var pLabels = {daily:'يومي',weekly:'أسبوعي',monthly:'شهري',all:'شامل'};
+    var sLabels = {all:'كل الأصناف',ok:'متوفر',low:'منخفض',empty:'نافذ'};
+    var rows = _rptData.rows.filter(function(r) {
+      var q = parseFloat(r.current_qty)||0;
+      if (_rptStatus==='ok')    return q>=10;
+      if (_rptStatus==='low')   return q>0&&q<10;
+      if (_rptStatus==='empty') return q===0;
       return true;
     });
-    // بناء الجدول خارج الشاشة
+    var trs = rows.map(function(r,i) {
+      var s = _statusLabel(r.current_qty);
+      return '<tr>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;color:#9ca3af;font-size:.8rem;">'+(i+1)+'</td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;font-weight:700;color:#111;">'+r.name+'</td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;"><span style="background:#e8f5ee;color:#1a6b3a;padding:3px 10px;border-radius:8px;font-size:.78rem;font-weight:600;">'+r.unit+'</span></td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;font-weight:900;color:#1a6b3a;font-size:.95rem;">'+r.current_qty+'</td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;"><span style="background:'+s.bg+';color:'+s.color+';padding:3px 10px;border-radius:10px;font-size:.78rem;font-weight:700;">'+s.text+'</span></td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;color:#16a34a;font-weight:700;">'+(r.incoming>0?'+'+r.incoming:'—')+'</td>'
+        +'<td style="padding:9px 13px;border-bottom:1px solid #eef5ea;color:#dc2626;font-weight:700;">'+(r.outgoing>0?'-'+r.outgoing:'—')+'</td>'
+        +'</tr>';
+    }).join('');
     var wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:-9999px;left:-9999px;direction:rtl;font-family:Cairo,sans-serif;background:#fff;padding:24px 20px;width:700px;';
-    var tableRows = '';
-    rows.forEach(function(r, i) {
-      var s = statusLabel(r.current_qty);
-      tableRows += '<tr>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;color:#aaa;font-size:.8rem;">'+(i+1)+'</td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;font-weight:700;">'+r.name+'</td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;"><span style="background:#e8f5ee;color:#1a6b3a;padding:2px 8px;border-radius:6px;font-size:.78rem;">'+r.unit+'</span></td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;font-weight:800;color:#1a6b3a;">'+r.current_qty+'</td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;"><span style="background:'+s.bg+';color:'+s.color+';padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">'+s.text+'</span></td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;color:#16a34a;font-weight:700;">'+(r.incoming>0?'+'+r.incoming:'—')+'</td>'
-        + '<td style="padding:8px 12px;border-bottom:1px solid #e8f5ee;color:#dc2626;font-weight:700;">'+(r.outgoing>0?'-'+r.outgoing:'—')+'</td>'
-        + '</tr>';
-    });
-    wrap.innerHTML = ''
-      + '<div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e8f5ee;">'
-      + '<div style="color:#1a6b3a;font-size:1.1rem;font-weight:900;">تقرير حركة المخزون</div>'
-      + '<div style="color:#666;font-size:.82rem;margin-top:4px;">'+periodLabels[period]+' — '+d.label+'</div>'
-      + '<div style="color:#888;font-size:.75rem;margin-top:2px;">الفئة: '+statusLabels[statusFilter]+'</div>'
-      + '</div>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:.85rem;">'
-      + '<thead><tr>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">#</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الصنف</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الوحدة</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الرصيد</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الحالة</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الوارد</th>'
-      + '<th style="background:#f0f7f2;color:#1a6b3a;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #d4edda;">الصادر</th>'
-      + '</tr></thead>'
-      + '<tbody>' + (tableRows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">لا توجد بيانات</td></tr>') + '</tbody>'
-      + '</table>';
+    wrap.style.cssText = 'position:fixed;top:-9999px;left:-9999px;direction:rtl;font-family:Cairo,Tahoma,sans-serif;background:#fff;padding:32px 28px;width:740px;';
+    wrap.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #e8f5ee;">'
+      +'<div>'
+      +'<div style="font-size:1.15rem;font-weight:900;color:#1a6b3a;">تقرير حركة المخزون</div>'
+      +'<div style="font-size:.8rem;color:#6b7280;margin-top:3px;">'+pLabels[_rptPeriod]+' · '+_rptData.label+'</div>'
+      +'</div>'
+      +'<span style="background:#e8f5ee;color:#1a6b3a;padding:5px 14px;border-radius:20px;font-size:.82rem;font-weight:700;">'+sLabels[_rptStatus]+'</span>'
+      +'</div>'
+      +(rows.length===0
+        ? '<div style="text-align:center;padding:30px;color:#9ca3af;">لا توجد بيانات</div>'
+        : '<table style="width:100%;border-collapse:collapse;">'
+          +'<thead><tr>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">#</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الصنف</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الوحدة</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الرصيد</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الحالة</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الوارد</th>'
+          +'<th style="background:#f0f7f2;color:#1a6b3a;padding:10px 13px;text-align:right;font-weight:800;border-bottom:2px solid #c8e6d4;">الصادر</th>'
+          +'</tr></thead><tbody>'+trs+'</tbody></table>');
     document.body.appendChild(wrap);
-    html2canvas(wrap, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas) {
+    html2canvas(wrap,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
       document.body.removeChild(wrap);
       var a = document.createElement('a');
-      a.download = 'inventory_'+period+'_'+statusFilter+'_'+new Date().toISOString().slice(0,10)+'.png';
+      a.download = 'inventory_'+_rptPeriod+'_'+_rptStatus+'_'+new Date().toISOString().slice(0,10)+'.png';
       a.href = canvas.toDataURL('image/png');
       a.click();
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-image me-1"></i> PNG';
+      btn.disabled=false;
+      btn.innerHTML='<i class="fas fa-download me-2"></i>تصدير كصورة PNG';
     });
   } catch(ex) {
-    alert('خطأ: ' + ex.message);
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-image me-1"></i> PNG';
+    alert('خطأ: '+ex.message);
+    btn.disabled=false;
+    btn.innerHTML='<i class="fas fa-download me-2"></i>تصدير كصورة PNG';
   }
 }
 
 /* ══ فلتر الفقاعات ══ */
 function filterByStatus(status) {
-  ['all','ok','low','empty'].forEach(function(s) {
-    var el = document.getElementById('chip-' + s);
-    if (el) el.classList.toggle('active', s === status);
+  ['all','ok','low','empty'].forEach(function(s){
+    var el = document.getElementById('chip-'+s);
+    if (el) el.classList.toggle('active', s===status);
   });
   var rows = document.querySelectorAll('tbody tr[data-qty]');
   var count = 0;
-  rows.forEach(function(row) {
-    var qty = parseFloat(row.getAttribute('data-qty')) || 0;
-    var show = status === 'all'   ? true
-             : status === 'empty' ? qty === 0
-             : status === 'low'   ? (qty > 0 && qty < 10)
-             : status === 'ok'    ? qty >= 10
-             : true;
+  rows.forEach(function(row){
+    var qty = parseFloat(row.getAttribute('data-qty'))||0;
+    var show = status==='all' ? true
+             : status==='empty' ? qty===0
+             : status==='low'   ? (qty>0&&qty<10)
+             : status==='ok'    ? qty>=10 : true;
     row.style.display = show ? '' : 'none';
     if (show) count++;
   });
   var badge = document.getElementById('products-count');
-  if (badge) badge.textContent = count + ' صنف';
+  if (badge) badge.textContent = count+' صنف';
 }
 </script>
 {% endblock %}
