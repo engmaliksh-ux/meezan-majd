@@ -109,30 +109,7 @@
           <i class="fas fa-key" style="width:16px;text-align:center;opacity:.8;"></i>
           {{ t.nav_change_password }}
         </a>
-        {% if session.get('role') == 'admin' %}
-        <a href="/notifications"
-           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
-                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
-                  transition:background .15s;"
-           onmouseover="this.style.background='rgba(255,255,255,.1)'"
-           onmouseout="this.style.background='transparent'">
-          <i class="fas fa-bell" style="width:16px;text-align:center;opacity:.8;"></i>
-          {% if lang=='en' %}Notifications{% elif lang=='tr' %}Bildirimler{% else %}الإشعارات{% endif %}
-          <span class="notif-nav-badge" id="notif-nav-badge" style="display:none;margin-right:auto;"></span>
-        </a>
-        {% endif %}
-        <a href="/sys_notifications"
-           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
-                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
-                  transition:background .15s;"
-           onmouseover="this.style.background='rgba(255,255,255,.1)'"
-           onmouseout="this.style.background='transparent'">
-          <i class="fas fa-satellite-dish" style="width:16px;text-align:center;opacity:.8;"></i>
-          {% if lang=='en' %}System Alerts{% elif lang=='tr' %}Sistem Bildirimleri{% else %}إشعارات النظام{% endif %}
-          <span id="sys-notif-badge"
-                style="display:none;background:#e53935;color:#fff;border-radius:20px;
-                       font-size:.6rem;font-weight:800;padding:1px 7px;margin-right:auto;"></span>
-        </a>
+
       </div>
     </div>
 
@@ -280,24 +257,77 @@
                          border-radius:50%;width:10px;height:10px;border:2px solid #fff;z-index:2;"></span>
           </button>
           <div id="stock-bell-drop"
-               style="display:none;position:absolute;top:44px;left:0;width:290px;
+               style="display:none;position:absolute;top:44px;left:0;width:320px;
                       background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.22);
                       overflow:hidden;z-index:2000;">
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:10px 14px;background:#fff8e1;border-bottom:1px solid #ffe082;">
-              <span style="font-weight:700;font-size:.82rem;color:#e65100;">
-                <i class="fas fa-exclamation-triangle me-1"></i> تنبيهات المخزون
-              </span>
-              <button onclick="stockBellClearAll()"
-                      style="background:none;border:none;font-size:.7rem;color:#e53935;cursor:pointer;font-weight:700;">
-                مسح الكل
+            <!-- تبويبات الجرس -->
+            <div style="display:flex;border-bottom:2px solid #e8f5ee;">
+              <button class="bell-tab active" id="bell-tab-stock" onclick="bellTab('stock')"
+                style="flex:1;padding:9px 4px;border:none;background:none;font-size:.75rem;
+                       font-weight:700;cursor:pointer;color:#1a6b3a;border-bottom:2px solid #1a6b3a;
+                       margin-bottom:-2px;font-family:inherit;">
+                <i class="fas fa-boxes me-1"></i>المخزون
+              </button>
+              <button class="bell-tab" id="bell-tab-sys" onclick="bellTab('sys')"
+                style="flex:1;padding:9px 4px;border:none;background:none;font-size:.75rem;
+                       font-weight:700;cursor:pointer;color:#666;font-family:inherit;">
+                <i class="fas fa-satellite-dish me-1"></i>النظام
+                <span id="bell-sys-num" style="display:none;background:#e53935;color:#fff;
+                      border-radius:10px;padding:0 5px;font-size:.65rem;margin-right:2px;"></span>
+              </button>
+              <button class="bell-tab" id="bell-tab-req" onclick="bellTab('req')"
+                style="flex:1;padding:9px 4px;border:none;background:none;font-size:.75rem;
+                       font-weight:700;cursor:pointer;color:#666;font-family:inherit;">
+                <i class="fas fa-user-plus me-1"></i>الطلبات
+                <span id="bell-req-num" style="display:none;background:#e53935;color:#fff;
+                      border-radius:10px;padding:0 5px;font-size:.65rem;margin-right:2px;"></span>
               </button>
             </div>
-            <div id="stock-bell-list" style="max-height:280px;overflow-y:auto;"></div>
-            <div id="stock-bell-empty"
-                 style="display:none;padding:16px;text-align:center;color:#aaa;font-size:.8rem;">
-              <i class="fas fa-check-circle" style="color:#66bb6a;font-size:1.3rem;display:block;margin-bottom:5px;"></i>
-              لا توجد تنبيهات
+            <!-- تبويب المخزون -->
+            <div id="bell-pane-stock">
+              <div style="display:flex;align-items:center;justify-content:space-between;
+                          padding:8px 14px;background:#fff8e1;border-bottom:1px solid #ffe082;">
+                <span style="font-weight:700;font-size:.78rem;color:#e65100;">
+                  <i class="fas fa-exclamation-triangle me-1"></i> تنبيهات المخزون
+                </span>
+                <button onclick="stockBellClearAll()"
+                        style="background:none;border:none;font-size:.7rem;color:#e53935;cursor:pointer;font-weight:700;">
+                  مسح الكل
+                </button>
+              </div>
+              <div id="stock-bell-list" style="max-height:240px;overflow-y:auto;"></div>
+              <div id="stock-bell-empty"
+                   style="display:none;padding:16px;text-align:center;color:#aaa;font-size:.8rem;">
+                <i class="fas fa-check-circle" style="color:#66bb6a;font-size:1.3rem;display:block;margin-bottom:5px;"></i>
+                لا توجد تنبيهات
+              </div>
+            </div>
+            <!-- تبويب النظام -->
+            <div id="bell-pane-sys" style="display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;
+                          padding:8px 14px;background:#e3f2fd;border-bottom:1px solid #bbdefb;">
+                <span style="font-weight:700;font-size:.78rem;color:#1565c0;">
+                  <i class="fas fa-satellite-dish me-1"></i> إشعارات النظام
+                </span>
+                <button onclick="bellMarkSysRead()"
+                        style="background:none;border:none;font-size:.7rem;color:#1565c0;cursor:pointer;font-weight:700;">
+                  تحديد كمقروء
+                </button>
+              </div>
+              <div id="bell-sys-list" style="max-height:240px;overflow-y:auto;">
+                <p style="color:#aaa;text-align:center;padding:16px;font-size:.8rem;">جارٍ التحميل…</p>
+              </div>
+            </div>
+            <!-- تبويب الطلبات -->
+            <div id="bell-pane-req" style="display:none;">
+              <div style="padding:8px 14px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;">
+                <span style="font-weight:700;font-size:.78rem;color:#16a34a;">
+                  <i class="fas fa-user-plus me-1"></i> طلبات الانضمام
+                </span>
+              </div>
+              <div id="bell-req-list" style="max-height:240px;overflow-y:auto;">
+                <p style="color:#aaa;text-align:center;padding:16px;font-size:.8rem;">جارٍ التحميل…</p>
+              </div>
             </div>
           </div>
         </div>
@@ -1187,7 +1217,9 @@ netBadge();
   window.stockBellToggle = function(){
     const drop = document.getElementById('stock-bell-drop');
     if(!drop) return;
-    drop.style.display = drop.style.display === 'none' ? 'block' : 'none';
+    const opening = drop.style.display === 'none';
+    drop.style.display = opening ? 'block' : 'none';
+    if(opening) { bellTab('stock'); loadBellAll(); }
   };
   window.stockBellDismiss = function(id){
     const dis = getDismissed();
@@ -1213,6 +1245,73 @@ netBadge();
   setInterval(loadAlerts, 120000);
 })();
 
+
+// ══ تبويبات الجرس الموحّد ══
+window.bellTab = function(tab) {
+  ['stock','sys','req'].forEach(function(t) {
+    var pane = document.getElementById('bell-pane-'+t);
+    var btn  = document.getElementById('bell-tab-'+t);
+    if(pane) pane.style.display = t === tab ? 'block' : 'none';
+    if(btn) {
+      btn.style.color = t === tab ? '#1a6b3a' : '#666';
+      btn.style.borderBottom = t === tab ? '2px solid #1a6b3a' : 'none';
+    }
+  });
+};
+
+window.loadBellAll = async function() {
+  try {
+    var d = await fetch('/api/bell/all').then(function(r){return r.json();});
+    if(!d.ok) return;
+    var badge = document.getElementById('stock-bell-badge');
+    if(badge) {
+      var total = d.total_unread;
+      badge.textContent = total;
+      badge.style.display = total > 0 ? 'flex' : 'none';
+    }
+    var sysNum = document.getElementById('bell-sys-num');
+    if(sysNum) { sysNum.textContent = d.sys_unread; sysNum.style.display = d.sys_unread > 0 ? 'inline-block' : 'none'; }
+    var sysList = document.getElementById('bell-sys-list');
+    if(sysList) {
+      if(!d.sys_notifs.length) {
+        sysList.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px;font-size:.8rem;">لا توجد إشعارات</p>';
+      } else {
+        sysList.innerHTML = d.sys_notifs.map(function(n) {
+          return '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:'+(n.is_read?'#fff':'#f0f7ff')+';">'
+            + '<div style="font-size:.8rem;font-weight:'+(n.is_read?'500':'700')+';color:#222;">'+n.title+'</div>'
+            + '<div style="font-size:.73rem;color:#666;margin-top:2px;">'+n.body+'</div>'
+            + '<div style="font-size:.68rem;color:#aaa;margin-top:3px;">'+n.created_at.slice(0,16)+'</div>'
+            + '</div>';
+        }).join('');
+      }
+    }
+    var reqNum = document.getElementById('bell-req-num');
+    var total_req = (d.join_count||0) + (d.camp_join_count||0);
+    if(reqNum) { reqNum.textContent = total_req; reqNum.style.display = total_req > 0 ? 'inline-block' : 'none'; }
+    var reqList = document.getElementById('bell-req-list');
+    if(reqList) {
+      var items = '';
+      if(d.join_count > 0) items += '<a href="/notifications" style="display:block;padding:10px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:#222;background:#f0fdf4;">'
+        + '<i class="fas fa-user-check me-2" style="color:#16a34a;"></i>'
+        + '<span style="font-size:.82rem;font-weight:700;">'+d.join_count+' طلب مشاركة مستفيد معلق</span></a>';
+      if(d.camp_join_count > 0) items += '<a href="/notifications" style="display:block;padding:10px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:#222;background:#f0fdf4;">'
+        + '<i class="fas fa-campground me-2" style="color:#16a34a;"></i>'
+        + '<span style="font-size:.82rem;font-weight:700;">'+d.camp_join_count+' طلب انضمام مخيم معلق</span></a>';
+      if(!items) items = '<p style="color:#aaa;text-align:center;padding:16px;font-size:.8rem;">لا توجد طلبات</p>';
+      reqList.innerHTML = items;
+    }
+    var dot = document.getElementById('sys-bell-dot');
+    if(dot) dot.style.display = (d.sys_unread > 0 || total_req > 0) ? 'block' : 'none';
+  } catch(e){}
+};
+
+window.bellMarkSysRead = async function() {
+  await fetch('/api/bell/mark_sys_read', {method:'POST'});
+  loadBellAll();
+};
+
+setInterval(loadBellAll, 120000);
+document.addEventListener('DOMContentLoaded', function(){ loadBellAll(); });
 
 // ══ بادج إشعارات النظام + popup ══
 let _prevSysCount = parseInt(localStorage.getItem('_sys_notif_count') || '0');

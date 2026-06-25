@@ -4926,6 +4926,68 @@ def api_sys_notif_count():
     return jsonify({"count": c.fetchone()[0]})
 
 
+@app.route("/api/bell/all")
+@login_required
+def api_bell_all():
+    """جلب جميع الإشعارات للجرس: نظام + طلبات انضمام"""
+    org_id = session["org_id"]
+    role   = session.get("role", "")
+    conn   = get_connection()
+    c      = conn.cursor()
+
+    # إشعارات النظام
+    c.execute("""
+        SELECT id, title, body, is_read, created_at
+        FROM sys_notifications
+        WHERE org_id=? OR org_id IS NULL
+        ORDER BY created_at DESC LIMIT 20
+    """, (org_id,))
+    sys_notifs = [dict(r) for r in c.fetchall()]
+
+    # طلبات الانضمام للمستفيدين (للأدمن فقط)
+    join_requests = []
+    if role == "admin":
+        c.execute("""
+            SELECT COUNT(*) FROM beneficiary_share_requests
+            WHERE owner_org_id=? AND status='pending'
+        """, (org_id,))
+        join_count = c.fetchone()[0]
+    else:
+        join_count = 0
+
+    # طلبات انضمام المخيم
+    c.execute("""
+        SELECT COUNT(*) FROM camp_join_requests cjr
+        JOIN camp_entities ce ON ce.id = cjr.camp_entity_id
+        WHERE ce.org_id=? AND cjr.status='pending'
+    """, (org_id,))
+    camp_join_count = c.fetchone()[0] or 0
+
+    sys_unread = sum(1 for n in sys_notifs if not n["is_read"])
+    total_unread = sys_unread + join_count + camp_join_count
+
+    conn.close()
+    return jsonify({
+        "ok": True,
+        "total_unread": total_unread,
+        "sys_notifs": sys_notifs,
+        "sys_unread": sys_unread,
+        "join_count": join_count,
+        "camp_join_count": camp_join_count,
+    })
+
+
+@app.route("/api/bell/mark_sys_read", methods=["POST"])
+@login_required
+def api_bell_mark_sys_read():
+    org_id = session["org_id"]
+    conn = get_connection()
+    conn.execute("UPDATE sys_notifications SET is_read=1 WHERE (org_id=? OR org_id IS NULL) AND is_read=0", (org_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 if __name__ == "__main__":
     app.run(debug=True)
 
@@ -7244,23 +7306,6 @@ def api_camp_join_request_add():
         try: conn.close()
         except: pass
         return jsonify({"ok": False, "error": str(e)})
-
-
-@app.route("/api/camp/join-requests", methods=["GET"])
-def api_camp_join_requests_list():
-    """المخيم يشوف كل طلباته"""
-    if "camp_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
-    conn = get_connection(); c = conn.cursor()
-    c.execute("""SELECT cjr.*, b.full_name as ben_name, b.phone as ben_phone,
-                        b.governorate, b.city
-                 FROM camp_join_requests cjr
-                 LEFT JOIN beneficiaries b ON b.id = cjr.beneficiary_id
-                 WHERE cjr.camp_entity_id=?
-                 ORDER BY cjr.created_at DESC""", (session["camp_id"],))
-    rows = [dict(r) for r in c.fetchall()]
-    conn.close()
-    return jsonify({"ok": True, "requests": rows})
 
 
 if __name__ == "__main__":
