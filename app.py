@@ -1,7 +1,7 @@
 import os
 import secrets
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
-from database import get_connection, init_db, generate_org_code, create_backup, list_backups, restore_backup, BACKUP_DIR
+from database import get_connection, init_db, generate_org_code, create_backup, list_backups, restore_backup, BACKUP_DIR, smart_backup
 from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -129,6 +129,17 @@ try:
     create_backup("startup")
 except Exception:
     pass
+
+# ── نسخ احتياطية تلقائية بعد كل تغيير ──
+@app.after_request
+def auto_backup_after_write(response):
+    """نسخة احتياطية تلقائية بعد كل POST ناجح (كل 5 دقائق كحد أقصى)."""
+    if request.method == "POST" and response.status_code in (200, 201, 302, 303):
+        try:
+            smart_backup()
+        except Exception:
+            pass
+    return response
 
 # ══════════════════════════════════════════
 # Language support — AR / TR
@@ -1305,10 +1316,14 @@ def api_inventory_report():
         date_from = (today - timedelta(days=6)).strftime("%Y-%m-%d")
         date_to   = today.strftime("%Y-%m-%d")
         label     = f"أسبوعي — {date_from} إلى {date_to}"
-    else:  # monthly
+    elif period == "monthly":
         date_from = today.replace(day=1).strftime("%Y-%m-%d")
         date_to   = today.strftime("%Y-%m-%d")
         label     = f"شهري — {date_from} إلى {date_to}"
+    else:  # all — من أول تاريخ حتى اليوم
+        date_from = "2000-01-01"
+        date_to   = today.strftime("%Y-%m-%d")
+        label     = f"شامل — منذ البداية حتى {today.strftime('%Y/%m/%d')}"
 
     conn = get_connection()
     c    = conn.cursor()
@@ -7235,7 +7250,7 @@ def api_camp_join_request_add():
 def api_camp_join_requests_list():
     """المخيم يشوف كل طلباته"""
     if "camp_id" not in session:
-        return jsonify({"ok": False, "error": "\u063a\u064a\u0631 \u0645\u0635\u0631\u062d"})
+        return jsonify({"ok": False, "error": "غير مصرح"})
     conn = get_connection(); c = conn.cursor()
     c.execute("""SELECT cjr.*, b.full_name as ben_name, b.phone as ben_phone,
                         b.governorate, b.city

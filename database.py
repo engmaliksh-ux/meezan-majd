@@ -7,7 +7,26 @@ from datetime import datetime
 
 DB_NAME    = "database.db"
 BACKUP_DIR = "backups"
-MAX_BACKUPS = 7   # الحد الأقصى للنسخ الاحتياطية المحفوظة
+MAX_BACKUPS = 20   # الحد الأقصى للنسخ الاحتياطية المحفوظة
+
+_last_auto_backup: datetime | None = None
+AUTO_BACKUP_INTERVAL = 5  # دقائق — الحد الأدنى بين نسختين تلقائيتين
+
+
+def smart_backup() -> str:
+    """
+    ينشئ نسخة احتياطية تلقائية عند كل تغيير في البيانات،
+    مع ضمان عدم إنشاء أكثر من نسخة كل AUTO_BACKUP_INTERVAL دقائق.
+    """
+    global _last_auto_backup
+    now = datetime.now()
+    if _last_auto_backup and (now - _last_auto_backup).total_seconds() < AUTO_BACKUP_INTERVAL * 60:
+        return ""  # انتظر الفترة المحددة
+    _last_auto_backup = now
+    try:
+        return create_backup("change")
+    except Exception:
+        return ""
 
 
 def get_connection():
