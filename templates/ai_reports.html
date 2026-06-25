@@ -14,17 +14,40 @@
   </h2>
 </div>
 
+{# ── فلتر الفترة الزمنية ── #}
+<div class="fmt-bar" style="margin-bottom:14px;">
+  <span class="fmt-label">الفترة:</span>
+  <button class="fmt-btn" id="btn-all"     onclick="setPeriod('all')">كل الوقت</button>
+  <button class="fmt-btn active" id="btn-monthly" onclick="setPeriod('monthly')">شهري</button>
+  <button class="fmt-btn" id="btn-weekly"  onclick="setPeriod('weekly')">أسبوعي</button>
+  <button class="fmt-btn" id="btn-daily"   onclick="setPeriod('daily')">يومي</button>
+</div>
+
 {# ── اختيار الصيغة ── #}
 <div class="fmt-bar">
-  <span class="fmt-label">
-    {% if lang=='en' %}Format:{% elif lang=='tr' %}Biçim:{% else %}صيغة الملف:{% endif %}
-  </span>
+  <span class="fmt-label">صيغة الملف:</span>
   <button class="fmt-btn active" id="btn-docx" onclick="setFmt('docx')">
     <i class="fas fa-file-word"></i> Word
   </button>
   <button class="fmt-btn" id="btn-pdf" onclick="setFmt('pdf')">
     <i class="fas fa-file-pdf"></i> PDF
   </button>
+  <button class="fmt-btn" id="btn-png" onclick="setFmt('png')">
+    <i class="fas fa-image"></i> PNG
+  </button>
+</div>
+
+{# ── معاينة PNG ── #}
+<div id="png-preview-box" style="display:none;margin-bottom:20px;background:#fff;
+     border:2px solid #1a6b3a33;border-radius:12px;overflow:hidden;">
+  <div style="background:#1a6b3a;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;">
+    <span style="color:#fff;font-weight:700;font-size:.95rem;"><i class="fas fa-image me-2"></i>معاينة التقرير</span>
+    <button onclick="savePNG()" style="background:#fff;color:#1a6b3a;border:none;border-radius:8px;
+            padding:6px 16px;font-weight:700;cursor:pointer;font-size:.82rem;">
+      <i class="fas fa-download me-1"></i>حفظ PNG
+    </button>
+  </div>
+  <div id="png-preview-content" style="padding:20px;overflow-x:auto;"></div>
 </div>
 
 {# ── بطاقات التقارير ── #}
@@ -62,13 +85,34 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-let currentFmt = 'docx';
+let currentFmt = 'monthly';
+let currentPeriod = 'monthly';
+let _pngRtype = '';
+
+function setPeriod(p) {
+  currentPeriod = p;
+  ['all','monthly','weekly','daily'].forEach(x =>
+    document.getElementById('btn-'+x).classList.toggle('active', x === p));
+}
 
 function setFmt(f) {
   currentFmt = f;
-  document.getElementById('btn-docx').classList.toggle('active', f === 'docx');
-  document.getElementById('btn-pdf').classList.toggle('active', f === 'pdf');
+  ['docx','pdf','png'].forEach(x =>
+    document.getElementById('btn-'+x) && document.getElementById('btn-'+x).classList.toggle('active', x === f));
+  if (f !== 'png') document.getElementById('png-preview-box').style.display = 'none';
+}
+
+function savePNG() {
+  var el = document.getElementById('png-preview-content');
+  if (!el || !el.innerHTML) return;
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff'}).then(function(canvas) {
+    var a = document.createElement('a');
+    a.download = 'report_' + _pngRtype + '_' + currentPeriod + '_' + new Date().toISOString().slice(0,10) + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
 }
 
 function showStatus(html, type) {
@@ -82,14 +126,24 @@ function showStatus(html, type) {
 }
 
 async function generate(rtype) {
-  const L = {
-    ar: { loading: '⏳ جاري توليد التقرير…', done: '✅ تم توليد التقرير!',
-          pdf_done: '✅ تم فتح التقرير — اضغط Ctrl+P لحفظه PDF', err: '❌ خطأ' },
-    tr: { loading: '⏳ Rapor oluşturuluyor…', done: '✅ Rapor hazır!',
-          pdf_done: '✅ Rapor açıldı — PDF için Ctrl+P', err: '❌ Hata' },
-    en: { loading: '⏳ Generating report…', done: '✅ Report ready!',
-          pdf_done: '✅ Report opened — press Ctrl+P to save as PDF', err: '❌ Error' },
-  }["{{ lang }}"] || {};
+  const L = { loading: '⏳ جاري توليد التقرير…', done: '✅ تم توليد التقرير!',
+               pdf_done: '✅ تم فتح التقرير — اضغط Ctrl+P لحفظه PDF', err: '❌ خطأ',
+               png_loading: '⏳ جاري تحميل بيانات التقرير…', png_done: '✅ جاهز للحفظ PNG' };
+
+  // ── PNG ──
+  if (currentFmt === 'png') {
+    _pngRtype = rtype;
+    showStatus(L.png_loading, 'loading');
+    try {
+      const res = await fetch('/api/org/report?rtype=' + rtype + '&period=' + currentPeriod);
+      const j   = await res.json();
+      if (!j.ok) { showStatus('❌ ' + (j.msg||'خطأ'), 'error'); return; }
+      document.getElementById('png-preview-content').innerHTML = buildPreviewHTML(rtype, j);
+      document.getElementById('png-preview-box').style.display = 'block';
+      showStatus(L.png_done, 'success');
+    } catch(e) { showStatus('❌ ' + e.message, 'error'); }
+    return;
+  }
 
   showStatus(L.loading, 'loading');
 
@@ -97,28 +151,20 @@ async function generate(rtype) {
   form.method = 'POST';
   form.action = '/ai_reports/generate';
   form.style.display = 'none';
-
-  const fields = {
-    '_csrf_token': '{{ csrf_token() }}',
-    'rtype': rtype,
-    'fmt': currentFmt,
-  };
+  const fields = { '_csrf_token': '{{ csrf_token() }}', 'rtype': rtype, 'fmt': currentFmt, 'period': currentPeriod };
   for (const [name, value] of Object.entries(fields)) {
     const inp = document.createElement('input');
-    inp.name = name; inp.value = value;
-    form.appendChild(inp);
+    inp.name = name; inp.value = value; form.appendChild(inp);
   }
 
   if (currentFmt === 'pdf') {
     form.target = '_blank';
     document.body.appendChild(form);
-    form.submit();
-    form.remove();
+    form.submit(); form.remove();
     showStatus(L.pdf_done, 'info');
     return;
   }
 
-  // Word: fetch + blob download
   document.body.appendChild(form);
   const fd = new FormData(form);
   form.remove();
@@ -126,30 +172,62 @@ async function generate(rtype) {
   try {
     const res = await fetch('/ai_reports/generate', { method: 'POST', body: fd });
     const ct  = res.headers.get('content-type') || '';
-
     if (!res.ok || ct.includes('application/json')) {
       const j = await res.json().catch(() => ({}));
-      showStatus(`${L.err}: ${j.msg || res.status}`, 'error');
-      return;
+      showStatus(`${L.err}: ${j.msg || res.status}`, 'error'); return;
     }
-
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const cd   = res.headers.get('content-disposition') || '';
     const m    = cd.match(/filename="?([^";\n]+)"?/);
     const fn   = m ? m[1] : `report_${rtype}.docx`;
-
     const a = document.createElement('a');
     a.href = url; a.download = fn; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 15000);
+    showStatus(`${L.done} <a href="${url}" download="${fn}" class="dl-again"><i class="fas fa-download"></i></a>`, 'success');
+  } catch (e) { showStatus(`${L.err}: ${e.message}`, 'error'); }
+}
 
-    showStatus(
-      `${L.done} <a href="${url}" download="${fn}" class="dl-again"><i class="fas fa-download"></i></a>`,
-      'success'
-    );
-  } catch (e) {
-    showStatus(`${L.err}: ${e.message}`, 'error');
+function buildPreviewHTML(rtype, j) {
+  const periodLabel = {'daily':'يومي','weekly':'أسبوعي','monthly':'شهري','all':'كل الوقت'}[currentPeriod]||currentPeriod;
+  const rtypeLabel = {
+    'purchases':'المشتريات','outgoing':'الصرف','beneficiaries':'المستفيدين',
+    'workers':'العاملين','programs':'البرامج','stock':'المخزون','summary':'الشامل'
+  }[rtype]||rtype;
+  let h = `<div dir="rtl" style="font-family:Arial,sans-serif;font-size:13px;color:#222;min-width:600px;">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:1.3rem;font-weight:900;color:#1a6b3a;">ميزان مجد</div>
+      <div style="font-size:1rem;font-weight:700;margin-top:4px;">تقرير ${rtypeLabel} — ${periodLabel}</div>
+      <div style="color:#666;font-size:.8rem;">${j.date_range||''}</div>
+    </div>`;
+
+  if (j.rows && j.rows.length) {
+    h += `<table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+      <thead><tr style="background:#1a6b3a;color:#fff;">`;
+    Object.keys(j.rows[0]).forEach(k => { h += `<th style="padding:6px 10px;border:1px solid #ccc;">${k}</th>`; });
+    h += `</tr></thead><tbody>`;
+    j.rows.forEach((row,i) => {
+      h += `<tr style="background:${i%2?'#f9fafb':'#fff'};">`;
+      Object.values(row).forEach(v => { h += `<td style="padding:5px 10px;border:1px solid #e0e0e0;">${v??''}</td>`; });
+      h += `</tr>`;
+    });
+    h += `</tbody></table>`;
+  } else {
+    h += `<div style="text-align:center;padding:30px;color:#888;">لا توجد بيانات للفترة المحددة</div>`;
   }
+
+  if (j.programs && j.programs.length) {
+    h += `<div style="margin-top:18px;font-weight:700;font-size:.9rem;color:#1a6b3a;border-bottom:2px solid #1a6b3a;padding-bottom:4px;margin-bottom:10px;">البرامج والمشاريع</div>`;
+    j.programs.forEach(prog => {
+      h += `<div style="margin-bottom:10px;background:#f0fdf4;border-radius:8px;padding:10px;">
+        <div style="font-weight:700;color:#1a6b3a;">${prog.name}</div>
+        <div style="font-size:.78rem;color:#555;margin-top:4px;">المستفيدون: ${prog.beneficiaries||0} | الموزعات: ${prog.distributions||0} | الوحدات: ${prog.units||0}</div>
+      </div>`;
+    });
+  }
+
+  h += `<div style="margin-top:14px;color:#999;font-size:.72rem;text-align:center;">تم توليده: ${new Date().toLocaleDateString('ar-SA')}</div></div>`;
+  return h;
 }
 </script>
 

@@ -1375,8 +1375,13 @@ def products():
         FROM products p WHERE p.org_id=? ORDER BY p.id DESC
     """, (org_id, org_id))
     data = c.fetchall()
+    # تصنيف المخزن للفقاعات
+    empty_count = sum(1 for r in data if r[3] == 0)
+    low_count   = sum(1 for r in data if 0 < r[3] < 10)
+    ok_count    = sum(1 for r in data if r[3] >= 10)
     conn.close()
-    return render_template("products.html", products=data)
+    return render_template("products.html", products=data,
+                           empty_count=empty_count, low_count=low_count, ok_count=ok_count)
 
 
 @app.route("/add_product", methods=["GET", "POST"])
@@ -4032,6 +4037,130 @@ def ai_reports():
         flash("غير مصرّح", "danger")
         return redirect(url_for("dashboard"))
     return render_template("ai_reports.html")
+
+
+@app.route("/api/org/report")
+@login_required
+def api_org_report():
+    if session.get("role") not in ("admin", "observer"):
+        return jsonify({"ok": False}), 403
+    org_id = session["org_id"]
+    rtype  = request.args.get("rtype", "summary")
+    period = request.args.get("period", "monthly")
+
+    today = date.today()
+    if period == "daily":
+        date_from = date_to = today.strftime("%Y-%m-%d")
+        date_range = f"يومي — {today.strftime('%Y/%m/%d')}"
+    elif period == "weekly":
+        date_from = (today - timedelta(days=6)).strftime("%Y-%m-%d")
+        date_to   = today.strftime("%Y-%m-%d")
+        date_range = f"أسبوعي — {date_from} إلى {date_to}"
+    elif period == "monthly":
+        date_from = today.replace(day=1).strftime("%Y-%m-%d")
+        date_to   = today.strftime("%Y-%m-%d")
+        date_range = f"شهري — {date_from} إلى {date_to}"
+    else:
+        date_from = "2000-01-01"
+        date_to   = today.strftime("%Y-%m-%d")
+        date_range = "كل الوقت"
+
+    conn = get_connection()
+    c    = conn.cursor()
+    rows = []
+    programs = []
+
+    try:
+        if rtype in ("purchases", "summary"):
+            c.execute("""
+                SELECT ii.invoice_number AS 'رقم الفاتورة',
+                       ii.supplier AS 'المورد',
+                       ii.invoice_date AS 'التاريخ',
+                       COALESCE(SUM(iii.total_price),0) AS 'الإجمالي'
+                FROM incoming_invoices ii
+                LEFT JOIN incoming_invoice_items iii ON iii.invoice_id=ii.id
+                WHERE ii.org_id=? AND ii.invoice_date BETWEEN ? AND ?
+                GROUP BY ii.id ORDER BY ii.invoice_date DESC
+            """, (org_id, date_from, date_to))
+            rows = [dict(r) for r in c.fetchall()]
+
+        elif rtype == "outgoing":
+            c.execute("""
+                SELECT oi.invoice_number AS 'رقم الفاتورة',
+                       oi.beneficiary AS 'المستفيد',
+                       oi.invoice_date AS 'التاريخ',
+                       COALESCE(SUM(oii.total_price),0) AS 'الإجمالي'
+                FROM outgoing_invoices oi
+                LEFT JOIN outgoing_invoice_items oii ON oii.invoice_id=oi.id
+                WHERE oi.org_id=? AND oi.invoice_date BETWEEN ? AND ?
+                GROUP BY oi.id ORDER BY oi.invoice_date DESC
+            """, (org_id, date_from, date_to))
+            rows = [dict(r) for r in c.fetchall()]
+
+        elif rtype == "beneficiaries":
+            c.execute("""
+                SELECT b.full_name AS 'الاسم',
+                       b.id_number AS 'رقم الهوية',
+                       b.phone AS 'الجوال',
+                       b.registration_date AS 'تاريخ التسجيل'
+                FROM beneficiaries b
+                WHERE b.org_id=? AND b.registration_date BETWEEN ? AND ?
+                ORDER BY b.registration_date DESC
+            """, (org_id, date_from, date_to))
+            rows = [dict(r) for r in c.fetchall()]
+
+        elif rtype == "workers":
+            c.execute("""
+                SELECT w.full_name AS 'الاسم',
+                       w.role AS 'الدور',
+                       w.phone AS 'الجوال',
+                       w.created_at AS 'تاريخ الإضافة'
+                FROM workers w
+                WHERE w.org_id=? AND w.created_at BETWEEN ? AND ?
+                ORDER BY w.created_at DESC
+            """, (org_id, date_from, date_to))
+            rows = [dict(r) for r in c.fetchall()]
+
+        elif rtype in ("programs", "summary"):
+            c.execute("""
+                SELECT p.name,
+                       COUNT(DISTINCT pr.beneficiary_id) AS beneficiaries,
+                       COUNT(DISTINCT oi.id) AS distributions,
+                       COALESCE(SUM(oii.quantity),0) AS units
+                FROM programs p
+                LEFT JOIN program_records pr ON pr.program_id=p.id
+                    AND pr.benefit_date BETWEEN ? AND ?
+                LEFT JOIN outgoing_invoices oi ON oi.program_id=p.id
+                    AND oi.invoice_date BETWEEN ? AND ?
+                LEFT JOIN outgoing_invoice_items oii ON oii.invoice_id=oi.id
+                WHERE p.org_id=?
+                GROUP BY p.id ORDER BY p.id DESC
+            """, (date_from, date_to, date_from, date_to, org_id))
+            prog_rows = c.fetchall()
+            if rtype == "programs":
+                rows = [{"البرنامج": r["name"], "المستفيدون": r["beneficiaries"],
+                         "الموزعات": r["distributions"], "الوحدات": int(r["units"])} for r in prog_rows]
+            programs = [{"name": r["name"], "beneficiaries": r["beneficiaries"],
+                         "distributions": r["distributions"], "units": int(r["units"])} for r in prog_rows]
+
+        elif rtype == "stock":
+            c.execute("""
+                SELECT p.name AS 'الصنف', p.unit AS 'الوحدة',
+                       COALESCE(SUM(sb.quantity_remaining),0) AS 'الكمية المتاحة'
+                FROM products p
+                LEFT JOIN stock_batches sb ON sb.product_id=p.id AND sb.org_id=p.org_id
+                WHERE p.org_id=?
+                GROUP BY p.id ORDER BY p.name
+            """, (org_id,))
+            rows = [dict(r) for r in c.fetchall()]
+
+    except Exception as e:
+        conn.close()
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+    conn.close()
+    return jsonify({"ok": True, "rtype": rtype, "period": period,
+                    "date_range": date_range, "rows": rows, "programs": programs})
 
 
 @app.route("/ai_reports/generate", methods=["POST"])
@@ -7106,7 +7235,7 @@ def api_camp_join_request_add():
 def api_camp_join_requests_list():
     """المخيم يشوف كل طلباته"""
     if "camp_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
+        return jsonify({"ok": False, "error": "\u063a\u064a\u0631 \u0645\u0635\u0631\u062d"})
     conn = get_connection(); c = conn.cursor()
     c.execute("""SELECT cjr.*, b.full_name as ben_name, b.phone as ben_phone,
                         b.governorate, b.city
@@ -7117,117 +7246,6 @@ def api_camp_join_requests_list():
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
     return jsonify({"ok": True, "requests": rows})
-
-
-@app.route("/api/camp/join-request/cancel", methods=["POST"])
-def api_camp_join_request_cancel():
-    """المخيم يلغي طلب"""
-    if "camp_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
-    data = request.get_json(force=True) or {}
-    req_id = data.get("request_id")
-    conn = get_connection(); c = conn.cursor()
-    c.execute("DELETE FROM camp_join_requests WHERE id=? AND camp_entity_id=? AND status='pending'",
-              (req_id, session["camp_id"]))
-    conn.commit(); conn.close()
-    return jsonify({"ok": True})
-
-
-@app.route("/api/beneficiary/camp-requests", methods=["GET"])
-def api_ben_camp_requests():
-    """المستفيد يشوف طلبات الانضمام الواردة له"""
-    if "beneficiary_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
-    ben_id = session["beneficiary_id"]
-    conn = get_connection(); c = conn.cursor()
-    # اجلب رقم الهوية
-    c.execute("SELECT id_number FROM beneficiaries WHERE id=?", (ben_id,))
-    ben = c.fetchone()
-    if not ben:
-        conn.close()
-        return jsonify({"ok": True, "requests": []})
-    c.execute("""SELECT cjr.*, ce.name as camp_name, ce.governorate as camp_gov,
-                        ce.entity_type
-                 FROM camp_join_requests cjr
-                 JOIN camp_entities ce ON ce.id = cjr.camp_entity_id
-                 WHERE cjr.id_number=? AND cjr.status='pending'
-                 ORDER BY cjr.created_at DESC""", (ben["id_number"],))
-    rows = [dict(r) for r in c.fetchall()]
-    conn.close()
-    return jsonify({"ok": True, "requests": rows})
-
-
-@app.route("/api/beneficiary/camp-request/respond", methods=["POST"])
-def api_ben_camp_request_respond():
-    """المستفيد يقبل أو يرفض طلب انضمام"""
-    if "beneficiary_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
-    data    = request.get_json(force=True) or {}
-    req_id  = data.get("request_id")
-    action  = data.get("action")  # 'approve' or 'reject'
-    ben_id  = session["beneficiary_id"]
-    if action not in ("approve", "reject"):
-        return jsonify({"ok": False, "error": "إجراء غير صحيح"})
-    conn = get_connection(); c = conn.cursor()
-    try:
-        c.execute("SELECT id_number FROM beneficiaries WHERE id=?", (ben_id,))
-        ben = c.fetchone()
-        if not ben:
-            conn.close()
-            return jsonify({"ok": False, "error": "حساب غير موجود"})
-        c.execute("SELECT * FROM camp_join_requests WHERE id=? AND id_number=? AND status='pending'",
-                  (req_id, ben["id_number"]))
-        req = c.fetchone()
-        if not req:
-            conn.close()
-            return jsonify({"ok": False, "error": "الطلب غير موجود أو منتهي"})
-        req = dict(req)
-        if action == "approve":
-            # تحقق: هل مرتبط بمخيم آخر؟
-            c.execute("SELECT camp_entity_id FROM beneficiaries WHERE id=?", (ben_id,))
-            current = c.fetchone()
-            if current and current["camp_entity_id"]:
-                conn.close()
-                return jsonify({"ok": False, "error": "أنت مرتبط بمخيم آخر — يجب إلغاء الارتباط أولاً"})
-            # قبول: ربط المستفيد بالمخيم
-            c.execute("UPDATE beneficiaries SET camp_entity_id=? WHERE id=?",
-                      (req["camp_entity_id"], ben_id))
-            c.execute("""UPDATE camp_join_requests SET status='approved', beneficiary_id=?,
-                         responded_at=datetime('now','localtime') WHERE id=?""", (ben_id, req_id))
-            # رفض أي طلبات أخرى معلقة لنفس المستفيد
-            c.execute("""UPDATE camp_join_requests SET status='rejected',
-                         responded_at=datetime('now','localtime')
-                         WHERE id_number=? AND status='pending' AND id!=?""",                      (ben["id_number"], req_id))
-        else:
-            c.execute("""UPDATE camp_join_requests SET status='rejected',
-                         responded_at=datetime('now','localtime') WHERE id=?""", (req_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"ok": True})
-    except Exception as e:
-        try: conn.close()
-        except Exception: pass
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@app.route('/api/beneficiary/camp/leave', methods=['POST'])
-def api_beneficiary_camp_leave():
-    if 'beneficiary_id' not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"}), 401
-    ben_id = session['beneficiary_id']
-    conn = get_connection()
-    try:
-        conn.execute("UPDATE beneficiaries SET camp_entity_id=NULL WHERE id=?", (ben_id,))
-        conn.execute("""UPDATE camp_join_requests SET status='left',
-                        responded_at=datetime('now','localtime')
-                        WHERE beneficiary_id=? AND status='approved'""", (ben_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"ok": True})
-    except Exception as e:
-        try: conn.close()
-        except Exception: pass
-        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
