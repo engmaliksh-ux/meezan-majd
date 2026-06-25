@@ -65,6 +65,11 @@
               title="طباعة">
         <i class="fas fa-print"></i>
       </button>
+      <button class="btn btn-outline-success btn-sm no-print"
+              onclick="exportOutInvPNG('inv-{{ inv.id }}', '{{ inv.invoice_number or inv.id }}')"
+              title="حفظ كصورة PNG">
+        <i class="fas fa-image"></i>
+      </button>
       {% if not inv.is_closed %}
         {% if session.get('role') == 'admin' %}
         <button class="btn btn-outline-primary btn-sm no-print" title="تعديل"
@@ -239,7 +244,22 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+function exportOutInvPNG(cardId, invNum) {
+  var el = document.getElementById(cardId);
+  if (!el) { alert('لم يتم العثور على الفاتورة'); return; }
+  var noPrint = el.querySelectorAll('.no-print');
+  noPrint.forEach(function(e){ e.style.visibility='hidden'; });
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas) {
+    noPrint.forEach(function(e){ e.style.visibility=''; });
+    var a = document.createElement('a');
+    a.download = 'outgoing_invoice_' + invNum + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }).catch(function(){ noPrint.forEach(function(e){ e.style.visibility=''; }); });
+}
+
 // ── فلتر ──
 function applyFilter() {
   const f = document.getElementById('filter-select').value;
