@@ -3,222 +3,130 @@
 {% block page_title %}<i class="fas fa-user-circle"></i> ملفي الشخصي{% endblock %}
 {% block content %}
 
-<style>
-.profile-slider-wrap { overflow:hidden; position:relative; }
-.profile-slider-track { display:flex; width:200%; transition:transform .4s cubic-bezier(.4,0,.2,1); }
-.profile-card-slot { width:50%; padding:0 8px; box-sizing:border-box; }
-.profile-slider-track.show-password { transform:translateX(50%); }
-</style>
-
-<div class="profile-slider-wrap">
-  <div class="profile-slider-track" id="profile-track">
-
-    <!-- ══ بطاقة تغيير كلمة المرور (يسار = خارج الشاشة في البداية) ══ -->
-    <div class="profile-card-slot">
-      <div class="card" style="max-width:480px;margin:0 auto;">
-        <div class="card-header" style="background:linear-gradient(135deg,#1a6b3a,#2d9e5a);color:#fff;">
-          <i class="fas fa-key me-2"></i>تغيير كلمة المرور
-          <button onclick="showProfile()" style="float:left;background:none;border:none;color:#fff;
-                  cursor:pointer;font-size:.82rem;opacity:.85;">
-            <i class="fas fa-arrow-left me-1"></i>رجوع للملف
-          </button>
-        </div>
-        <div class="card-body">
-          <div id="pw-success" style="display:none;" class="alert alert-success text-center">
-            <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color:#1a6b3a;"></i>
-            <strong>تم تغيير كلمة المرور بنجاح</strong>
-          </div>
-          <div id="pw-error" style="display:none;" class="alert alert-danger"></div>
-          <form id="pw-form" onsubmit="submitPwChange(event)">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-3">
-              <label class="form-label fw-bold">كلمة المرور الحالية <span class="text-danger">*</span></label>
-              <div style="position:relative;">
-                <input type="password" class="form-control" id="pw-current" name="current_password" required>
-                <button type="button" onclick="togglePw('pw-current',this)"
-                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                               background:none;border:none;cursor:pointer;color:#888;">
-                  <i class="fas fa-eye"></i>
-                </button>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold">كلمة المرور الجديدة <span class="text-danger">*</span></label>
-              <div style="position:relative;">
-                <input type="password" class="form-control" id="pw-new" name="new_password" required minlength="8">
-                <button type="button" onclick="togglePw('pw-new',this)"
-                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                               background:none;border:none;cursor:pointer;color:#888;">
-                  <i class="fas fa-eye"></i>
-                </button>
-              </div>
-              <div style="font-size:.74rem;color:#aaa;margin-top:3px;">8 أحرف على الأقل</div>
-            </div>
-            <div class="mb-4">
-              <label class="form-label fw-bold">تأكيد كلمة المرور <span class="text-danger">*</span></label>
-              <div style="position:relative;">
-                <input type="password" class="form-control" id="pw-confirm" name="confirm_password" required>
-                <button type="button" onclick="togglePw('pw-confirm',this)"
-                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                               background:none;border:none;cursor:pointer;color:#888;">
-                  <i class="fas fa-eye"></i>
-                </button>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary w-100" id="pw-submit-btn">
-              <i class="fas fa-lock me-2"></i>تغيير كلمة المرور
-            </button>
-          </form>
-        </div>
-      </div>
+<div class="d-flex justify-content-center">
+  <div class="card" style="width:100%;max-width:520px;">
+    <div class="card-header">
+      <i class="fas fa-id-card" style="color:#1a6b3a;"></i> البيانات الشخصية
     </div>
+    <div class="card-body">
 
-    <!-- ══ بطاقة الملف الشخصي (يمين = ظاهرة في البداية) ══ -->
-    <div class="profile-card-slot">
-      <div class="card" style="max-width:480px;margin:0 auto;">
-        <div class="card-header">
-          <i class="fas fa-id-card" style="color:#1a6b3a;"></i> البيانات الشخصية
+      {% if success %}
+      <div class="alert alert-success text-center" style="border-radius:10px;">
+        <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color:#1a6b3a;"></i>
+        <strong>تم تحديث الملف الشخصي بنجاح</strong>
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+      </div>
+      {% endif %}
+
+      <!-- صورة المستخدم -->
+      <div class="text-center mb-4">
+        <div style="position:relative;display:inline-block;">
+          {% if user.photo %}
+          <img src="{{ url_for('static', filename='uploads/' + user.photo) }}"
+               id="photo-preview"
+               style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+                      border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
+          {% else %}
+          <div id="photo-preview-placeholder"
+               style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#1a6b3a,#2e9e5e);
+                      display:inline-flex;align-items:center;justify-content:center;
+                      border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
+            <i class="fas fa-user" style="font-size:2.2rem;color:#fff;"></i>
+          </div>
+          <img id="photo-preview" style="display:none;width:90px;height:90px;border-radius:50%;
+               object-fit:cover;border:3px solid #1a6b3a;">
+          {% endif %}
+          <label for="photo-inp" style="position:absolute;bottom:0;right:0;
+                 background:#1a6b3a;color:#fff;border-radius:50%;width:26px;height:26px;
+                 display:flex;align-items:center;justify-content:center;cursor:pointer;
+                 box-shadow:0 2px 6px rgba(0,0,0,.2);" title="تغيير الصورة">
+            <i class="fas fa-camera" style="font-size:.65rem;"></i>
+          </label>
         </div>
-        <div class="card-body">
-          {% if success %}
-          <div class="alert alert-success text-center">
-            <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color:#1a6b3a;"></i>
-            <strong>تم تحديث الملف الشخصي بنجاح</strong>
-          </div>
-          {% endif %}
-          {% if error %}
-          <div class="alert alert-danger">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
-          </div>
-          {% endif %}
-
-          <div class="text-center mb-4">
-            <div style="position:relative;display:inline-block;">
-              {% if user.photo %}
-              <img src="{{ url_for('static', filename='uploads/' + user.photo) }}" id="photo-preview"
-                   style="width:90px;height:90px;border-radius:50%;object-fit:cover;
-                          border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
-              {% else %}
-              <div id="photo-preview-placeholder"
-                   style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#1a6b3a,#2e9e5e);
-                          display:inline-flex;align-items:center;justify-content:center;
-                          border:3px solid #1a6b3a;box-shadow:0 2px 12px rgba(26,107,58,.2);">
-                <i class="fas fa-user" style="font-size:2.2rem;color:#fff;"></i>
-              </div>
-              <img id="photo-preview" style="display:none;width:90px;height:90px;border-radius:50%;
-                   object-fit:cover;border:3px solid #1a6b3a;">
-              {% endif %}
-              <label for="photo-inp" style="position:absolute;bottom:0;right:0;
-                     background:#1a6b3a;color:#fff;border-radius:50%;width:26px;height:26px;
-                     display:flex;align-items:center;justify-content:center;cursor:pointer;
-                     box-shadow:0 2px 6px rgba(0,0,0,.2);" title="تغيير الصورة">
-                <i class="fas fa-camera" style="font-size:.65rem;"></i>
-              </label>
-            </div>
-            <div style="margin-top:10px;">
-              <span style="font-size:.8rem;font-weight:700;background:#e8f5ee;color:#1a6b3a;
-                           border-radius:20px;padding:3px 12px;">
-                {% if user.role == 'admin' %}<i class="fas fa-shield-alt me-1"></i>مدير
-                {% elif user.role == 'accountant' %}<i class="fas fa-file-invoice me-1"></i>محاسب
-                {% elif user.role == 'data_entry' %}<i class="fas fa-keyboard me-1"></i>مدخل بيانات
-                {% elif user.role == 'observer' %}<i class="fas fa-eye me-1"></i>مراقب
-                {% endif %}
-              </span>
-            </div>
-          </div>
-
-          <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input type="file" id="photo-inp" name="photo" accept="image/*"
-                   style="display:none;" onchange="previewPhoto(this)">
-            <div class="mb-3">
-              <label class="form-label fw-bold">الاسم الكامل <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="full_name" value="{{ user.full_name }}" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold">اسم المستخدم</label>
-              <input type="text" class="form-control" value="{{ user.username }}"
-                     disabled style="background:#f5f5f5;color:#888;">
-              <div style="font-size:.74rem;color:#aaa;margin-top:3px;">اسم المستخدم لا يمكن تغييره</div>
-            </div>
-            {% if user.email %}
-            <div class="mb-3">
-              <label class="form-label fw-bold">البريد الإلكتروني</label>
-              <input type="text" class="form-control" value="{{ user.email }}"
-                     disabled style="background:#f5f5f5;color:#888;">
-            </div>
+        <div style="margin-top:10px;">
+          <span style="font-size:.8rem;font-weight:700;background:#e8f5ee;color:#1a6b3a;
+                       border-radius:20px;padding:3px 12px;">
+            {% if user.role == 'admin' %}
+              <i class="fas fa-shield-alt me-1"></i>مدير
+            {% elif user.role == 'accountant' %}
+              <i class="fas fa-file-invoice me-1"></i>محاسب
+            {% elif user.role == 'data_entry' %}
+              <i class="fas fa-keyboard me-1"></i>مدخل بيانات
+            {% elif user.role == 'observer' %}
+              <i class="fas fa-eye me-1"></i>مراقب
             {% endif %}
-            <div class="mb-4">
-              <label class="form-label fw-bold">رقم الهاتف</label>
-              <input type="text" class="form-control" name="phone"
-                     value="{{ user.phone or '' }}" placeholder="اختياري">
-            </div>
-            <div class="mb-3" style="font-size:.8rem;color:#aaa;">
-              <i class="fas fa-clock me-1"></i>عضو منذ:
-              {{ user.created_at[:10] if user.created_at else '—' }}
-            </div>
-            <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-primary flex-grow-1">
-                <i class="fas fa-save me-2"></i>حفظ التغييرات
-              </button>
-              <button type="button" onclick="showPassword()" class="btn btn-outline-secondary">
-                <i class="fas fa-key me-1"></i>تغيير كلمة السر
-              </button>
-            </div>
-          </form>
+          </span>
         </div>
       </div>
-    </div>
 
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="file" id="photo-inp" name="photo" accept="image/*"
+               style="display:none;" onchange="previewPhoto(this)">
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">الاسم الكامل <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="full_name"
+                 value="{{ user.full_name }}" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">اسم المستخدم</label>
+          <input type="text" class="form-control" value="{{ user.username }}"
+                 disabled style="background:#f5f5f5;color:#888;">
+          <div style="font-size:.75rem;color:#aaa;margin-top:4px;">اسم المستخدم لا يمكن تغييره</div>
+        </div>
+
+        {% if user.email %}
+        <div class="mb-3">
+          <label class="form-label fw-bold">البريد الإلكتروني</label>
+          <input type="text" class="form-control" value="{{ user.email }}"
+                 disabled style="background:#f5f5f5;color:#888;">
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">رقم الهاتف</label>
+          <input type="text" class="form-control" name="phone"
+                 value="{{ user.phone or '' }}" placeholder="اختياري">
+        </div>
+
+        <div class="mb-3" style="font-size:.8rem;color:#aaa;">
+          <i class="fas fa-clock me-1"></i>عضو منذ:
+          {{ user.created_at[:10] if user.created_at else '—' }}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="fas fa-save me-2"></i>حفظ التغييرات
+          </button>
+          <a href="/change_password" class="btn btn-outline-secondary">
+            <i class="fas fa-key me-1"></i>كلمة السر
+          </a>
+        </div>
+      </form>
+
+    </div>
   </div>
 </div>
 
 <script>
-function showPassword() { document.getElementById('profile-track').classList.add('show-password'); }
-function showProfile()  { document.getElementById('profile-track').classList.remove('show-password'); }
 function previewPhoto(input) {
   if (!input.files || !input.files[0]) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    const p = document.getElementById('photo-preview');
-    p.src = e.target.result; p.style.display = 'block';
-    const ph = document.getElementById('photo-preview-placeholder');
-    if (ph) ph.style.display = 'none';
+    const preview = document.getElementById('photo-preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    const placeholder = document.getElementById('photo-preview-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
   };
   reader.readAsDataURL(input.files[0]);
-}
-function togglePw(id, btn) {
-  const inp = document.getElementById(id);
-  if (!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.querySelector('i').className = inp.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
-}
-async function submitPwChange(e) {
-  e.preventDefault();
-  const btn = document.getElementById('pw-submit-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جارٍ الحفظ…';
-  document.getElementById('pw-error').style.display = 'none';
-  document.getElementById('pw-success').style.display = 'none';
-  const fd = new FormData(document.getElementById('pw-form'));
-  try {
-    const res = await fetch('/change_password', {method:'POST', body:fd});
-    const text = await res.text();
-    if (text.includes('بنجاح') || text.includes('success')) {
-      document.getElementById('pw-success').style.display = 'block';
-      document.getElementById('pw-form').reset();
-    } else {
-      const m = text.match(/alert-danger[^>]*>([\s\S]*?)<\/div>/);
-      const msg = m ? m[1].replace(/<[^>]+>/g,'').trim() : 'حدث خطأ، حاول مجدداً';
-      document.getElementById('pw-error').textContent = msg;
-      document.getElementById('pw-error').style.display = 'block';
-    }
-  } catch(err) {
-    document.getElementById('pw-error').textContent = 'خطأ في الاتصال';
-    document.getElementById('pw-error').style.display = 'block';
-  }
-  btn.disabled = false;
-  btn.innerHTML = '<i class="fas fa-lock me-2"></i>تغيير كلمة المرور';
 }
 </script>
 {% endblock %}
