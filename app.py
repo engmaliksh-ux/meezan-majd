@@ -1399,24 +1399,20 @@ def products():
                            empty_count=empty_count, low_count=low_count, ok_count=ok_count)
 
 
-@app.route("/add_product", methods=["GET", "POST"])
+@app.route("/add_product", methods=["POST"])
 @invoices_required
 def add_product():
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        unit = request.form.get("unit", "").strip()
-        if not name or not unit:
-            flash("يرجى تعبئة جميع الحقول", "danger")
-            return render_template("add_product.html")
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("INSERT INTO products (org_id, name, unit) VALUES (?,?,?)",
-                  (session["org_id"], name, unit))
-        conn.commit()
-        conn.close()
-        flash("✅ تمت إضافة الصنف", "success")
-        return redirect(url_for("products"))
-    return render_template("add_product.html")
+    name = request.form.get("name", "").strip()
+    unit = request.form.get("unit", "").strip()
+    if not name or not unit:
+        return jsonify({"ok": False, "error": "يرجى تعبئة جميع الحقول"})
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO products (org_id, name, unit) VALUES (?,?,?)",
+              (session["org_id"], name, unit))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/edit_product/<int:id>", methods=["GET", "POST"])
