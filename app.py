@@ -1283,6 +1283,77 @@ def delete_user(id):
 
 
 # ══════════════════════════════════════════
+# تقرير المخزون (يومي / أسبوعي / شهري)
+# ══════════════════════════════════════════
+@app.route("/api/inventory/report")
+@observer_required
+def api_inventory_report():
+    org_id = request.args.get("org_id") or session.get("org_id")
+    period  = request.args.get("period", "daily")  # daily | weekly | monthly
+    today   = date.today()
+
+    if period == "daily":
+        date_from = today.strftime("%Y-%m-%d")
+        date_to   = today.strftime("%Y-%m-%d")
+        label     = f"يومي — {today.strftime('%Y/%m/%d')}"
+    elif period == "weekly":
+        date_from = (today - timedelta(days=6)).strftime("%Y-%m-%d")
+        date_to   = today.strftime("%Y-%m-%d")
+        label     = f"أسبوعي — {date_from} إلى {date_to}"
+    else:  # monthly
+        date_from = today.replace(day=1).strftime("%Y-%m-%d")
+        date_to   = today.strftime("%Y-%m-%d")
+        label     = f"شهري — {date_from} إلى {date_to}"
+
+    conn = get_connection()
+    c    = conn.cursor()
+
+    # كل المنتجات مع رصيدها الحالي
+    c.execute("""
+        SELECT p.id, p.name, p.unit,
+               COALESCE((SELECT SUM(quantity_remaining)
+                         FROM stock_batches WHERE product_id=p.id AND org_id=?),0) as current_qty
+        FROM products p WHERE p.org_id=? ORDER BY p.name
+    """, (org_id, org_id))
+    products_rows = c.fetchall()
+
+    rows = []
+    for pid, pname, punit, current_qty in products_rows:
+        # الوارد في الفترة: من stock_batches حسب entry_date
+        c.execute("""
+            SELECT COALESCE(SUM(sb.quantity_remaining + COALESCE(
+                (SELECT SUM(oii.quantity) FROM outgoing_invoice_items oii
+                 JOIN outgoing_invoices oi ON oii.invoice_id=oi.id
+                 WHERE oii.product_id=sb.product_id AND oi.org_id=? AND oi.invoice_date BETWEEN ? AND ?),0)
+            ),0)
+            FROM stock_batches sb
+            WHERE sb.product_id=? AND sb.org_id=? AND sb.entry_date BETWEEN ? AND ?
+        """, (org_id, date_from, date_to, pid, org_id, date_from, date_to))
+        incoming = c.fetchone()[0] or 0
+
+        # الصادر في الفترة: من outgoing_invoice_items حسب invoice_date
+        c.execute("""
+            SELECT COALESCE(SUM(oii.quantity),0)
+            FROM outgoing_invoice_items oii
+            JOIN outgoing_invoices oi ON oii.invoice_id=oi.id
+            WHERE oii.product_id=? AND oi.org_id=? AND oi.invoice_date BETWEEN ? AND ?
+        """, (pid, org_id, date_from, date_to))
+        outgoing = c.fetchone()[0] or 0
+
+        if incoming > 0 or outgoing > 0 or current_qty > 0:
+            rows.append({
+                "name": pname, "unit": punit,
+                "current_qty": round(current_qty, 2),
+                "incoming": round(incoming, 2),
+                "outgoing": round(outgoing, 2)
+            })
+
+    conn.close()
+    return jsonify({"ok": True, "label": label, "period": period,
+                    "date_from": date_from, "date_to": date_to, "rows": rows})
+
+
+# ══════════════════════════════════════════
 # الأصناف
 # ══════════════════════════════════════════
 @app.route("/products")

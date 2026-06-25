@@ -2,12 +2,120 @@
 {% block title %}{{ t.page_products }}{% endblock %}
 {% block page_title %}<i class="fas fa-box"></i> المخزون{% endblock %}
 {% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <div class="page-header">
   <h2 class="page-title"><i class="fas fa-box"></i> {{ t.page_products }}</h2>
-  {% if session.get('role') != 'observer' %}
-  <a href="/add_product" class="btn btn-primary"><i class="fas fa-plus me-1"></i> {{ t.add_product_btn }}</a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-success btn-sm" onclick="toggleReport()">
+      <i class="fas fa-chart-bar me-1"></i> التقارير
+    </button>
+    {% if session.get('role') != 'observer' %}
+    <a href="/add_product" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> {{ t.add_product_btn }}</a>
+    {% endif %}
+  </div>
 </div>
+
+<!-- ═══ قسم التقارير ═══ -->
+<div id="report-section" style="display:none;margin-bottom:22px;">
+  <div style="background:#fff;border:1.5px solid #1a6b3a33;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #0001;">
+    <!-- هيدر التقرير -->
+    <div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5a);padding:14px 20px;
+                display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <span style="color:#fff;font-weight:800;font-size:1rem;">
+        <i class="fas fa-chart-line me-2"></i>تقرير حركة المخزون
+      </span>
+      <div class="d-flex gap-2 flex-wrap">
+        <button onclick="loadReport('daily')"   id="btn-daily"   class="rpt-btn rpt-active">يومي</button>
+        <button onclick="loadReport('weekly')"  id="btn-weekly"  class="rpt-btn">أسبوعي</button>
+        <button onclick="loadReport('monthly')" id="btn-monthly" class="rpt-btn">شهري</button>
+        <button onclick="exportReportPNG()" class="rpt-btn" style="background:#fff;color:#1a6b3a;border-color:#fff;">
+          <i class="fas fa-image me-1"></i>حفظ PNG
+        </button>
+      </div>
+    </div>
+    <!-- محتوى التقرير -->
+    <div id="report-body" style="padding:18px 20px;">
+      <p style="color:#aaa;text-align:center;">اضغط على فترة لعرض التقرير</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.rpt-btn {
+  background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.4);
+  border-radius:8px; padding:6px 16px; font-size:.8rem; font-weight:700; cursor:pointer;
+  transition:background .2s;
+}
+.rpt-btn:hover { background:rgba(255,255,255,.3); }
+.rpt-btn.rpt-active { background:#fff; color:#1a6b3a; }
+#report-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+#report-table th { background:#f0f7f2; color:#1a6b3a; padding:9px 12px; text-align:right; font-weight:700; }
+#report-table td { padding:8px 12px; border-bottom:1px solid #e8f5ee; }
+#report-table tr:last-child td { border-bottom:none; }
+.rpt-in  { color:#16a34a; font-weight:700; }
+.rpt-out { color:#dc2626; font-weight:700; }
+.rpt-bal { color:#1a6b3a; font-weight:800; }
+</style>
+
+<script>
+var _currentPeriod = 'daily';
+function toggleReport() {
+  var s = document.getElementById('report-section');
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+  if (s.style.display === 'block') loadReport('daily');
+}
+async function loadReport(period) {
+  _currentPeriod = period;
+  ['daily','weekly','monthly'].forEach(p => {
+    document.getElementById('btn-'+p).classList.toggle('rpt-active', p === period);
+  });
+  document.getElementById('report-body').innerHTML = '<p style="color:#aaa;text-align:center;">جارٍ التحميل…</p>';
+  try {
+    var d = await fetch('/api/inventory/report?period=' + period).then(r => r.json());
+    if (!d.ok) { document.getElementById('report-body').innerHTML = '<p style="color:red;">خطأ في التحميل</p>'; return; }
+    var html = `
+      <div id="rpt-capture" style="background:#fff;padding:10px;">
+        <div style="text-align:center;margin-bottom:12px;">
+          <strong style="color:#1a6b3a;font-size:.95rem;">تقرير المخزون — ${d.label}</strong>
+        </div>
+        <table id="report-table">
+          <thead><tr>
+            <th>#</th><th>الصنف</th><th>الوحدة</th>
+            <th>الرصيد الحالي</th><th>الوارد</th><th>الصادر</th>
+          </tr></thead>
+          <tbody>`;
+    if (!d.rows.length) {
+      html += '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px;">لا توجد حركة في هذه الفترة</td></tr>';
+    } else {
+      d.rows.forEach((r, i) => {
+        html += `<tr>
+          <td style="color:#aaa;font-size:.8rem;">${i+1}</td>
+          <td style="font-weight:700;">${r.name}</td>
+          <td><span style="background:#e8f5ee;color:#1a6b3a;padding:2px 8px;border-radius:6px;font-size:.78rem;">${r.unit}</span></td>
+          <td class="rpt-bal">${r.current_qty}</td>
+          <td class="rpt-in">${r.incoming > 0 ? '+'+r.incoming : '—'}</td>
+          <td class="rpt-out">${r.outgoing > 0 ? '-'+r.outgoing : '—'}</td>
+        </tr>`;
+      });
+    }
+    html += '</tbody></table></div>';
+    document.getElementById('report-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('report-body').innerHTML = '<p style="color:red;">خطأ في الاتصال</p>';
+  }
+}
+function exportReportPNG() {
+  var el = document.getElementById('rpt-capture');
+  if (!el) { alert('حمّل التقرير أولاً'); return; }
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff'}).then(canvas => {
+    var a = document.createElement('a');
+    a.download = 'inventory_report_' + _currentPeriod + '_' + new Date().toISOString().slice(0,10) + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+}
+</script>
 
 <div class="table-wrapper">
   <div class="table-header">

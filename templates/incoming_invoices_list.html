@@ -293,6 +293,11 @@
                 title="طباعة">
           <i class="fas fa-print"></i>
         </button>
+        <button class="btn btn-outline-success btn-sm"
+                onclick="exportInvPNG('inv-{{ inv.id }}', '{{ inv.invoice_number or inv.id }}')"
+                title="حفظ كصورة PNG">
+          <i class="fas fa-image"></i>
+        </button>
         {% if not inv.is_closed and session.get('role') != 'observer' %}
         <a href="/incoming_invoice/{{ inv.id }}/close" class="btn btn-outline-warning btn-sm"
            onclick="return confirm('سيتم إغلاق الفاتورة نهائياً. متأكد؟')" title="إغلاق">
@@ -616,7 +621,24 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+// ── تصدير فاتورة كصورة PNG ──
+function exportInvPNG(cardId, invNum) {
+  var el = document.getElementById(cardId);
+  if (!el) { alert('لم يتم العثور على الفاتورة'); return; }
+  // إخفاء أزرار الإجراءات مؤقتاً
+  var noPrint = el.querySelectorAll('.no-print');
+  noPrint.forEach(function(e){ e.style.visibility='hidden'; });
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas) {
+    noPrint.forEach(function(e){ e.style.visibility=''; });
+    var a = document.createElement('a');
+    a.download = 'invoice_' + invNum + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }).catch(function(){ noPrint.forEach(function(e){ e.style.visibility=''; }); });
+}
+
 const todayStr = "{{ today_str }}";
 
 // ── فلتر القائمة المنسدلة ──
