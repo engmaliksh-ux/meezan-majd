@@ -1,8 +1,13 @@
 import sqlite3
 import random
 import string
+import os
+import shutil
+from datetime import datetime
 
-DB_NAME = "database.db"
+DB_NAME    = "database.db"
+BACKUP_DIR = "backups"
+MAX_BACKUPS = 7   # الحد الأقصى للنسخ الاحتياطية المحفوظة
 
 
 def get_connection():
@@ -10,6 +15,75 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=15000")
     return conn
+
+
+def create_backup(label: str = "auto") -> str:
+    """
+    ينشئ نسخة احتياطية من قاعدة البيانات.
+    يُرجع اسم الملف المنشأ.
+    """
+    if not os.path.exists(DB_NAME):
+        return ""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"db_{label}_{ts}.db"
+    dst      = os.path.join(BACKUP_DIR, filename)
+    # نسخ آمن عبر SQLite API
+    src_conn = sqlite3.connect(DB_NAME)
+    dst_conn = sqlite3.connect(dst)
+    src_conn.backup(dst_conn)
+    dst_conn.close()
+    src_conn.close()
+    _prune_backups()
+    return filename
+
+
+def _prune_backups():
+    """يحذف النسخ القديمة ويبقي آخر MAX_BACKUPS نسخة."""
+    if not os.path.exists(BACKUP_DIR):
+        return
+    files = sorted(
+        [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")],
+        reverse=True
+    )
+    for old in files[MAX_BACKUPS:]:
+        try:
+            os.remove(os.path.join(BACKUP_DIR, old))
+        except Exception:
+            pass
+
+
+def list_backups():
+    """يُرجع قائمة النسخ الاحتياطية مرتبة من الأحدث."""
+    if not os.path.exists(BACKUP_DIR):
+        return []
+    files = sorted(
+        [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")],
+        reverse=True
+    )
+    result = []
+    for f in files:
+        path = os.path.join(BACKUP_DIR, f)
+        size_kb = round(os.path.getsize(path) / 1024, 1)
+        mtime   = datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d %H:%M:%S")
+        result.append({"filename": f, "size_kb": size_kb, "created_at": mtime})
+    return result
+
+
+def restore_backup(filename: str) -> bool:
+    """يستعيد نسخة احتياطية. يُرجع True إذا نجح."""
+    src = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(src) or ".." in filename or "/" in filename:
+        return False
+    # نسخة احتياطية قبل الاستعادة
+    if os.path.exists(DB_NAME):
+        create_backup("pre_restore")
+    dst_conn = sqlite3.connect(DB_NAME)
+    src_conn = sqlite3.connect(src)
+    src_conn.backup(dst_conn)
+    dst_conn.close()
+    src_conn.close()
+    return True
 
 
 def generate_org_code():

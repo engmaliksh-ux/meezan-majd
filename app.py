@@ -1,7 +1,7 @@
 import os
 import secrets
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from database import get_connection, init_db, generate_org_code
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from database import get_connection, init_db, generate_org_code, create_backup, list_backups, restore_backup, BACKUP_DIR
 from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -124,6 +124,11 @@ def check_session_timeout():
 
 init_db()
 from database import migrate_db; migrate_db()
+# نسخة احتياطية تلقائية عند كل بدء تشغيل
+try:
+    create_backup("startup")
+except Exception:
+    pass
 
 # ══════════════════════════════════════════
 # Language support — AR / TR
@@ -4621,6 +4626,44 @@ def sa_notify_all():
 
 
 
+@app.route('/om-sys-77k/backups')
+@_sa_required
+def sa_backups():
+    return jsonify({"ok": True, "backups": list_backups()})
+
+
+@app.route('/om-sys-77k/backup/create', methods=['POST'])
+@_sa_required
+def sa_backup_create():
+    filename = create_backup("manual")
+    if filename:
+        return jsonify({"ok": True, "filename": filename})
+    return jsonify({"ok": False, "error": "قاعدة البيانات غير موجودة"})
+
+
+@app.route('/om-sys-77k/backup/download/<filename>')
+@_sa_required
+def sa_backup_download(filename):
+    import re
+    if not re.match(r'^db_[a-zA-Z0-9_]+\.db$', filename):
+        return "Invalid filename", 400
+    filepath = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(filepath):
+        return "Not found", 404
+    return send_file(filepath, as_attachment=True, download_name=filename)
+
+
+@app.route('/om-sys-77k/backup/restore/<filename>', methods=['POST'])
+@_sa_required
+def sa_backup_restore(filename):
+    import re
+    if not re.match(r'^db_[a-zA-Z0-9_]+\.db$', filename):
+        return jsonify({"ok": False, "error": "اسم ملف غير صالح"})
+    if restore_backup(filename):
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "فشل في الاستعادة"})
+
+
 @app.route('/om-sys-77k/security')
 @_sa_required
 def sa_security():
@@ -7155,36 +7198,43 @@ def api_ben_camp_request_respond():
             # رفض أي طلبات أخرى معلقة لنفس المستفيد
             c.execute("""UPDATE camp_join_requests SET status='rejected',
                          responded_at=datetime('now','localtime')
-                         WHERE id_number=? AND status='pending' AND id!=?""",
-                      (ben["id_number"], req_id))
+                         WHERE id_number=? AND status='pending' AND id!=?""",                      (ben["id_number"], req_id))
         else:
             c.execute("""UPDATE camp_join_requests SET status='rejected',
                          responded_at=datetime('now','localtime') WHERE id=?""", (req_id,))
-        conn.commit(); conn.close()
+        conn.commit()
+        conn.close()
         return jsonify({"ok": True})
     except Exception as e:
         try: conn.close()
-        except: pass
-        return jsonify({"ok": False, "error": str(e)})
+        except Exception: pass
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/beneficiary/camp/leave", methods=["POST"])
-def api_ben_camp_leave():
-    """المستفيد يفك ارتباطه بالمخيم"""
-    if "beneficiary_id" not in session:
-        return jsonify({"ok": False, "error": "غير مصرح"})
-    ben_id = session["beneficiary_id"]
-    conn = get_connection(); c = conn.cursor()
-    c.execute("SELECT camp_entity_id, id_number FROM beneficiaries WHERE id=?", (ben_id,))
-    ben = c.fetchone()
-    if not ben or not ben["camp_entity_id"]:
+@app.route('/api/beneficiary/camp/leave', methods=['POST'])
+def api_beneficiary_camp_leave():
+    if 'beneficiary_id' not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"}), 401
+    ben_id = session['beneficiary_id']
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE beneficiaries SET camp_entity_id=NULL WHERE id=?", (ben_id,))
+        conn.execute("""UPDATE camp_join_requests SET status='left',
+                        responded_at=datetime('now','localtime')
+                        WHERE beneficiary_id=? AND status='approved'""", (ben_id,))
+        conn.commit()
         conn.close()
-        return jsonify({"ok": False, "error": "لست مرتبطاً بأي مخيم"})
-    c.execute("UPDATE beneficiaries SET camp_entity_id=NULL WHERE id=?", (ben_id,))
-    c.execute("""UPDATE camp_join_requests SET status='left',
-                 responded_at=datetime('now','localtime')
-                 WHERE id_number=? AND status='approved'""", (ben["id_number"],))
-    conn.commit(); conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True)
+nn.commit(); conn.close()
     return jsonify({"ok": True})
 
 

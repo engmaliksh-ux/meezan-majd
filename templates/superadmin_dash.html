@@ -183,6 +183,23 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
   <p style="color:#8b949e;text-align:center;padding:30px;">لا توجد مؤسسات مسجلة</p>
   {% endfor %}
 
+  <!-- ═══ قسم النسخ الاحتياطية ═══ -->
+  <div class="section-title" style="margin-top:36px;">
+    <i class="fas fa-database"></i> النسخ الاحتياطية
+    <div style="margin-right:auto;display:flex;gap:8px;">
+      <button onclick="createBackup()" class="btn btn-success" style="font-size:.75rem;padding:5px 14px;">
+        <i class="fas fa-plus"></i> إنشاء نسخة الآن
+      </button>
+      <button onclick="loadBackups()" class="btn btn-info" style="font-size:.75rem;padding:5px 14px;">
+        <i class="fas fa-sync-alt"></i> تحديث
+      </button>
+    </div>
+  </div>
+  <div id="backup-box" style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;">
+    <p style="color:#8b949e;text-align:center;" id="backup-loading">جارٍ التحميل…</p>
+    <div id="backup-list"></div>
+  </div>
+
   <!-- ═══ قسم الأمان: IPs مقفلة + حسابات مقفلة ═══ -->
   <div class="section-title" style="margin-top:36px;">
     <i class="fas fa-shield-alt"></i> الأمان — إلغاء الحجب
@@ -261,6 +278,54 @@ body { font-family:'Segoe UI',Tahoma,sans-serif; background:#0d1117; color:#e6ed
 </div>
 
 <script>
+// ═══ Backup Section ═══
+async function loadBackups() {
+  document.getElementById('backup-loading').style.display = 'block';
+  document.getElementById('backup-list').innerHTML = '';
+  try {
+    var d = await fetch('/om-sys-77k/backups').then(r => r.json());
+    document.getElementById('backup-loading').style.display = 'none';
+    if (!d.backups || !d.backups.length) {
+      document.getElementById('backup-list').innerHTML = '<p style="color:#8b949e;text-align:center;font-size:.85rem;">لا توجد نسخ احتياطية بعد</p>';
+      return;
+    }
+    document.getElementById('backup-list').innerHTML = d.backups.map((b, i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+                  background:${i===0?'#1a2f1a':'#0d1117'};border-radius:8px;margin-bottom:6px;
+                  border:1px solid ${i===0?'#238636':'#21262d'};">
+        <i class="fas fa-file-archive" style="color:${i===0?'#56d364':'#58a6ff'};font-size:1.1rem;"></i>
+        <div style="flex:1;">
+          <div style="font-size:.82rem;color:#e6edf3;font-weight:600;">${b.filename}</div>
+          <div style="font-size:.72rem;color:#8b949e;">${b.created_at} — ${b.size_kb} KB
+            ${i===0?'<span style="background:#238636;color:#fff;padding:1px 7px;border-radius:10px;font-size:.68rem;margin-right:6px;">أحدث</span>':''}
+          </div>
+        </div>
+        <a href="/om-sys-77k/backup/download/${b.filename}"
+           class="btn btn-info" style="padding:5px 12px;font-size:.74rem;">
+          <i class="fas fa-download"></i> تحميل
+        </a>
+        <button onclick="restoreBackup('${b.filename}')"
+                class="btn btn-warn" style="padding:5px 12px;font-size:.74rem;">
+          <i class="fas fa-undo"></i> استعادة
+        </button>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('backup-loading').textContent = 'خطأ في التحميل';
+  }
+}
+async function createBackup() {
+  var r = await fetch('/om-sys-77k/backup/create', {method:'POST'}).then(x => x.json());
+  if (r.ok) { alert('✅ تم إنشاء النسخة: ' + r.filename); loadBackups(); }
+  else alert('خطأ: ' + r.error);
+}
+async function restoreBackup(filename) {
+  if (!confirm('⚠️ سيتم استبدال قاعدة البيانات الحالية بهذه النسخة.\nسيتم حفظ نسخة من الوضع الحالي تلقائياً.\n\nمتأكد؟')) return;
+  var r = await fetch('/om-sys-77k/backup/restore/' + filename, {method:'POST'}).then(x => x.json());
+  if (r.ok) { alert('✅ تمت الاستعادة بنجاح! يُنصح بإعادة تشغيل التطبيق.'); loadBackups(); }
+  else alert('خطأ: ' + r.error);
+}
+window.addEventListener('load', function(){ loadBackups(); loadSecurity(); });
+
 // ═══ Security Section ═══
 async function loadSecurity() {
   document.getElementById('sec-loading').style.display = 'block';
@@ -313,7 +378,7 @@ async function unlockAccount(type, id) {
   loadSecurity();
 }
 
-window.addEventListener('load', loadSecurity);
+// loadSecurity already called in loadBackups listener above
 
 function openDeleteModal(id, name) {
   document.getElementById('delete-msg').textContent =
