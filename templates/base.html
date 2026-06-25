@@ -56,92 +56,77 @@
       </div>
     </div>
 
-    <!-- بطاقة المستخدم — فقاعة رابط للملف الشخصي -->
-    <a href="/profile" id="user-menu-wrap"
-       style="display:flex;align-items:center;gap:12px;padding:12px 16px;
-              margin:10px 12px;border-radius:14px;text-decoration:none;
-              background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-              transition:background .2s,transform .15s;cursor:pointer;"
-       onmouseover="this.style.background='rgba(255,255,255,.15)';this.style.transform='translateY(-1px)'"
-       onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.transform='none'">
-      <div class="user-avatar" style="flex-shrink:0;">
-        {% if session.get('photo') %}
-          <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
-        {% else %}
-          {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
-          {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
-          {% else %}<i class="fas fa-user"></i>{% endif %}
+    <!-- بطاقة المستخدم — فقاعة قابلة للنقر (منسدلة) -->
+    <div style="position:relative;margin:10px 12px;" id="user-menu-wrap">
+      <button onclick="userMenuToggle()"
+              style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+                     border-radius:14px;cursor:pointer;padding:12px 14px;
+                     display:flex;align-items:center;gap:12px;transition:background .2s;">
+        <div class="user-avatar" style="flex-shrink:0;">
+          {% if session.get('photo') %}
+            <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
+          {% else %}
+            {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
+            {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
+            {% else %}<i class="fas fa-user"></i>{% endif %}
+          {% endif %}
+        </div>
+        <div class="user-info" style="flex:1;min-width:0;">
+          <span class="user-name" style="display:block;font-size:.88rem;font-weight:700;
+                color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ session.get('full_name', session.get('user','')) }}
+          </span>
+          <span class="user-role" style="display:block;font-size:.73rem;color:rgba(255,255,255,.6);margin-top:1px;">
+            {% if session.get('role')=='admin' %}{{ t.role_admin }}
+            {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
+            {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
+            {% elif session.get('role')=='observer' %}{{ t.role_observer }}
+            {% else %}{{ t.role_user }}{% endif %}
+          </span>
+        </div>
+        <i class="fas fa-chevron-down" id="user-menu-chevron"
+           style="color:rgba(255,255,255,.5);font-size:.65rem;transition:transform .25s;flex-shrink:0;"></i>
+      </button>
+      <!-- القائمة المنسدلة -->
+      <div id="user-menu-drop"
+           style="display:none;background:rgba(20,20,20,.92);backdrop-filter:blur(8px);
+                  border:1px solid rgba(255,255,255,.12);border-radius:12px;
+                  margin-top:6px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.3);">
+        <a href="/profile"
+           style="display:flex;align-items:center;gap:10px;padding:11px 16px;
+                  color:rgba(255,255,255,.88);text-decoration:none;font-size:.84rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.08)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-user-circle" style="width:16px;text-align:center;color:#4db87a;"></i>
+          ملفي الشخصي
+        </a>
+        {% if session.get('role') == 'admin' %}
+        <div style="height:1px;background:rgba(255,255,255,.07);margin:0 12px;"></div>
+        <a href="/network"
+           style="display:flex;align-items:center;gap:10px;padding:11px 16px;
+                  color:rgba(255,255,255,.88);text-decoration:none;font-size:.84rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.08)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-network-wired" style="width:16px;text-align:center;color:#4db87a;"></i>
+          شبكة تواصل المؤسسات
+          <span id="net-nav-badge" style="display:none;margin-right:auto;"></span>
+        </a>
+        <a href="/users"
+           style="display:flex;align-items:center;gap:10px;padding:11px 16px;
+                  color:rgba(255,255,255,.88);text-decoration:none;font-size:.84rem;
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.08)'"
+           onmouseout="this.style.background='transparent'">
+          <i class="fas fa-users-cog" style="width:16px;text-align:center;color:#4db87a;"></i>
+          {{ t.nav_users }}
+        </a>
         {% endif %}
       </div>
-      <div class="user-info" style="flex:1;min-width:0;">
-        <span class="user-name" style="display:block;font-size:.88rem;font-weight:700;
-              color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          {{ session.get('full_name', session.get('user','')) }}
-        </span>
-        <span class="user-role" style="display:block;font-size:.73rem;color:rgba(255,255,255,.6);margin-top:1px;">
-          {% if session.get('role')=='admin' %}{{ t.role_admin }}
-          {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
-          {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
-          {% elif session.get('role')=='observer' %}{{ t.role_observer }}
-          {% else %}{{ t.role_user }}{% endif %}
-        </span>
-      </div>
-      <i class="fas fa-chevron-left" style="color:rgba(255,255,255,.4);font-size:.65rem;flex-shrink:0;"></i>
-    </a>
+    </div>
 
     <nav class="sidebar-nav">
-      <!-- لوحة التحكم + قائمة فرعية -->
-      <div id="dash-nav-wrap">
-        <div style="display:flex;align-items:center;gap:0;">
-          <a href="/dashboard"
-             class="nav-item {% if request.path=='/dashboard' %}active{% endif %}"
-             style="flex:1;border-radius:10px 0 0 10px;margin-bottom:0;">
-            <i class="fas fa-chart-pie nav-icon"></i><span>{{ t.nav_dashboard }}</span>
-          </a>
-          {% if session.get('role') in ['admin','observer'] %}
-          <button onclick="dashMenuToggle()" id="dash-menu-btn"
-                  style="background:transparent;border:none;cursor:pointer;
-                         padding:0 10px;color:rgba(255,255,255,.65);height:44px;flex-shrink:0;">
-            <i class="fas fa-chevron-down" id="dash-menu-chev"
-               style="font-size:.6rem;transition:transform .25s;"></i>
-          </button>
-          {% endif %}
-        </div>
-        {% if session.get('role') in ['admin','observer'] %}
-        <div id="dash-menu-drop" style="display:none;background:rgba(0,0,0,.18);border-radius:0 0 10px 10px;overflow:hidden;">
-          <a href="/ai_reports"
-             style="display:flex;align-items:center;gap:10px;padding:10px 22px 10px 32px;
-                    color:rgba(255,255,255,.8);text-decoration:none;font-size:.82rem;
-                    transition:background .15s;"
-             onmouseover="this.style.background='rgba(255,255,255,.1)'"
-             onmouseout="this.style.background='transparent'">
-            <i class="fas fa-chart-bar" style="width:15px;text-align:center;opacity:.8;"></i>
-            {% if lang=='en' %}Reports{% elif lang=='tr' %}Raporlar{% else %}التقارير{% endif %}
-          </a>
-          {% if session.get('role') == 'admin' %}
-          <a href="/network"
-             style="display:flex;align-items:center;gap:10px;padding:10px 22px 10px 32px;
-                    color:rgba(255,255,255,.8);text-decoration:none;font-size:.82rem;
-                    transition:background .15s;"
-             onmouseover="this.style.background='rgba(255,255,255,.1)'"
-             onmouseout="this.style.background='transparent'">
-            <i class="fas fa-network-wired" style="width:15px;text-align:center;opacity:.8;"></i>
-            {% if lang=='en' %}Network{% elif lang=='tr' %}Ağ{% else %}شبكة التواصل{% endif %}
-            <span id="net-nav-badge" style="display:none;margin-right:auto;"></span>
-          </a>
-          <a href="/users"
-             style="display:flex;align-items:center;gap:10px;padding:10px 22px 10px 32px;
-                    color:rgba(255,255,255,.8);text-decoration:none;font-size:.82rem;
-                    transition:background .15s;"
-             onmouseover="this.style.background='rgba(255,255,255,.1)'"
-             onmouseout="this.style.background='transparent'">
-            <i class="fas fa-users-cog" style="width:15px;text-align:center;opacity:.8;"></i>
-            {{ t.nav_users }}
-          </a>
-          {% endif %}
-        </div>
-        {% endif %}
-      </div>
 
       {% if session.get('role') in ['admin','accountant','observer'] %}
       <a href="/products" class="nav-item {% if '/product' in request.path %}active{% endif %}">
@@ -155,23 +140,28 @@
       </a>
       {% endif %}
 
-      {% if session.get('role') in ['admin','accountant','observer'] %}
-      <a href="/programs" class="nav-item {% if '/program' in request.path %}active{% endif %}">
-        <i class="fas fa-project-diagram nav-icon"></i><span>{{ t.nav_programs }}</span>
-      </a>
-      <a href="/workers" class="nav-item {% if '/worker' in request.path %}active{% endif %}">
-        <i class="fas fa-hard-hat nav-icon"></i><span>العاملين</span>
-      </a>
-      <a href="/org/camp-deliveries" class="nav-item {% if '/camp-deliveries' in request.path %}active{% endif %}">
-        <i class="fas fa-truck nav-icon"></i><span>تسليمات للمخيمات</span>
-      </a>
-      {% endif %}
-
       {% if session.get('role') in ['admin','data_entry','observer'] %}
       <a href="/beneficiaries" class="nav-item {% if '/beneficiar' in request.path %}active{% endif %}">
         <i class="fas fa-users nav-icon"></i><span>{{ t.nav_beneficiaries }}</span>
       </a>
       {% endif %}
+
+      {% if session.get('role') in ['admin','accountant','observer'] %}
+      <a href="/org/camp-deliveries" class="nav-item {% if '/camp-deliveries' in request.path %}active{% endif %}">
+        <i class="fas fa-truck nav-icon"></i><span>تسليمات المخيمات</span>
+      </a>
+      <a href="/workers" class="nav-item {% if '/worker' in request.path %}active{% endif %}">
+        <i class="fas fa-hard-hat nav-icon"></i><span>العاملين</span>
+      </a>
+      {% endif %}
+
+      {% if session.get('role') in ['admin','observer'] %}
+      <a href="/ai_reports" class="nav-item {% if '/ai_reports' in request.path %}active{% endif %}">
+        <i class="fas fa-chart-bar nav-icon"></i>
+        <span>{% if lang=='en' %}Reports{% elif lang=='tr' %}Raporlar{% else %}التقارير{% endif %}</span>
+      </a>
+      {% endif %}
+
     </nav>
 
     <div class="sidebar-footer">
