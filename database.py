@@ -611,17 +611,19 @@ def migrate_db():
         """)
         conn.commit()
 
-        # 2. حذف الهويات الوهمية (000000000 أو فارغة)
+        # 2. حذف الهويات الوهمية (000000000 أو فارغة) — مع استثناء المخيمات التي لا تحتاج هوية
         c.execute("""
             DELETE FROM beneficiary_family_members
             WHERE beneficiary_id IN (
                 SELECT id FROM beneficiaries
-                WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
+                WHERE (id_number IS NULL OR id_number='' OR id_number='000000000')
+                  AND (beneficiary_type IS NULL OR beneficiary_type != 'camp')
             )
         """)
         c.execute("""
             DELETE FROM beneficiaries
-            WHERE id_number IS NULL OR id_number='' OR id_number='000000000'
+            WHERE (id_number IS NULL OR id_number='' OR id_number='000000000')
+              AND (beneficiary_type IS NULL OR beneficiary_type != 'camp')
         """)
         conn.commit()
 
