@@ -6,7 +6,7 @@ from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from email_service import generate_verification_code, send_org_verification, send_staff_notification, send_otp_code
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 app = Flask(__name__)
 
@@ -1324,24 +1324,23 @@ def api_inventory_report():
 
     rows = []
     for pid, pname, punit, current_qty in products_rows:
-        # الوارد في الفترة: من stock_batches حسب entry_date
+        # الوارد في الفترة: من فواتير الإدخال
         c.execute("""
-            SELECT COALESCE(SUM(sb.quantity_remaining + COALESCE(
-                (SELECT SUM(oii.quantity) FROM outgoing_invoice_items oii
-                 JOIN outgoing_invoices oi ON oii.invoice_id=oi.id
-                 WHERE oii.product_id=sb.product_id AND oi.org_id=? AND oi.invoice_date BETWEEN ? AND ?),0)
-            ),0)
-            FROM stock_batches sb
-            WHERE sb.product_id=? AND sb.org_id=? AND sb.entry_date BETWEEN ? AND ?
-        """, (org_id, date_from, date_to, pid, org_id, date_from, date_to))
+            SELECT COALESCE(SUM(ii.quantity), 0)
+            FROM incoming_invoice_items ii
+            JOIN incoming_invoices inv ON ii.invoice_id = inv.id
+            WHERE ii.product_id = ? AND inv.org_id = ?
+              AND inv.invoice_date BETWEEN ? AND ?
+        """, (pid, org_id, date_from, date_to))
         incoming = c.fetchone()[0] or 0
 
-        # الصادر في الفترة: من outgoing_invoice_items حسب invoice_date
+        # الصادر في الفترة: من فواتير الصرف
         c.execute("""
-            SELECT COALESCE(SUM(oii.quantity),0)
-            FROM outgoing_invoice_items oii
-            JOIN outgoing_invoices oi ON oii.invoice_id=oi.id
-            WHERE oii.product_id=? AND oi.org_id=? AND oi.invoice_date BETWEEN ? AND ?
+            SELECT COALESCE(SUM(oi.quantity), 0)
+            FROM outgoing_invoice_items oi
+            JOIN outgoing_invoices inv ON oi.invoice_id = inv.id
+            WHERE oi.product_id = ? AND inv.org_id = ?
+              AND inv.invoice_date BETWEEN ? AND ?
         """, (pid, org_id, date_from, date_to))
         outgoing = c.fetchone()[0] or 0
 
@@ -7229,13 +7228,6 @@ def api_beneficiary_camp_leave():
         try: conn.close()
         except Exception: pass
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    init_db()
-    app.run(debug=True)
-nn.commit(); conn.close()
-    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
