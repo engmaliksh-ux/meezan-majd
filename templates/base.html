@@ -56,53 +56,38 @@
       </div>
     </div>
 
-    <!-- بطاقة المستخدم — قائمة منسدلة -->
-    <div style="position:relative;" id="user-menu-wrap">
-      <button onclick="userMenuToggle()"
-              style="width:100%;background:transparent;border:none;cursor:pointer;
-                     padding:14px 16px;display:flex;align-items:center;gap:12px;
-                     border-bottom:1px solid rgba(255,255,255,.1);transition:background .2s;">
-        <div class="user-avatar">
-          {% if session.get('photo') %}
-            <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
-          {% else %}
-            {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
-            {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
-            {% else %}<i class="fas fa-user"></i>{% endif %}
-          {% endif %}
-        </div>
-        <div class="user-info" style="flex:1;min-width:0;">
-          <span class="user-name">{{ session.get('full_name', session.get('user','')) }}</span>
-          <span class="user-role">
-            {% if session.get('role')=='admin' %}{{ t.role_admin }}
-            {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
-            {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
-            {% elif session.get('role')=='observer' %}{{ t.role_observer }}
-            {% else %}{{ t.role_user }}{% endif %}
-          </span>
-        </div>
-        <span id="user-menu-notif-badge"
-              style="display:none;background:#e53935;color:#fff;border-radius:10px;
-                     font-size:.6rem;font-weight:800;min-width:16px;height:16px;
-                     line-height:16px;text-align:center;padding:0 4px;flex-shrink:0;"></span>
-        <i class="fas fa-chevron-down" id="user-menu-chevron"
-           style="color:rgba(255,255,255,.6);font-size:.65rem;transition:transform .25s;flex-shrink:0;"></i>
-      </button>
-      <!-- القائمة المنسدلة -->
-      <div id="user-menu-drop"
-           style="display:none;background:rgba(0,0,0,.22);border-bottom:1px solid rgba(255,255,255,.1);">
-        <a href="/profile"
-           style="display:flex;align-items:center;gap:10px;padding:11px 22px;
-                  color:rgba(255,255,255,.85);text-decoration:none;font-size:.83rem;
-                  transition:background .15s;"
-           onmouseover="this.style.background='rgba(255,255,255,.1)'"
-           onmouseout="this.style.background='transparent'">
-          <i class="fas fa-user-circle" style="width:16px;text-align:center;opacity:.8;"></i>
-          {% if lang=='en' %}My Profile{% elif lang=='tr' %}Profilim{% else %}ملفي الشخصي{% endif %}
-        </a>
-
+    <!-- بطاقة المستخدم — فقاعة رابط للملف الشخصي -->
+    <a href="/profile" id="user-menu-wrap"
+       style="display:flex;align-items:center;gap:12px;padding:12px 16px;
+              margin:10px 12px;border-radius:14px;text-decoration:none;
+              background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+              transition:background .2s,transform .15s;cursor:pointer;"
+       onmouseover="this.style.background='rgba(255,255,255,.15)';this.style.transform='translateY(-1px)'"
+       onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.transform='none'">
+      <div class="user-avatar" style="flex-shrink:0;">
+        {% if session.get('photo') %}
+          <img src="{{ url_for('static', filename='uploads/' + session.get('photo')) }}" alt="">
+        {% else %}
+          {% if session.get('role')=='admin' %}<i class="fas fa-crown"></i>
+          {% elif session.get('role')=='observer' %}<i class="fas fa-eye"></i>
+          {% else %}<i class="fas fa-user"></i>{% endif %}
+        {% endif %}
       </div>
-    </div>
+      <div class="user-info" style="flex:1;min-width:0;">
+        <span class="user-name" style="display:block;font-size:.88rem;font-weight:700;
+              color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          {{ session.get('full_name', session.get('user','')) }}
+        </span>
+        <span class="user-role" style="display:block;font-size:.73rem;color:rgba(255,255,255,.6);margin-top:1px;">
+          {% if session.get('role')=='admin' %}{{ t.role_admin }}
+          {% elif session.get('role')=='accountant' %}{{ t.role_accountant }}
+          {% elif session.get('role')=='data_entry' %}{{ t.role_data_entry }}
+          {% elif session.get('role')=='observer' %}{{ t.role_observer }}
+          {% else %}{{ t.role_user }}{% endif %}
+        </span>
+      </div>
+      <i class="fas fa-chevron-left" style="color:rgba(255,255,255,.4);font-size:.65rem;flex-shrink:0;"></i>
+    </a>
 
     <nav class="sidebar-nav">
       <!-- لوحة التحكم + قائمة فرعية -->
@@ -1389,3 +1374,4 @@ window.copyOrgCode = function(){
 
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
