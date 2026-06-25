@@ -4,16 +4,6 @@
 {% block content %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<div class="page-header">
-  <div class="d-flex gap-2">
-    <button class="btn btn-outline-success btn-sm" onclick="openReportModal()">
-      <i class="fas fa-chart-bar me-1"></i> التقارير
-    </button>
-    {% if session.get('role') != 'observer' %}
-    <a href="/add_product" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> {{ t.add_product_btn }}</a>
-    {% endif %}
-  </div>
-</div>
 
 <!-- ═══ مودال التقارير ═══ -->
 <div id="rpt-modal-overlay" onclick="closeReportModal()" style="display:none;position:fixed;inset:0;background:#0006;z-index:1050;"></div>
@@ -174,7 +164,15 @@ function exportReportPNG() {
 <div class="table-wrapper">
   <div class="table-header">
     <h5><i class="fas fa-list me-2" style="color:#1a6b3a;"></i>{{ t.products_list }}</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;" id="products-count">{{ products|length }} {{ t.stat_products }}</span>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="badge" style="background:#e8f5ee;color:#1a6b3a;" id="products-count">{{ products|length }} {{ t.stat_products }}</span>
+      <button class="btn btn-outline-success btn-sm" onclick="openReportModal()">
+        <i class="fas fa-chart-bar me-1"></i> التقارير
+      </button>
+      {% if session.get('role') != 'observer' %}
+      <a href="/add_product" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> {{ t.add_product_btn }}</a>
+      {% endif %}
+    </div>
   </div>
   {% if products %}
   <div class="table-responsive">
