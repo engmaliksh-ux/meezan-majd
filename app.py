@@ -1359,13 +1359,12 @@ def api_inventory_report():
         """, (pid, org_id, date_from, date_to))
         outgoing = c.fetchone()[0] or 0
 
-        if incoming > 0 or outgoing > 0 or current_qty > 0:
-            rows.append({
-                "name": pname, "unit": punit,
-                "current_qty": round(current_qty, 2),
-                "incoming": round(incoming, 2),
-                "outgoing": round(outgoing, 2)
-            })
+        rows.append({
+            "name": pname, "unit": punit,
+            "current_qty": round(current_qty, 2),
+            "incoming": round(incoming, 2),
+            "outgoing": round(outgoing, 2)
+        })
 
     conn.close()
     return jsonify({"ok": True, "label": label, "period": period,
