@@ -1400,8 +1400,13 @@ def products():
 
 
 @app.route("/add_product", methods=["POST"])
-@invoices_required
 def add_product():
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    if session.get("role") not in ("admin", "accountant"):
+        return jsonify({"ok": False, "error": "ليس لديك صلاحية"})
+    if not validate_csrf():
+        return jsonify({"ok": False, "error": "خطأ في التحقق، أعد المحاولة"})
     name = request.form.get("name", "").strip()
     unit = request.form.get("unit", "").strip()
     if not name or not unit:
@@ -1415,31 +1420,30 @@ def add_product():
     return jsonify({"ok": True})
 
 
-@app.route("/edit_product/<int:id>", methods=["GET", "POST"])
-@invoices_required
+@app.route("/edit_product/<int:id>", methods=["POST"])
 def edit_product(id):
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    if session.get("role") not in ("admin", "accountant"):
+        return jsonify({"ok": False, "error": "ليس لديك صلاحية"})
+    if not validate_csrf():
+        return jsonify({"ok": False, "error": "خطأ في التحقق، أعد المحاولة"})
+    name = request.form.get("name", "").strip()
+    unit = request.form.get("unit", "").strip()
+    if not name or not unit:
+        return jsonify({"ok": False, "error": "يرجى تعبئة جميع الحقول"})
     conn = get_connection()
     c = conn.cursor()
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        unit = request.form.get("unit", "").strip()
-        if not name or not unit:
-            flash("يرجى تعبئة جميع الحقول", "danger")
-        else:
-            now = datetime.now().strftime("%Y/%m/%d")
-            c.execute("UPDATE products SET name=?,unit=?,last_modified=? WHERE id=? AND org_id=?",
-                      (name, unit, now, id, session["org_id"]))
-            conn.commit()
-            flash("✅ تم تعديل الصنف", "success")
-            conn.close()
-            return redirect(url_for("products"))
-    c.execute("SELECT * FROM products WHERE id=? AND org_id=?", (id, session["org_id"]))
-    product = c.fetchone()
+    c.execute("SELECT id FROM products WHERE id=? AND org_id=?", (id, session["org_id"]))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "الصنف غير موجود"})
+    now = datetime.now().strftime("%Y/%m/%d")
+    c.execute("UPDATE products SET name=?,unit=?,last_modified=? WHERE id=? AND org_id=?",
+              (name, unit, now, id, session["org_id"]))
+    conn.commit()
     conn.close()
-    if not product:
-        flash("الصنف غير موجود", "danger")
-        return redirect(url_for("products"))
-    return render_template("edit_product.html", product=product)
+    return jsonify({"ok": True})
 
 
 @app.route("/delete_product/<int:id>")
