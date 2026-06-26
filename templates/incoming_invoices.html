@@ -54,7 +54,7 @@
           <thead style="background:#e3f2fd;">
             <tr>
               <th style="width:28%;">اسم الصنف <span class="text-danger">*</span></th>
-              <th style="width:10%;">الوحدة</th>
+              <th style="width:8%;">الوحدة</th>
               <th style="width:10%;">الكمية <span class="text-danger">*</span></th>
               <th style="width:12%;">سعر الوحدة <span class="text-danger">*</span></th>
               <th style="width:14%;">تاريخ الشراء <span class="text-danger">*</span></th>
@@ -65,9 +65,9 @@
           <tbody id="inv-items-body">
             <tr class="inv-item-row">
               <td><input type="text" class="form-control form-control-sm" name="product_name[]" list="inv-products-datalist" placeholder="اسم الصنف..." required></td>
-              <td><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..."></td>
-              <td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
-              <td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>
+              <td style="min-width:70px;"><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..." style="min-width:60px;"></td>
+              <td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="1" required></td>
+              <td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="1" min="0" placeholder="0" required></td>
               <td><input type="date" class="form-control form-control-sm" name="purchase_date[]" id="inv-first-date" required></td>
               <td><input type="text" class="form-control form-control-sm inv-row-total" readonly style="background:#f8f9fa;font-weight:700;color:#1a6b3a;" placeholder="0.00"></td>
               <td class="text-center"><button type="button" class="btn btn-danger btn-sm inv-remove-row" disabled><i class="fas fa-times"></i></button></td>
@@ -245,9 +245,9 @@ function resetInvRows() {
   var tbody = document.getElementById('inv-items-body');
   tbody.innerHTML = '<tr class="inv-item-row">'
     + '<td><input type="text" class="form-control form-control-sm" name="product_name[]" list="inv-products-datalist" placeholder="اسم الصنف..." required></td>'
-    + '<td><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..."></td>'
-    + '<td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>'
-    + '<td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>'
+    + '<td style="min-width:70px;"><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..." style="min-width:60px;"></td>'
+    + '<td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="1" required></td>'
+    + '<td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="1" min="0" placeholder="0" required></td>'
     + '<td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + _todayStr + '" required></td>'
     + '<td><input type="text" class="form-control form-control-sm inv-row-total" readonly style="background:#f8f9fa;font-weight:700;color:#1a6b3a;" placeholder="0.00"></td>'
     + '<td class="text-center"><button type="button" class="btn btn-danger btn-sm inv-remove-row" disabled><i class="fas fa-times"></i></button></td>'
@@ -257,9 +257,9 @@ function resetInvRows() {
 function invNewRow() {
   return '<tr class="inv-item-row">'
     + '<td><input type="text" class="form-control form-control-sm" name="product_name[]" list="inv-products-datalist" placeholder="اسم الصنف..." required></td>'
-    + '<td><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..."></td>'
-    + '<td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>'
-    + '<td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="0.01" min="0" placeholder="0.00" required></td>'
+    + '<td style="min-width:70px;"><input type="text" class="form-control form-control-sm inv-unit" name="product_unit[]" placeholder="كيلو..." style="min-width:60px;"></td>'
+    + '<td><input type="number" class="form-control form-control-sm inv-qty" name="quantity[]" step="0.01" min="0.01" placeholder="1" required></td>'
+    + '<td><input type="number" class="form-control form-control-sm inv-price" name="unit_price[]" step="1" min="0" placeholder="0" required></td>'
     + '<td><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + _todayStr + '" required></td>'
     + '<td><input type="text" class="form-control form-control-sm inv-row-total" readonly style="background:#f8f9fa;font-weight:700;color:#1a6b3a;" placeholder="0.00"></td>'
     + '<td class="text-center"><button type="button" class="btn btn-danger btn-sm inv-remove-row"><i class="fas fa-times"></i></button></td>'
@@ -313,10 +313,16 @@ async function submitAddInvoice(e) {
     var text = await res.text();
     var d; try { d = JSON.parse(text); } catch(_) { d = { ok: false, error: 'خطأ في الخادم: ' + text.slice(0, 100) }; }
     if (d.ok) { closeAddInvModal(); window.location.reload(); }
-    else { err.textContent = d.error || 'حدث خطأ'; err.style.display = 'block'; }
+    else {
+      err.textContent = d.error || 'حدث خطأ';
+      err.style.display = 'block';
+      document.querySelector('#addinv-modal > div:last-child').scrollTop = 0;
+      alert('خطأ: ' + (d.error || 'حدث خطأ'));
+    }
   } catch(ex) {
     err.textContent = 'خطأ في الاتصال: ' + ex.message;
     err.style.display = 'block';
+    alert('خطأ في الاتصال: ' + ex.message);
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-save me-1"></i> حفظ الفاتورة';
