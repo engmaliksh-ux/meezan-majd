@@ -216,8 +216,10 @@
 
 {% endblock %}
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 var _todayStr = "{{ today_str }}";
+var _existingProducts = [{% for p in existing_products %}{"name":"{{ p.name|e }}","unit":"{{ p.unit|e }}"}{% if not loop.last %},{% endif %}{% endfor %}];
 
 function _ani(ov, md) {
   ov.style.animation = 'fadeIn .2s';
@@ -355,7 +357,9 @@ function openDetailModal(id) {
     .catch(function(){ document.getElementById('detail-body').innerHTML = '<p class="text-danger text-center">خطأ في الاتصال</p>'; });
 }
 
+var _currentInv = null;
 function renderDetailModal(inv) {
+  _currentInv = inv;
   document.getElementById('detail-title').innerHTML = '<i class="fas fa-file-invoice me-2"></i>فاتورة #' + (inv.seq_num || inv.id) + ' — ' + inv.supplier;
 
   function paidBadge(isPaid) {
@@ -383,7 +387,7 @@ function renderDetailModal(inv) {
     var borderColor = hasImg ? color : '#e2e8f0';
     var bgColor = hasImg ? (color + '15') : '#f8fafc';
     var preview = hasImg
-      ? '<a href="/uploads/' + existingFile + '" target="_blank" style="display:flex;align-items:center;gap:5px;margin-bottom:8px;font-size:.76rem;color:' + color + ';text-decoration:none;font-weight:700;">'
+      ? '<a href="/static/uploads/' + existingFile + '" target="_blank" style="display:flex;align-items:center;gap:5px;margin-bottom:8px;font-size:.76rem;color:' + color + ';text-decoration:none;font-weight:700;">'
         + '<i class="fas fa-eye"></i> عرض الصورة الحالية</a>'
       : '';
     return '<div style="flex:1;min-width:150px;background:' + bgColor + ';border-radius:12px;padding:12px 14px;border:1.5px dashed ' + borderColor + ';">'
@@ -445,9 +449,10 @@ function renderDetailModal(inv) {
     + imgCard('سند القبض', 'fa-receipt', 'receipt', inv.receipt_image, '#16a34a')
     + imgCard('مرفق إضافي', 'fa-paperclip', 'attachment', inv.attachment_image, '#d97706')
     + '</div></div>'
-    // PNG button
-    + '<button onclick="exportDetailPNG()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">'
-    + '<i class="fas fa-download"></i>تصدير الفاتورة كصورة PNG</button>';
+    // Edit button (open invoices only) + PNG button
+    + (!inv.is_closed && '{{ session.get("role") }}' !== 'observer'
+      ? '<button onclick="openEditMode()" style="width:100%;padding:11px;background:linear-gradient(135deg,#b45309,#d97706);color:#fff;border:none;border-radius:12px;font-size:.88rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' + '<i class=&quot;fas fa-pen&quot;></i>تعديل الأصناف</button>' : '')
+    + '<button onclick="exportDetailPNG()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">' + '<i class=&quot;fas fa-download&quot;></i>تصدير الفاتورة كصورة PNG</button>';
 }
 
 async function uploadInvImg(input, imgType) {
@@ -492,5 +497,164 @@ function closeDetailModal() {
   document.getElementById('detail-overlay').style.display = 'none';
   document.getElementById('detail-modal').style.display = 'none';
 }
+
+/* ===== Edit Mode in Detail Modal ===== */
+function openEditMode() {
+  var inv = _currentInv;
+  if (!inv) return;
+  var csrf = document.querySelector('input[name="_csrf_token"]') ? document.querySelector('input[name="_csrf_token"]').value : '';
+  var rows = inv.items.map(function(it) {
+    return '<tr class="det-edit-row" style="border-bottom:1px solid #e2e8f0;">'
+      + '<input type="hidden" name="item_id[]" value="' + it.id + '">'
+      + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_name[]" value="' + (it.product_name||'') + '" list="inv-products-datalist" style="min-width:100px;"></td>'
+      + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_unit[]" value="' + (it.product_unit||'') + '" style="min-width:55px;"></td>'
+      + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-qty" name="quantity[]" value="' + it.quantity + '" step="0.01" min="0.01" style="min-width:60px;" required></td>'
+      + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-price" name="unit_price[]" value="' + it.unit_price + '" step="1" min="0" style="min-width:70px;" required></td>'
+      + '<td style="padding:6px 8px;"><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + (it.purchase_date||_todayStr) + '" required></td>'
+      + '<td style="padding:6px 8px;font-weight:700;color:#1565c0;" class="det-row-total">' + parseFloat(it.total_price).toFixed(2) + '</td>'
+      + '<td style="padding:6px;"><button type="button" onclick="this.closest('tr').remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('detail-body').innerHTML =
+    '<div style="direction:rtl;" id="det-edit-wrap">'
+    + '<div style="background:#fff3cd;border-radius:10px;padding:10px 14px;font-size:.83rem;color:#856404;margin-bottom:12px;border:1px solid #ffc107;">'
+    + '<i class="fas fa-pen me-1"></i>وضع التعديل — المورد: <strong>' + inv.supplier + '</strong></div>'
+    + '<div class="table-responsive" style="border-radius:10px;border:1px solid #e0e7ff;overflow:hidden;margin-bottom:10px;">'
+    + '<table class="table table-bordered mb-0" style="font-size:.83rem;">'
+    + '<thead style="background:#e3f2fd;"><tr>'
+    + '<th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>تاريخ الشراء</th><th>الإجمالي</th><th></th>'
+    + '</tr></thead>'
+    + '<tbody id="det-edit-tbody">' + rows + '</tbody>'
+    + '</table></div>'
+    + '<div id="det-unknown-warn" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:9px 12px;font-size:.8rem;color:#92400e;margin-bottom:8px;">'
+    + '<i class="fas fa-exclamation-triangle me-1"></i><span id="det-unknown-text"></span>'
+    + '<div style="margin-top:6px;display:flex;gap:8px;">'
+    + '<button onclick="confirmEditSave(1)" class="btn btn-warning btn-sm" style="font-size:.78rem;">إضافة للمخزن وحفظ</button>'
+    + '<button onclick="confirmEditSave(0)" class="btn btn-outline-secondary btn-sm" style="font-size:.78rem;">تسجيل بالفاتورة فقط</button>'
+    + '</div></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+    + '<button type="button" onclick="detAddRow()" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>إضافة صنف</button>'
+    + '</div>'
+    + '<div id="det-edit-error" style="display:none;" class="alert alert-danger mb-2"></div>'
+    + '<div style="display:flex;gap:8px;">'
+    + '<button type="button" onclick="saveDetailEdits()" class="btn btn-primary"><i class="fas fa-save me-1"></i>حفظ التعديلات</button>'
+    + '<button type="button" onclick="openDetailModal(_detailInvId)" class="btn btn-secondary">إلغاء</button>'
+    + '</div>'
+    + '</div>';
+
+  // Live calc
+  document.getElementById('det-edit-tbody').addEventListener('input', detEditCalc);
+}
+
+function detAddRow() {
+  var tr = document.createElement('tr');
+  tr.className = 'det-edit-row';
+  tr.style.borderBottom = '1px solid #e2e8f0';
+  tr.innerHTML = '<input type="hidden" name="item_id[]" value="">'
+    + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_name[]" list="inv-products-datalist" placeholder="اسم الصنف..." required></td>'
+    + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_unit[]" placeholder="وحدة..." style="min-width:55px;"></td>'
+    + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-qty" name="quantity[]" step="0.01" min="0.01" placeholder="1" required></td>'
+    + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-price" name="unit_price[]" step="1" min="0" placeholder="0" required></td>'
+    + '<td style="padding:6px 8px;"><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + _todayStr + '" required></td>'
+    + '<td style="padding:6px 8px;font-weight:700;color:#1565c0;" class="det-row-total">0.00</td>'
+    + '<td style="padding:6px;"><button type="button" onclick="this.closest('tr').remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>';
+  var tbody = document.getElementById('det-edit-tbody');
+  if (tbody) tbody.appendChild(tr);
+  detEditCalc();
+}
+
+function detEditCalc() {
+  document.querySelectorAll('#det-edit-tbody .det-edit-row').forEach(function(row) {
+    var q = parseFloat(row.querySelector('.det-edit-qty') ? row.querySelector('.det-edit-qty').value : 0) || 0;
+    var p = parseFloat(row.querySelector('.det-edit-price') ? row.querySelector('.det-edit-price').value : 0) || 0;
+    var tot = row.querySelector('.det-row-total');
+    if (tot) tot.textContent = (q * p).toFixed(2);
+  });
+}
+
+function getUnknownProducts() {
+  var known = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
+  var unknown = [];
+  document.querySelectorAll('#det-edit-tbody .det-edit-row').forEach(function(row) {
+    var inp = row.querySelector('input[name="product_name[]"]');
+    if (!inp) return;
+    var val = inp.value.trim();
+    if (val && known.indexOf(val.toLowerCase()) === -1) unknown.push(val);
+  });
+  return unknown;
+}
+
+async function saveDetailEdits() {
+  var unknowns = getUnknownProducts();
+  if (unknowns.length > 0) {
+    var warn = document.getElementById('det-unknown-warn');
+    document.getElementById('det-unknown-text').textContent = 'الأصناف التالية غير موجودة في المخزن: ' + unknowns.join('، ');
+    warn.style.display = 'block';
+    return;
+  }
+  await confirmEditSave(1);
+}
+
+async function confirmEditSave(addToStock) {
+  var warn = document.getElementById('det-unknown-warn');
+  if (warn) warn.style.display = 'none';
+  var errEl = document.getElementById('det-edit-error');
+  if (!errEl) return;
+  errEl.style.display = 'none';
+  var csrf = document.querySelector('input[name="_csrf_token"]') ? document.querySelector('input[name="_csrf_token"]').value : '';
+  var fd = new FormData();
+  fd.append('_csrf_token', csrf);
+  document.querySelectorAll('#det-edit-tbody .det-edit-row').forEach(function(row) {
+    fd.append('item_id[]', row.querySelector('input[name="item_id[]"]') ? row.querySelector('input[name="item_id[]"]').value : '');
+    fd.append('product_name[]', row.querySelector('input[name="product_name[]"]') ? row.querySelector('input[name="product_name[]"]').value : '');
+    fd.append('product_unit[]', row.querySelector('input[name="product_unit[]"]') ? row.querySelector('input[name="product_unit[]"]').value : '');
+    fd.append('quantity[]', row.querySelector('input[name="quantity[]"]') ? row.querySelector('input[name="quantity[]"]').value : '');
+    fd.append('unit_price[]', row.querySelector('input[name="unit_price[]"]') ? row.querySelector('input[name="unit_price[]"]').value : '');
+    fd.append('purchase_date[]', row.querySelector('input[name="purchase_date[]"]') ? row.querySelector('input[name="purchase_date[]"]').value : '');
+    var iidInp = row.querySelector('input[name="item_id[]"]');
+    var isNew = !iidInp || !iidInp.value;
+    fd.append('add_to_stock[]', (isNew && !addToStock) ? '0' : '1');
+  });
+  try {
+    var res = await fetch('/api/incoming_invoice/' + _detailInvId + '/update_items', {
+      method: 'POST', body: fd, headers: {'X-CSRF-Token': csrf}
+    });
+    var d = await res.json();
+    if (d.ok) { openDetailModal(_detailInvId); }
+    else { errEl.textContent = d.error || 'حدث خطأ'; errEl.style.display = 'block'; }
+  } catch(ex) { errEl.textContent = 'خطأ في الاتصال'; errEl.style.display = 'block'; }
+}
+
+/* ===== Unknown product warning in Add Invoice Modal ===== */
+document.getElementById('inv-items-body').addEventListener('change', function(e) {
+  var inp = e.target;
+  if (!inp || inp.getAttribute('name') !== 'product_name[]') return;
+  var val = inp.value.trim();
+  if (!val) return;
+  var known = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
+  var row = inp.closest('tr');
+  var existing = row ? row.querySelector('.inv-unknown-badge') : null;
+  if (known.indexOf(val.toLowerCase()) === -1) {
+    // Auto-fill unit from datalist if possible
+    var opt = document.querySelector('#inv-products-datalist option[value="' + val + '"]');
+    if (opt) {
+      var unitInp = row ? row.querySelector('.inv-unit') : null;
+      if (unitInp && !unitInp.value) unitInp.value = opt.textContent.trim() || opt.getAttribute('label') || '';
+    }
+    if (!existing) {
+      var badge = document.createElement('span');
+      badge.className = 'inv-unknown-badge';
+      badge.style.cssText = 'font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 5px;margin-right:4px;border:1px solid #f59e0b;white-space:nowrap;';
+      badge.textContent = '⚠ صنف جديد';
+      inp.parentNode.insertBefore(badge, inp.nextSibling);
+    }
+  } else {
+    // Auto-fill unit
+    var opt2 = document.querySelector('#inv-products-datalist option[value="' + val + '"]');
+    var unitInp2 = row ? row.querySelector('.inv-unit') : null;
+    if (opt2 && unitInp2 && !unitInp2.value) unitInp2.value = opt2.textContent.trim() || opt2.getAttribute('label') || '';
+    if (existing) existing.remove();
+  }
+});
 </script>
 {% endblock %}

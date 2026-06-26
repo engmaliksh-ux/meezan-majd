@@ -2130,7 +2130,7 @@ def api_incoming_invoice_detail(id):
         conn.close()
         return jsonify({"ok": False})
     inv_d = dict(inv)
-    c.execute("""SELECT ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
+    c.execute("""SELECT ii.id, ii.product_id, ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
                         p.name AS product_name, p.unit AS product_unit
                  FROM incoming_invoice_items ii
                  JOIN products p ON p.id = ii.product_id
@@ -2243,6 +2243,81 @@ def api_upload_invoice_image(id, img_type):
         return jsonify({"ok": False, "error": "خطأ في التحقق"})
     if img_type not in ("invoice", "receipt", "attachment"):
         return jsonify({"ok": False, "error": "نوع غير صالح"})
+
+
+@app.route("/api/incoming_invoice/<int:id>/update_items", methods=["POST"])
+def api_update_invoice_items(id):
+    """تعديل وإضافة أصناف لفاتورة مفتوحة — AJAX JSON"""
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    if session.get("role") == "observer":
+        return jsonify({"ok": False, "error": "ليس لديك صلاحية"})
+    if not validate_csrf():
+        return jsonify({"ok": False, "error": "خطأ في التحقق"})
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, is_closed FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    inv_row = c.fetchone()
+    if not inv_row:
+        conn.close(); return jsonify({"ok": False, "error": "الفاتورة غير موجودة"})
+    if inv_row["is_closed"]:
+        conn.close(); return jsonify({"ok": False, "error": "الفاتورة مغلقة"})
+    import datetime as _dt2
+    now_str = _dt2.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    item_ids   = request.form.getlist("item_id[]")
+    names      = request.form.getlist("product_name[]")
+    units      = request.form.getlist("product_unit[]")
+    qtys       = request.form.getlist("quantity[]")
+    prices     = request.form.getlist("unit_price[]")
+    dates      = request.form.getlist("purchase_date[]")
+    add_stocks = request.form.getlist("add_to_stock[]")
+    processed = 0
+    for i in range(len(names)):
+        name = names[i].strip() if i < len(names) else ""
+        unit = units[i].strip() if i < len(units) else ""
+        iid  = item_ids[i].strip() if i < len(item_ids) else ""
+        add_stock = (add_stocks[i] if i < len(add_stocks) else "1") != "0"
+        try:
+            qty   = float(qtys[i])   if i < len(qtys)   and qtys[i]   else 0
+            price = float(prices[i]) if i < len(prices) and prices[i] else 0
+        except ValueError:
+            continue
+        date = dates[i] if i < len(dates) and dates[i] else now_str[:10]
+        if not name or qty <= 0:
+            continue
+        c.execute("SELECT id, unit FROM products WHERE LOWER(name)=LOWER(?) AND org_id=?", (name, org_id))
+        prow = c.fetchone()
+        if prow:
+            prod_id = prow["id"]
+            if unit and unit != prow["unit"]:
+                c.execute("UPDATE products SET unit=?, last_modified=? WHERE id=?", (unit, now_str, prod_id))
+        else:
+            c.execute("INSERT INTO products (org_id, name, unit, last_modified) VALUES (?,?,?,?)",
+                      (org_id, name, unit or "وحدة", now_str))
+            prod_id = c.lastrowid
+        if iid:
+            c.execute("SELECT quantity FROM incoming_invoice_items WHERE id=? AND invoice_id=?", (iid, id))
+            old = c.fetchone()
+            if old:
+                qty_diff = qty - old["quantity"]
+                c.execute("UPDATE incoming_invoice_items SET quantity=?, unit_price=?, total_price=?, purchase_date=? WHERE id=?",
+                          (qty, price, qty * price, date, iid))
+                c.execute("""UPDATE stock_batches SET quantity_remaining=quantity_remaining+?, unit_price=?, entry_date=?
+                             WHERE product_id=? AND invoice_id=? AND org_id=?""",
+                          (qty_diff, price, date, prod_id, id, org_id))
+        else:
+            c.execute("INSERT INTO incoming_invoice_items (invoice_id, product_id, quantity, unit_price, total_price, purchase_date) VALUES (?,?,?,?,?,?)",
+                      (id, prod_id, qty, price, qty * price, date))
+            if add_stock:
+                c.execute("INSERT INTO stock_batches (org_id, product_id, quantity_remaining, unit_price, entry_date, invoice_id) VALUES (?,?,?,?,?,?)",
+                          (org_id, prod_id, qty, price, date, id))
+        c.execute("UPDATE products SET last_modified=? WHERE id=?", (now_str, prod_id))
+        processed += 1
+    if processed == 0:
+        conn.close(); return jsonify({"ok": False, "error": "لا توجد أصناف صالحة للحفظ"})
+    conn.commit(); conn.close()
+    return jsonify({"ok": True})
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
