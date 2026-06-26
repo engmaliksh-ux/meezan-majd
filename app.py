@@ -1985,19 +1985,21 @@ def delete_beneficiary(id):
 # المشتريات (فواتير الإدخال)
 # ══════════════════════════════════════════
 
-@app.route("/add_incoming_invoice", methods=["GET", "POST"])
-@invoices_required
+@app.route("/add_incoming_invoice", methods=["POST"])
 def add_incoming_invoice():
-    """صفحة إضافة فاتورة مشتريات جديدة"""
+    """إضافة فاتورة مشتريات — AJAX JSON"""
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
     if session.get("role") == "observer":
-        flash("مراقب عام: لا تملك صلاحية الإضافة", "danger")
-        return redirect(url_for("incoming_invoice"))
+        return jsonify({"ok": False, "error": "ليس لديك صلاحية"})
+    if not validate_csrf():
+        return jsonify({"ok": False, "error": "خطأ في التحقق، أعد المحاولة"})
 
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
 
-    if request.method == "POST":
+    if True:
         supplier                 = request.form.get("supplier", "").strip()
         invoice_date             = request.form.get("invoice_date", "").strip()
         purchase_invoice_number  = request.form.get("purchase_invoice_number", "").strip()
@@ -2015,9 +2017,11 @@ def add_incoming_invoice():
         ]
 
         if not supplier:
-            flash("يرجى تعبئة اسم المورد", "danger")
+            conn.close()
+            return jsonify({"ok": False, "error": "يرجى تعبئة اسم المورد"})
         elif not valid_items:
-            flash("يرجى إضافة صنف واحد على الأقل ببيانات كاملة", "danger")
+            conn.close()
+            return jsonify({"ok": False, "error": "يرجى إضافة صنف واحد على الأقل ببيانات كاملة"})
         else:
             c.execute("SELECT COALESCE(MAX(seq_num),0) FROM incoming_invoices WHERE org_id=?", (org_id,))
             next_seq = c.fetchone()[0] + 1
@@ -2066,15 +2070,10 @@ def add_incoming_invoice():
 
             conn.commit()
             conn.close()
-            flash("✅ تم حفظ فاتورة المشتريات", "success")
-            return redirect(url_for("incoming_invoices_list"))
+            return jsonify({"ok": True})
 
-    c.execute("SELECT name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
-    existing_products = [dict(r) for r in c.fetchall()]
-    today_str = datetime.now().strftime("%Y-%m-%d")
     conn.close()
-    return render_template("add_incoming_invoice.html",
-                           existing_products=existing_products, today_str=today_str)
+    return jsonify({"ok": False, "error": "طلب غير صالح"})
 
 
 @app.route("/incoming_invoice", methods=["GET"])
@@ -2103,10 +2102,43 @@ def incoming_invoice():
         total_purchases += inv_total
         summary.append(inv_d)
 
+    c2 = conn.cursor()
+    c2.execute("SELECT name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
+    existing_products = [dict(r) for r in c2.fetchall()]
+    today_str = datetime.now().strftime("%Y-%m-%d")
     conn.close()
     return render_template("incoming_invoices.html",
         summary=summary,
-        total_purchases=total_purchases)
+        total_purchases=total_purchases,
+        existing_products=existing_products,
+        today_str=today_str)
+
+
+@app.route("/api/incoming_invoice/<int:id>/detail")
+def api_incoming_invoice_detail(id):
+    if "user_id" not in session:
+        return jsonify({"ok": False})
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""SELECT id, seq_num, invoice_date, supplier, is_closed, is_paid,
+                        purchase_invoice_number, invoice_name, notes, created_at
+                 FROM incoming_invoices WHERE id=? AND org_id=?""", (id, org_id))
+    inv = c.fetchone()
+    if not inv:
+        conn.close()
+        return jsonify({"ok": False})
+    inv_d = dict(inv)
+    c.execute("""SELECT ii.quantity, ii.unit_price, ii.total_price, ii.purchase_date,
+                        p.name AS product_name, p.unit AS product_unit
+                 FROM incoming_invoice_items ii
+                 JOIN products p ON p.id = ii.product_id
+                 WHERE ii.invoice_id=? ORDER BY ii.id""", (id,))
+    items = [dict(r) for r in c.fetchall()]
+    inv_d["items"] = items
+    inv_d["total"] = sum(it["total_price"] for it in items)
+    conn.close()
+    return jsonify({"ok": True, "invoice": inv_d})
 
 
 @app.route("/incoming_invoice/<int:id>/add_items", methods=["POST"])
