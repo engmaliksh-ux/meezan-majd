@@ -7297,4 +7297,17 @@ def api_camp_join_request_add():
                          WHERE id=?""", (full_name, ben_id, existing["id"]))
         else:
             c.execute("""INSERT INTO camp_join_requests
-                         (camp_entity_id, beneficiary_id, id_number, full_name, status
+                         (camp_entity_id, beneficiary_id, id_number, full_name, status)
+                         VALUES (?,?,?,?,'pending')""",
+                      (camp_id, ben_id, id_number, full_name))
+        conn.commit(); conn.close()
+        return jsonify({"ok": True, "registered": ben_id is not None})
+    except Exception as e:
+        try: conn.close()
+        except: pass
+        return jsonify({"ok": False, "error": str(e)})
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True)
