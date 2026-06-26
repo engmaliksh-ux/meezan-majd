@@ -512,7 +512,7 @@ function openEditMode() {
       + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-price" name="unit_price[]" value="' + it.unit_price + '" step="1" min="0" style="min-width:70px;" required></td>'
       + '<td style="padding:6px 8px;"><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + (it.purchase_date||_todayStr) + '" required></td>'
       + '<td style="padding:6px 8px;font-weight:700;color:#1565c0;" class="det-row-total">' + parseFloat(it.total_price).toFixed(2) + '</td>'
-      + '<td style="padding:6px;"><button type="button" onclick="this.closest('tr').remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>'
+      + '<td style="padding:6px;"><button type="button" onclick="this.closest(&quot;tr&quot;).remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>'
       + '</tr>';
   }).join('');
   document.getElementById('detail-body').innerHTML =
@@ -557,7 +557,7 @@ function detAddRow() {
     + '<td style="padding:6px 8px;"><input type="number" class="form-control form-control-sm det-edit-price" name="unit_price[]" step="1" min="0" placeholder="0" required></td>'
     + '<td style="padding:6px 8px;"><input type="date" class="form-control form-control-sm" name="purchase_date[]" value="' + _todayStr + '" required></td>'
     + '<td style="padding:6px 8px;font-weight:700;color:#1565c0;" class="det-row-total">0.00</td>'
-    + '<td style="padding:6px;"><button type="button" onclick="this.closest('tr').remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>';
+    + '<td style="padding:6px;"><button type="button" onclick="this.closest(&quot;tr&quot;).remove();detEditCalc();" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button></td>';
   var tbody = document.getElementById('det-edit-tbody');
   if (tbody) tbody.appendChild(tr);
   detEditCalc();
