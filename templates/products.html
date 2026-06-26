@@ -181,9 +181,9 @@
           <i class="fas fa-chevron-down" id="filter-chev" style="font-size:.6rem;transition:transform .2s;"></i>
         </button>
         <div id="filter-drop"
-             style="display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:170px;
-                    background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.15);
-                    border:1px solid #e5e7eb;overflow:hidden;z-index:200;">
+             style="display:none;position:fixed;min-width:180px;
+                    background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);
+                    border:1px solid #e5e7eb;overflow:hidden;z-index:9999;">
           <button class="fdrop-item fdrop-active" onclick="filterByStatus('all')" data-key="all">
             <i class="fas fa-th-list"></i> الكل <span class="fdrop-num">{{ products|length }}</span>
           </button>
@@ -339,6 +339,13 @@ async function submitEditProduct(e){
 function toggleFilterDrop(){
   var drop=document.getElementById('filter-drop'),chev=document.getElementById('filter-chev');
   var open=drop.style.display==='none';
+  if(open){
+    var btn=document.getElementById('filter-btn');
+    var rect=btn.getBoundingClientRect();
+    drop.style.top=(rect.bottom+6)+'px';
+    drop.style.right=(window.innerWidth-rect.right)+'px';
+    drop.style.left='auto';
+  }
   drop.style.display=open?'block':'none';
   chev.style.transform=open?'rotate(180deg)':'';
   if(open){setTimeout(function(){document.addEventListener('click',function _c(e){
