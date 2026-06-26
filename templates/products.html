@@ -288,7 +288,9 @@ function closeAddProductModal(){
 }
 async function submitAddProduct(e){
   e.preventDefault();
-  var btn=document.getElementById('add-prod-btn'),err=document.getElementById('add-prod-error');
+  var btn=document.getElementById('add-prod-btn');
+  var err=document.getElementById('add-prod-error');
+  if(!err){err=document.createElement('div');err.id='add-prod-error';err.className='alert alert-danger';err.style.display='none';var fm=document.getElementById('add-prod-form');if(fm)fm.parentNode.insertBefore(err,fm);}
   err.style.display='none'; btn.disabled=true;
   btn.innerHTML='<i class="fas fa-spinner fa-spin me-2"></i>جارٍ الحفظ…';
   try{

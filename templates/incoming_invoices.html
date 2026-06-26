@@ -303,6 +303,14 @@ async function submitAddInvoice(e) {
   e.preventDefault();
   var btn = document.getElementById('addinv-btn');
   var err = document.getElementById('addinv-error');
+  if (!err) {
+    err = document.createElement('div');
+    err.id = 'addinv-error';
+    err.className = 'alert alert-danger mb-3';
+    err.style.display = 'none';
+    var form = document.getElementById('addinv-form');
+    if (form) form.parentNode.insertBefore(err, form);
+  }
   err.style.display = 'none';
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جارٍ الحفظ…';
