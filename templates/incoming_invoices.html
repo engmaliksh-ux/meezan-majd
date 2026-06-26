@@ -10,7 +10,7 @@
 <div id="addinv-modal"
      style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
             z-index:1051;width:min(98vw,780px);background:#fff;border-radius:20px;
-            box-shadow:0 24px 70px rgba(0,0,0,.22);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+            box-shadow:0 24px 70px rgba(0,0,0,.22);overflow:hidden;max-height:90vh;flex-direction:column;">
   <div style="background:linear-gradient(135deg,#1565c0,#1976d2);padding:16px 22px;
               display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
     <span style="color:#fff;font-weight:800;font-size:.97rem;">
@@ -109,7 +109,7 @@
 <div id="detail-modal"
      style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
             z-index:1051;width:min(98vw,680px);background:#fff;border-radius:20px;
-            box-shadow:0 24px 70px rgba(0,0,0,.22);overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
+            box-shadow:0 24px 70px rgba(0,0,0,.22);overflow:hidden;max-height:88vh;flex-direction:column;">
   <div style="background:linear-gradient(135deg,#1565c0,#1976d2);padding:16px 22px;
               display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
     <span style="color:#fff;font-weight:800;font-size:.97rem;" id="detail-title">
@@ -228,7 +228,7 @@ function _ani(ov, md) {
 function openAddInvModal() {
   var ov = document.getElementById('addinv-overlay');
   var md = document.getElementById('addinv-modal');
-  ov.style.display = 'block'; md.style.display = 'flex'; _ani(ov, md);
+  ov.style.display = 'block'; md.style.display = 'flex'; md.style.flexDirection = 'column'; _ani(ov, md);
   document.getElementById('inv-date').value = _todayStr;
   document.getElementById('inv-first-date').value = _todayStr;
   setTimeout(function(){ document.getElementById('inv-supplier').focus(); }, 60);
@@ -323,65 +323,127 @@ async function submitAddInvoice(e) {
 }
 
 /* ===== Invoice Detail Modal ===== */
+var _detailInvId = null;
+var _detailCsrf = document.querySelector('input[name="_csrf_token"]') ? document.querySelector('input[name="_csrf_token"]').value : '';
+
 function openDetailModal(id) {
+  _detailInvId = id;
   var ov = document.getElementById('detail-overlay');
   var md = document.getElementById('detail-modal');
-  ov.style.display = 'block'; md.style.display = 'flex'; _ani(ov, md);
+  ov.style.display = 'block'; md.style.display = 'flex'; md.style.flexDirection = 'column'; _ani(ov, md);
   document.getElementById('detail-body').innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
   fetch('/api/incoming_invoice/' + id + '/detail')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (!d.ok) { document.getElementById('detail-body').innerHTML = '<p class="text-danger text-center">فشل تحميل البيانات</p>'; return; }
-      var inv = d.invoice;
-      document.getElementById('detail-title').innerHTML = '<i class="fas fa-file-invoice me-2"></i>فاتورة #' + (inv.seq_num || inv.id) + ' — ' + inv.supplier;
-      var paidBadge = inv.is_paid
-        ? '<span class="badge" style="background:#e8f5ee;color:#1a6b3a;"><i class="fas fa-check-circle me-1"></i>مدفوعة</span>'
-        : '<span class="badge" style="background:#fde8e8;color:#c62828;"><i class="fas fa-clock me-1"></i>غير مدفوعة</span>';
-      var closedBadge = inv.is_closed
-        ? '<span class="badge" style="background:#f5f5f5;color:#6c7a72;"><i class="fas fa-lock me-1"></i>مغلقة</span>'
-        : '<span class="badge" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-lock-open me-1"></i>مفتوحة</span>';
-      var itemsRows = inv.items.map(function(it, i) {
-        return '<tr>'
-          + '<td style="color:#94a3b8;font-size:.8rem;">' + (i+1) + '</td>'
-          + '<td style="font-weight:700;">' + it.product_name + '</td>'
-          + '<td><span style="background:#e8f5ee;color:#1a6b3a;padding:2px 8px;border-radius:8px;font-size:.78rem;">' + it.product_unit + '</span></td>'
-          + '<td style="font-weight:700;">' + it.quantity + '</td>'
-          + '<td>' + parseFloat(it.unit_price).toFixed(2) + '</td>'
-          + '<td style="font-weight:800;color:#1565c0;">' + parseFloat(it.total_price).toFixed(2) + '</td>'
-          + '</tr>';
-      }).join('');
-      document.getElementById('detail-body').innerHTML =
-        '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;">'
-        + '<div style="flex:1;min-width:140px;background:#f0f7ff;border-radius:10px;padding:12px 14px;">'
-        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">المورد</div>'
-        + '<div style="font-weight:800;color:#1565c0;">' + inv.supplier + '</div></div>'
-        + '<div style="flex:1;min-width:120px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
-        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">تاريخ الفاتورة</div>'
-        + '<div style="font-weight:700;">' + (inv.invoice_date || '—') + '</div></div>'
-        + '<div style="flex:1;min-width:100px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
-        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">الحالة</div>'
-        + '<div>' + paidBadge + ' ' + closedBadge + '</div></div>'
-        + (inv.invoice_name ? '<div style="flex:1;min-width:120px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
-        + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">اسم الفاتورة</div>'
-        + '<div style="font-weight:700;">' + inv.invoice_name + '</div></div>' : '')
-        + '</div>'
-        + '<div style="border-radius:12px;overflow:hidden;border:1px solid #e0e7ff;">'
-        + '<table style="width:100%;border-collapse:collapse;font-size:.84rem;">'
-        + '<thead><tr style="background:#e3f2fd;">'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">#</th>'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">الصنف</th>'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">الوحدة</th>'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">الكمية</th>'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">سعر الوحدة</th>'
-        + '<th style="padding:9px 12px;text-align:right;color:#1565c0;font-weight:800;">الإجمالي</th>'
-        + '</tr></thead><tbody>' + itemsRows + '</tbody></table></div>'
-        + '<div style="margin-top:14px;text-align:left;font-weight:900;font-size:1rem;color:#1565c0;">'
-        + 'الإجمالي الكلي: ' + parseFloat(inv.total).toFixed(2) + '</div>'
-        + (inv.notes ? '<div style="margin-top:12px;background:#f8fafc;border-radius:8px;padding:10px 14px;font-size:.85rem;color:#6b7280;">'
-        + '<i class="fas fa-sticky-note me-1"></i>' + inv.notes + '</div>' : '');
+      renderDetailModal(d.invoice);
     })
     .catch(function(){ document.getElementById('detail-body').innerHTML = '<p class="text-danger text-center">خطأ في الاتصال</p>'; });
 }
+
+function renderDetailModal(inv) {
+  document.getElementById('detail-title').innerHTML = '<i class="fas fa-file-invoice me-2"></i>فاتورة #' + (inv.seq_num || inv.id) + ' — ' + inv.supplier;
+  var paidBadge = inv.is_paid
+    ? '<span class="badge" style="background:#e8f5ee;color:#1a6b3a;"><i class="fas fa-check-circle me-1"></i>مدفوعة</span>'
+    : '<span class="badge" style="background:#fde8e8;color:#c62828;"><i class="fas fa-clock me-1"></i>غير مدفوعة</span>';
+  var closedBadge = inv.is_closed
+    ? '<span class="badge" style="background:#f5f5f5;color:#6c7a72;"><i class="fas fa-lock me-1"></i>مغلقة</span>'
+    : '<span class="badge" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-lock-open me-1"></i>مفتوحة</span>';
+  var itemsRows = inv.items.map(function(it, i) {
+    return '<tr>'
+      + '<td style="color:#94a3b8;font-size:.8rem;padding:8px 10px;">' + (i+1) + '</td>'
+      + '<td style="font-weight:700;padding:8px 10px;">' + it.product_name + '</td>'
+      + '<td style="padding:8px 10px;"><span style="background:#e8f5ee;color:#1a6b3a;padding:2px 8px;border-radius:8px;font-size:.78rem;">' + it.product_unit + '</span></td>'
+      + '<td style="font-weight:700;padding:8px 10px;">' + it.quantity + '</td>'
+      + '<td style="padding:8px 10px;">' + parseFloat(it.unit_price).toFixed(2) + '</td>'
+      + '<td style="font-weight:800;color:#1565c0;padding:8px 10px;">' + parseFloat(it.total_price).toFixed(2) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  function imgSection(label, fieldName, existingFile) {
+    var preview = existingFile
+      ? '<a href="/uploads/' + existingFile + '" target="_blank" style="display:block;margin-bottom:6px;font-size:.78rem;color:#1565c0;"><i class="fas fa-image me-1"></i>عرض الصورة الحالية</a>'
+      : '';
+    return '<div style="flex:1;min-width:160px;background:#f8fafc;border-radius:10px;padding:10px 12px;">'
+      + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:6px;">' + label + '</div>'
+      + preview
+      + '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.78rem;color:#1565c0;background:#e3f2fd;border-radius:8px;padding:5px 10px;border:1px dashed #90caf9;">'
+      + '<i class="fas fa-upload"></i> رفع صورة'
+      + '<input type="file" accept="image/*" style="display:none;" onchange="uploadInvImg(this,\'' + fieldName + '\')">'
+      + '</label>'
+      + '<div id="img-msg-' + fieldName + '" style="font-size:.72rem;margin-top:4px;"></div>'
+      + '</div>';
+  }
+
+  document.getElementById('detail-body').innerHTML =
+    '<div id="detail-printable">'
+    + '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">'
+    + '<div style="flex:1;min-width:140px;background:#f0f7ff;border-radius:10px;padding:12px 14px;">'
+    + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">المورد</div>'
+    + '<div style="font-weight:800;color:#1565c0;">' + inv.supplier + '</div></div>'
+    + '<div style="flex:1;min-width:110px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
+    + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">تاريخ الفاتورة</div>'
+    + '<div style="font-weight:700;">' + (inv.invoice_date || '—') + '</div></div>'
+    + '<div style="flex:1;min-width:110px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
+    + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">الحالة</div>'
+    + '<div>' + paidBadge + ' ' + closedBadge + '</div></div>'
+    + (inv.invoice_name ? '<div style="flex:1;min-width:110px;background:#f8fafc;border-radius:10px;padding:12px 14px;">'
+    + '<div style="font-size:.72rem;color:#94a3b8;margin-bottom:4px;">اسم الفاتورة</div>'
+    + '<div style="font-weight:700;">' + inv.invoice_name + '</div></div>' : '')
+    + '</div>'
+    + '<div style="border-radius:12px;overflow:hidden;border:1px solid #e0e7ff;margin-bottom:14px;">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:.84rem;">'
+    + '<thead><tr style="background:#e3f2fd;">'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">#</th>'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">الصنف</th>'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">الوحدة</th>'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">الكمية</th>'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">سعر الوحدة</th>'
+    + '<th style="padding:9px 10px;text-align:right;color:#1565c0;font-weight:800;">الإجمالي</th>'
+    + '</tr></thead><tbody>' + itemsRows + '</tbody></table></div>'
+    + '<div style="font-weight:900;font-size:1rem;color:#1565c0;margin-bottom:16px;">'
+    + 'الإجمالي الكلي: ' + parseFloat(inv.total).toFixed(2) + '</div>'
+    + (inv.notes ? '<div style="background:#f8fafc;border-radius:8px;padding:10px 14px;font-size:.85rem;color:#6b7280;margin-bottom:14px;">'
+    + '<i class="fas fa-sticky-note me-1"></i>' + inv.notes + '</div>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">'
+    + imgSection('صورة الفاتورة', 'invoice', inv.invoice_image)
+    + imgSection('سند القبض', 'receipt', inv.receipt_image)
+    + imgSection('مرفق', 'attachment', inv.attachment_image)
+    + '</div>'
+    + '<button onclick="exportDetailPNG()" style="width:100%;padding:11px;background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:800;cursor:pointer;font-family:inherit;">'
+    + '<i class="fas fa-download me-2"></i>تصدير كصورة PNG</button>';
+}
+
+async function uploadInvImg(input, imgType) {
+  if (!input.files[0]) return;
+  var msgEl = document.getElementById('img-msg-' + imgType);
+  msgEl.textContent = 'جارٍ الرفع…'; msgEl.style.color = '#1565c0';
+  var fd = new FormData();
+  fd.append('img_file', input.files[0]);
+  var csrf = document.querySelector('#addinv-form input[name="_csrf_token"]');
+  var csrfVal = csrf ? csrf.value : '';
+  try {
+    var res = await fetch('/api/incoming_invoice/' + _detailInvId + '/upload/' + imgType, {
+      method: 'POST', body: fd, headers: {'X-CSRF-Token': csrfVal}
+    });
+    var d = await res.json();
+    if (d.ok) { msgEl.textContent = '✅ تم الرفع'; msgEl.style.color = '#16a34a'; }
+    else { msgEl.textContent = d.error || 'فشل'; msgEl.style.color = '#dc2626'; }
+  } catch(e) { msgEl.textContent = 'خطأ في الاتصال'; msgEl.style.color = '#dc2626'; }
+}
+
+function exportDetailPNG() {
+  if (typeof html2canvas === 'undefined') { alert('html2canvas غير محمّل'); return; }
+  var el = document.getElementById('detail-printable');
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas){
+    var a = document.createElement('a');
+    a.download = 'invoice_' + _detailInvId + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+}
+
 function closeDetailModal() {
   document.getElementById('detail-overlay').style.display = 'none';
   document.getElementById('detail-modal').style.display = 'none';

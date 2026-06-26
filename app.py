@@ -2122,7 +2122,8 @@ def api_incoming_invoice_detail(id):
     conn = get_connection()
     c = conn.cursor()
     c.execute("""SELECT id, seq_num, invoice_date, supplier, is_closed, is_paid,
-                        purchase_invoice_number, invoice_name, notes, created_at
+                        purchase_invoice_number, invoice_name, notes, created_at,
+                        invoice_image, receipt_image, attachment_image
                  FROM incoming_invoices WHERE id=? AND org_id=?""", (id, org_id))
     inv = c.fetchone()
     if not inv:
@@ -2229,6 +2230,45 @@ def close_invoice(id):
     conn.close()
     flash(f"🔒 تم إغلاق الفاتورة نهائياً — الإجمالي: {total:.2f}", "success")
     return redirect(url_for("incoming_invoice"))
+
+
+@app.route("/api/incoming_invoice/<int:id>/upload/<img_type>", methods=["POST"])
+def api_upload_invoice_image(id, img_type):
+    """رفع صور الفاتورة — AJAX JSON"""
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    if session.get("role") == "observer":
+        return jsonify({"ok": False, "error": "ليس لديك صلاحية"})
+    if not validate_csrf():
+        return jsonify({"ok": False, "error": "خطأ في التحقق"})
+    if img_type not in ("invoice", "receipt", "attachment"):
+        return jsonify({"ok": False, "error": "نوع غير صالح"})
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM incoming_invoices WHERE id=? AND org_id=?", (id, org_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "الفاتورة غير موجودة"})
+    field = {"invoice": "invoice_image", "receipt": "receipt_image", "attachment": "attachment_image"}[img_type]
+    img_file = request.files.get("img_file")
+    if not img_file or not img_file.filename:
+        conn.close()
+        return jsonify({"ok": False, "error": "لم يتم اختيار ملف"})
+    if not allowed_file(img_file.filename) or not allowed_file_content(img_file):
+        conn.close()
+        return jsonify({"ok": False, "error": "صيغة الملف غير مدعومة"})
+    ext = img_file.filename.rsplit(".", 1)[1].lower()
+    stamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    filename = f"{img_type}_{org_id}_{stamp}.{ext}"
+    img_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+    if img_type == "receipt":
+        c.execute(f"UPDATE incoming_invoices SET {field}=?, is_paid=1 WHERE id=? AND org_id=?", (filename, id, org_id))
+    else:
+        c.execute(f"UPDATE incoming_invoices SET {field}=? WHERE id=? AND org_id=?", (filename, id, org_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "filename": filename})
 
 
 @app.route("/incoming_invoice/<int:id>/upload_image", methods=["POST"])
