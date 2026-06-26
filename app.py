@@ -2103,7 +2103,7 @@ def incoming_invoice():
         summary.append(inv_d)
 
     c2 = conn.cursor()
-    c2.execute("SELECT name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
+    c2.execute("SELECT name, unit FROM products WHERE org_id=? AND COALESCE(is_temp,0)=0 ORDER BY name", (org_id,))
     existing_products = [dict(r) for r in c2.fetchall()]
     today_str = datetime.now().strftime("%Y-%m-%d")
     conn.close()
@@ -2293,8 +2293,10 @@ def api_update_invoice_items(id):
             if unit and unit != prow["unit"]:
                 c.execute("UPDATE products SET unit=?, last_modified=? WHERE id=?", (unit, now_str, prod_id))
         else:
-            c.execute("INSERT INTO products (org_id, name, unit, last_modified) VALUES (?,?,?,?)",
-                      (org_id, name, unit or "وحدة", now_str))
+            # New product: mark as temp if add_stock=False (invoice only)
+            is_temp_val = 0 if add_stock else 1
+            c.execute("INSERT INTO products (org_id, name, unit, last_modified, is_temp) VALUES (?,?,?,?,?)",
+                      (org_id, name, unit or "وحدة", now_str, is_temp_val))
             prod_id = c.lastrowid
         if iid:
             c.execute("SELECT quantity FROM incoming_invoice_items WHERE id=? AND invoice_id=?", (iid, id))
@@ -2861,7 +2863,7 @@ def outgoing_invoice():
         return redirect(url_for("outgoing_invoice"))
 
     def get_inventory():
-        c.execute("SELECT id, name, unit FROM products WHERE org_id=? ORDER BY name", (org_id,))
+        c.execute("SELECT id, name, unit FROM products WHERE org_id=? AND COALESCE(is_temp,0)=0 ORDER BY name", (org_id,))
         prods = c.fetchall()
         inv = []
         total_val = 0.0
@@ -5092,22 +5094,28 @@ def api_bell_all():
 
     # طلبات الانضمام للمستفيدين (للأدمن فقط)
     join_requests = []
+    join_count = 0
     if role == "admin":
-        c.execute("""
-            SELECT COUNT(*) FROM beneficiary_share_requests
-            WHERE owner_org_id=? AND status='pending'
-        """, (org_id,))
-        join_count = c.fetchone()[0]
-    else:
-        join_count = 0
+        try:
+            c.execute("""
+                SELECT COUNT(*) FROM beneficiary_share_requests
+                WHERE owner_org_id=? AND status='pending'
+            """, (org_id,))
+            join_count = c.fetchone()[0] or 0
+        except Exception:
+            join_count = 0
 
     # طلبات انضمام المخيم
-    c.execute("""
-        SELECT COUNT(*) FROM camp_join_requests cjr
-        JOIN camp_entities ce ON ce.id = cjr.camp_entity_id
-        WHERE ce.org_id=? AND cjr.status='pending'
-    """, (org_id,))
-    camp_join_count = c.fetchone()[0] or 0
+    camp_join_count = 0
+    try:
+        c.execute("""
+            SELECT COUNT(*) FROM camp_join_requests cjr
+            JOIN camp_entities ce ON ce.id = cjr.camp_entity_id
+            WHERE ce.org_id=? AND cjr.status='pending'
+        """, (org_id,))
+        camp_join_count = c.fetchone()[0] or 0
+    except Exception:
+        camp_join_count = 0
 
     sys_unread = sum(1 for n in sys_notifs if not n["is_read"])
     total_unread = sys_unread + join_count + camp_join_count

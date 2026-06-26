@@ -108,16 +108,19 @@
      style="display:none;position:fixed;inset:0;background:#0006;z-index:1050;"></div>
 <div id="detail-modal"
      style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-            z-index:1051;width:min(98vw,680px);background:#fff;border-radius:20px;
+            z-index:1051;width:min(98vw,860px);background:#fff;border-radius:20px;
             box-shadow:0 24px 70px rgba(0,0,0,.22);overflow:hidden;max-height:88vh;flex-direction:column;">
-  <div style="background:linear-gradient(135deg,#1565c0,#1976d2);padding:16px 22px;
-              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-    <span style="color:#fff;font-weight:800;font-size:.97rem;" id="detail-title">
+  <div style="background:linear-gradient(135deg,#1565c0,#1976d2);padding:14px 22px;
+              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px;">
+    <span style="color:#fff;font-weight:800;font-size:.92rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="detail-title">
       <i class="fas fa-file-invoice me-2"></i>تفاصيل الفاتورة
     </span>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;" id="detail-header-btns">
+      <!-- Edit + PNG buttons injected by JS -->
+    </div>
     <button onclick="closeDetailModal()"
             style="background:rgba(255,255,255,.2);border:none;color:#fff;
-                   cursor:pointer;width:30px;height:30px;border-radius:50%;font-size:.9rem;">
+                   cursor:pointer;width:30px;height:30px;border-radius:50%;font-size:.9rem;flex-shrink:0;">
       <i class="fas fa-times"></i>
     </button>
   </div>
@@ -449,10 +452,15 @@ function renderDetailModal(inv) {
     + imgCard('سند القبض', 'fa-receipt', 'receipt', inv.receipt_image, '#16a34a')
     + imgCard('مرفق إضافي', 'fa-paperclip', 'attachment', inv.attachment_image, '#d97706')
     + '</div></div>'
-    // Edit button (open invoices only) + PNG button
-    + (!inv.is_closed && '{{ session.get("role") }}' !== 'observer'
-      ? '<button onclick="openEditMode()" style="width:100%;padding:11px;background:linear-gradient(135deg,#b45309,#d97706);color:#fff;border:none;border-radius:12px;font-size:.88rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' + '<i class=&quot;fas fa-pen&quot;></i>تعديل الأصناف</button>' : '')
-    + '<button onclick="exportDetailPNG()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">' + '<i class=&quot;fas fa-download&quot;></i>تصدير الفاتورة كصورة PNG</button>';
+    + ''; // end detail-printable wrapper
+  // Inject header action buttons
+  var hdrBtns = document.getElementById('detail-header-btns');
+  if (hdrBtns) {
+    hdrBtns.innerHTML = ''
+      + '<button onclick="exportDetailPNG()" title="تصدير كصورة" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:5px 10px;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">' + '<i class=&quot;fas fa-download&quot;></i><span>PNG</span></button>'
+      + (!inv.is_closed && '{{ session.get("role") }}' !== 'observer'
+        ? '<button onclick="openEditMode()" title="تعديل الأصناف" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:5px 10px;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">' + '<i class=&quot;fas fa-pen&quot;></i><span>تعديل</span></button>' : '');
+  }
 }
 
 async function uploadInvImg(input, imgType) {
