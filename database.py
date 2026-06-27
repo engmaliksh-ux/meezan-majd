@@ -415,7 +415,8 @@ def migrate_db():
         ("beneficiaries", "displacement_date",    "TEXT"),
         ("beneficiaries", "original_address",     "TEXT"),
         ("beneficiaries", "shelter_type",         "TEXT"),
-        ("products",      "is_temp",             "INTEGER NOT NULL DEFAULT 0"),
+        ("products",          "is_temp",        "INTEGER NOT NULL DEFAULT 0"),
+        ("incoming_invoices", "payment_date",   "TEXT"),
     ]
 
     # إنشاء جدول العاملين إن لم يكن موجوداً
