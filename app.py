@@ -1386,7 +1386,7 @@ def products():
             COALESCE((SELECT unit_price FROM stock_batches WHERE product_id=p.id ORDER BY id ASC  LIMIT 1),0),
             COALESCE((SELECT unit_price FROM stock_batches WHERE product_id=p.id ORDER BY id DESC LIMIT 1),0),
             p.last_modified
-        FROM products p WHERE p.org_id=? ORDER BY p.id DESC
+        FROM products p WHERE p.org_id=? AND COALESCE(p.is_temp,0)=0 AND COALESCE(p.is_deleted,0)=0 ORDER BY p.id DESC
     """, (org_id, org_id))
     data = c.fetchall()
     # تصنيف المخزن للفقاعات
@@ -1450,8 +1450,11 @@ def edit_product(id):
 def delete_product(id):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM stock_batches WHERE product_id=? AND org_id=?", (id, session["org_id"]))
-    c.execute("DELETE FROM products WHERE id=? AND org_id=?", (id, session["org_id"]))
+    org_id = session["org_id"]
+    # حذف ناعم: نخفي الصنف من الواجهة لكن نبقي سجله حفاظاً على بيانات الفواتير
+    c.execute("UPDATE products SET is_deleted=1 WHERE id=? AND org_id=?", (id, org_id))
+    # نحذف المخزون لأنه لم يعد صنفاً نشطاً
+    c.execute("DELETE FROM stock_batches WHERE product_id=? AND org_id=?", (id, org_id))
     conn.commit()
     conn.close()
     flash("تم حذف الصنف", "warning")

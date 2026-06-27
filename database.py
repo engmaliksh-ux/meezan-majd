@@ -416,6 +416,7 @@ def migrate_db():
         ("beneficiaries", "original_address",     "TEXT"),
         ("beneficiaries", "shelter_type",         "TEXT"),
         ("products",          "is_temp",        "INTEGER NOT NULL DEFAULT 0"),
+        ("products",          "is_deleted",     "INTEGER NOT NULL DEFAULT 0"),
         ("incoming_invoices", "payment_date",   "TEXT"),
     ]
 
