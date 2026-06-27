@@ -264,9 +264,15 @@ tr:hover td{background:#fafaf7;}
     </div>
 
     <!-- التعاون مع المؤسسات -->
-    <div class="ni" id="nav-coop" onclick="showPage('cooperation',this)" style="cursor:pointer;">
-      <i class="ic fas fa-handshake"></i><span class="lbl">التعاون مع المؤسسات</span>
-      <span class="nbadge" id="coop-badge" style="display:none;"></span>
+    <div class="ni" onclick="toggleSub('sub-coop',this)">
+      <i class="ic fas fa-handshake"></i>
+      <span class="lbl">التعاون مع المؤسسات <span class="nbadge" id="coop-badge" style="display:none;"></span></span>
+      <i class="arrow fas fa-chevron-left"></i>
+    </div>
+    <div class="nsub" id="sub-coop">
+      <a href="#" class="nsubi" onclick="showPage('cooperation',this);return false;">
+        <i class="fas fa-handshake fa-fw"></i> المؤسسات المتاحة
+      </a>
     </div>
 
     <!-- المستودع -->
