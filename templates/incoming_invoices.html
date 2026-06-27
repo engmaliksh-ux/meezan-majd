@@ -158,9 +158,9 @@
         الإجمالي: <strong>{{ "%.2f"|format(expense_total) }}</strong>
       </span>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:10px;">
       {% if session.get('role') in ['admin','accountant','data_entry'] %}
-      <button onclick="document.getElementById('exp-add-form').style.display=
+      <button onclick="event.stopPropagation();document.getElementById('exp-add-form').style.display=
                         document.getElementById('exp-add-form').style.display==='none'?'block':'none'"
               class="btn btn-sm"
               style="background:#f0a500;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.78rem;">
