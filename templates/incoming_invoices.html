@@ -561,8 +561,12 @@ function openEditMode() {
   var inv = _currentInv;
   if (!inv) return;
   var csrf = document.querySelector('input[name="_csrf_token"]') ? document.querySelector('input[name="_csrf_token"]').value : '';
+  var _knownNames = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
   var rows = inv.items.map(function(it) {
-    return '<tr class="det-edit-row" style="border-bottom:1px solid #e2e8f0;">'
+    // existing is_temp products: decision already made → data-add-stock="0", don't ask again
+    var isKnown = _knownNames.indexOf((it.product_name||'').trim().toLowerCase()) !== -1;
+    var addStockAttr = isKnown ? 'data-add-stock="1"' : 'data-add-stock="0"';
+    return '<tr class="det-edit-row" data-existing-item="1" ' + addStockAttr + ' style="border-bottom:1px solid #e2e8f0;">'
       + '<input type="hidden" name="item_id[]" value="' + it.id + '">'
       + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_name[]" value="' + (it.product_name||'') + '" list="inv-products-datalist" style="min-width:100px;"></td>'
       + '<td style="padding:6px 8px;"><input type="text" class="form-control form-control-sm" name="product_unit[]" value="' + (it.product_unit||'') + '" style="min-width:55px;"></td>'
@@ -634,26 +638,29 @@ function getUnknownProducts() {
   var known = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
   var unknown = [];
   document.querySelectorAll('#det-edit-tbody .det-edit-row').forEach(function(row) {
+    // skip rows where decision already made
+    if (row.getAttribute('data-add-stock') !== null) return;
     var inp = row.querySelector('input[name="product_name[]"]');
     if (!inp) return;
     var val = inp.value.trim();
-    if (val && known.indexOf(val.toLowerCase()) === -1) unknown.push(val);
+    if (val && known.indexOf(val.toLowerCase()) === -1)
+      unknown.push({ name: val, row: row });
   });
   return unknown;
 }
 
-async function saveDetailEdits() {
+async async function saveDetailEdits() {
   var unknowns = getUnknownProducts();
   if (unknowns.length > 0) {
-    var warn = document.getElementById('det-unknown-warn');
-    document.getElementById('det-unknown-text').textContent = 'الأصناف التالية غير موجودة في المخزن: ' + unknowns.join('، ');
-    warn.style.display = 'block';
-    return;
+    // Show per-item dialog for undecided unknown products
+    await new Promise(function(resolve) {
+      _showUnknownDialog(unknowns, resolve);
+    });
   }
-  await confirmEditSave(1);
+  await confirmEditSave();
 }
 
-async function confirmEditSave(addToStock) {
+async function confirmEditSave() {
   var warn = document.getElementById('det-unknown-warn');
   if (warn) warn.style.display = 'none';
   var errEl = document.getElementById('det-edit-error');
@@ -669,9 +676,8 @@ async function confirmEditSave(addToStock) {
     fd.append('quantity[]', row.querySelector('input[name="quantity[]"]') ? row.querySelector('input[name="quantity[]"]').value : '');
     fd.append('unit_price[]', row.querySelector('input[name="unit_price[]"]') ? row.querySelector('input[name="unit_price[]"]').value : '');
     fd.append('purchase_date[]', row.querySelector('input[name="purchase_date[]"]') ? row.querySelector('input[name="purchase_date[]"]').value : '');
-    var iidInp = row.querySelector('input[name="item_id[]"]');
-    var isNew = !iidInp || !iidInp.value;
-    fd.append('add_to_stock[]', (isNew && !addToStock) ? '0' : '1');
+    // use per-row decision; default to '1' if not set (known products)
+    fd.append('add_to_stock[]', row.getAttribute('data-add-stock') === '0' ? '0' : '1');
   });
   try {
     var res = await fetch('/api/incoming_invoice/' + _detailInvId + '/update_items', {
