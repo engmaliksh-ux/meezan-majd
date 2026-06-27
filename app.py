@@ -6298,7 +6298,12 @@ def camp_dashboard():
     conn = get_connection()
     c    = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("camp_login"))
+    entity = dict(row)
 
     # طلبات الانضمام (كل الطلبات — مسجلين وغير مسجلين)
     c.execute("""
@@ -6619,7 +6624,12 @@ def camp_settings():
         conn.close()
         return redirect(url_for("camp_settings"))
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("camp_login"))
+    entity = dict(row)
     conn.close()
     return render_template("camp_settings.html", entity=entity)
 
@@ -6629,7 +6639,12 @@ def camp_reports():
     camp_id = session["camp_id"]
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("camp_login"))
+    entity = dict(row)
     # إجماليات الاستفادة حسب النوع
     c.execute("""SELECT benefit_type, COUNT(*) as cnt
                  FROM camp_benefits WHERE camp_entity_id=?
@@ -7257,7 +7272,12 @@ def camp_alerts_route():
     camp_id = session["camp_id"]
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("camp_login"))
+    entity = dict(row)
     c.execute("""SELECT b.* FROM beneficiaries b
                  JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
                  WHERE jr.camp_entity_id=? AND jr.status='approved'
@@ -7274,7 +7294,12 @@ def camp_smart_classify():
     camp_id = session["camp_id"]
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT * FROM camp_entities WHERE id=?", (camp_id,))
-    entity = dict(c.fetchone())
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("camp_login"))
+    entity = dict(row)
     c.execute("""SELECT b.* FROM beneficiaries b
                  JOIN camp_join_requests jr ON jr.beneficiary_id=b.id
                  WHERE jr.camp_entity_id=? AND jr.status='approved'
