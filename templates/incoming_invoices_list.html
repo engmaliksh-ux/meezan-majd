@@ -6,13 +6,7 @@
 <div class="page-header" id="top">
   <h2 class="page-title"><i class="fas fa-archive"></i> الفواتير المضافة</h2>
   <div class="d-flex gap-2">
-    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
-      <i class="fas fa-print me-1"></i> طباعة
-    </button>
-    <a href="{{ url_for('add_incoming_invoice') }}" class="btn btn-primary btn-sm no-print"
-       {% if session.get('role') == 'observer' %}style="display:none"{% endif %}>
-      <i class="fas fa-plus me-1"></i> فاتورة جديدة
-    </a>
+
     <a href="{{ url_for('incoming_invoice') }}" class="btn btn-secondary btn-sm no-print">
       <i class="fas fa-list me-1"></i> الكشف المختصر
     </a>
