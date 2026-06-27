@@ -924,6 +924,7 @@ def init_camp_tables():
         ("camp_entities", "about",            "TEXT"),
         ("camp_entities", "facebook",         "TEXT"),
         ("camp_entities", "telegram",         "TEXT"),
+        ("institution_camp_links", "notes", "TEXT"),
         ("camp_entities", "total_families",   "INTEGER DEFAULT 0"),
         ("camp_entities", "total_members",    "INTEGER DEFAULT 0"),
     ]

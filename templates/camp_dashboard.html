@@ -263,6 +263,12 @@ tr:hover td{background:#fafaf7;}
       </a>
     </div>
 
+    <!-- التعاون مع المؤسسات -->
+    <a href="#" class="ni" id="nav-coop" onclick="showPage('cooperation',this);return false;">
+      <i class="ic fas fa-handshake"></i><span class="lbl">التعاون مع المؤسسات</span>
+      <span class="nbadge" id="coop-badge" style="display:none;"></span>
+    </a>
+
     <!-- المستودع -->
     <a href="{{ url_for('camp_inventory') }}" class="ni">
       <i class="ic fas fa-warehouse"></i><span class="lbl">المستودع</span>
@@ -580,13 +586,37 @@ tr:hover td{background:#fafaf7;}
       </div>
     </div>
 
+    <!-- ══ التعاون مع المؤسسات ══ -->
+    <div id="page-cooperation" class="page">
+      <div class="sec">
+        <div class="sec-hd">
+          <span><i class="fas fa-handshake" style="color:var(--g6);margin-left:6px;"></i>التعاون مع المؤسسات</span>
+        </div>
+
+        <!-- طلباتي الحالية -->
+        <div id="coop-my-requests" style="margin-bottom:18px;"></div>
+
+        <!-- إرسال طلب جديد -->
+        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb;">
+          <div style="font-weight:800;font-size:.88rem;color:#1a6b3a;margin-bottom:10px;">
+            <i class="fas fa-paper-plane me-1"></i> إرسال طلب تعاون لمؤسسة
+          </div>
+          <div id="coop-orgs-loading" style="color:#888;font-size:.8rem;padding:8px 0;">
+            <i class="fas fa-spinner fa-spin me-1"></i> جاري تحميل المؤسسات...
+          </div>
+          <div id="coop-orgs-list" style="display:none;"></div>
+          <div id="coop-flash" style="display:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:700;margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
 <script>
 const PAGE_TITLES = {
   overview:'الرئيسية', members:'كشف المستفيدين',
-  requests:'طلبات الانضمام', benefits:'تسجيل استفادة'
+  requests:'طلبات الانضمام', benefits:'تسجيل استفادة', cooperation:'التعاون مع المؤسسات'
 };
 
 function showPage(name, navEl) {
@@ -597,6 +627,7 @@ function showPage(name, navEl) {
   document.querySelectorAll('.ni').forEach(i => i.classList.remove('active'));
   if (navEl) navEl.classList.add('active');
   if (name === 'members') loadMembers();
+  if (name === 'cooperation') loadCoopOrgs();
 }
 
 function toggleSub(id, el) {
@@ -677,6 +708,68 @@ function showMemFlash(msg,type) {
   f.style.background=type==='error'?'#fee2e2':'#dcfce7';
   f.style.color=type==='error'?'#991b1b':'#166534';
 }
+
+async function loadCoopOrgs() {
+  var r = await fetch('/api/camp/available-orgs').then(x=>x.json()).catch(()=>({ok:false}));
+  document.getElementById('coop-orgs-loading').style.display='none';
+  if(!r.ok) return;
+
+  // عرض طلباتي الحالية
+  var myDiv = document.getElementById('coop-my-requests');
+  if(r.my_requests && r.my_requests.length) {
+    var statusLabel = {pending:'في الانتظار', approved:'مقبول', rejected:'مرفوض'};
+    var statusColor = {pending:'#d97706', approved:'#16a34a', rejected:'#dc2626'};
+    myDiv.innerHTML = '<div style="font-weight:800;font-size:.85rem;color:#555;margin-bottom:8px;">طلباتي الحالية</div>'
+      + r.my_requests.map(req =>
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;">'
+        + '<span style="font-size:.83rem;font-weight:700;"><i class="fas fa-building me-1" style="color:#1a6b3a;"></i>'+req.org_name+'</span>'
+        + '<span style="font-size:.76rem;font-weight:800;color:'+statusColor[req.status]+';">'+statusLabel[req.status]+'</span>'
+        + '</div>'
+      ).join('');
+    // تحديث badge
+    var pend = r.my_requests.filter(x=>x.status==='pending').length;
+    var badge = document.getElementById('coop-badge');
+    if(badge) { if(pend){badge.textContent=pend;badge.style.display='inline-block';}else{badge.style.display='none';} }
+  }
+
+  // عرض المؤسسات المتاحة
+  var listDiv = document.getElementById('coop-orgs-list');
+  if(!r.orgs || !r.orgs.length) {
+    listDiv.innerHTML = '<p style="color:#aaa;font-size:.8rem;padding:8px 0;">لا توجد مؤسسات متاحة للطلب حالياً</p>';
+    listDiv.style.display='block';
+    return;
+  }
+  listDiv.innerHTML = r.orgs.map(org =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;border:1px solid #d1fae5;border-radius:8px;margin-bottom:6px;">'
+    + '<span style="font-size:.83rem;font-weight:700;"><i class="fas fa-building me-1" style="color:#1a6b3a;"></i>'+org.name+'</span>'
+    + '<button onclick="sendCoopRequest('+org.id+',''+org.name+'',this)" class="btn btn-g" style="padding:4px 12px;font-size:.76rem;">'
+    + '<i class="fas fa-paper-plane me-1"></i>طلب تعاون</button>'
+    + '</div>'
+  ).join('');
+  listDiv.style.display='block';
+}
+
+async function sendCoopRequest(orgId, orgName, btn) {
+  if(!confirm('إرسال طلب تعاون إلى مؤسسة "'+orgName+'"؟')) return;
+  btn.disabled=true;
+  var r = await fetch('/api/camp/request-cooperation',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({org_id:orgId})
+  }).then(x=>x.json()).catch(()=>({ok:false,error:'خطأ في الاتصال'}));
+  var flash = document.getElementById('coop-flash');
+  if(r.ok) {
+    flash.textContent='✓ تم إرسال طلب التعاون بنجاح — سيتم إخطار المؤسسة';
+    flash.style.background='#dcfce7'; flash.style.color='#166534';
+    flash.style.display='block';
+    setTimeout(()=>loadCoopOrgs(), 800);
+  } else {
+    flash.textContent=r.error||'حدث خطأ';
+    flash.style.background='#fee2e2'; flash.style.color='#991b1b';
+    flash.style.display='block';
+    btn.disabled=false;
+  }
+}
+
 </script>
 </body>
 </html>

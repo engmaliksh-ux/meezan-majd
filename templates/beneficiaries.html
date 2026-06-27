@@ -68,9 +68,7 @@
         <span><i class="fas fa-user" style="color:#1a6b3a;"></i> <strong>{{ ns.camp_pers }}</strong> شخص</span>
       </div>
       {% if session.get('role') != 'observer' %}
-      <a href="/add_beneficiary?beneficiary_type=camp" class="btn btn-warning btn-sm" style="color:#7a5800;font-size:.78rem;">
-        <i class="fas fa-plus me-1"></i>إضافة مخيم
-      </a>
+      <button onclick="document.getElementById('add-camp-modal').style.display='flex'" class="btn btn-warning btn-sm" style="color:#7a5800;font-size:.78rem;"><i class="fas fa-plus me-1"></i>إضافة مخيم</button>
       {% endif %}
     </div>
   </div>
@@ -124,9 +122,7 @@
       <i class="fas fa-tents fa-3x mb-3" style="color:#ffe082;"></i>
       <p class="fw-bold">لا توجد مخيمات مضافة بعد</p>
       {% if session.get('role') != 'observer' %}
-      <a href="/add_beneficiary?beneficiary_type=camp" class="btn btn-warning btn-sm" style="color:#7a5800;">
-        <i class="fas fa-plus me-1"></i>إضافة مخيم
-      </a>
+      <button onclick="document.getElementById('add-camp-modal').style.display='flex'" class="btn btn-warning btn-sm" style="color:#7a5800;"><i class="fas fa-plus me-1"></i>إضافة مخيم</button>
       {% endif %}
     </div>
     {% endif %}
@@ -407,6 +403,66 @@
 <div class="text-center py-5" style="color:#aaa;"><i class="fas fa-notes-medical fa-2x mb-2"></i><p>لا يوجد مرضى مسجلون</p></div>
 {% endif %}
 </div><!-- /tab-sick -->
+
+<!-- ════════ مودال إضافة مخيم ════════ -->
+<div id="add-camp-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;max-height:90vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#fff8e1,#ffe082);padding:18px 22px;display:flex;align-items:center;gap:12px;position:sticky;top:0;">
+      <i class="fas fa-tents" style="color:#856404;font-size:1.3rem;"></i>
+      <div style="font-weight:900;font-size:1rem;color:#7a5800;">إضافة مخيم جديد</div>
+      <button onclick="document.getElementById('add-camp-modal').style.display='none'"
+              style="margin-right:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&#x2715;</button>
+    </div>
+    <form method="POST" action="/add_beneficiary" style="padding:20px 22px;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="beneficiary_type" value="camp">
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">اسم المخيم <span class="text-danger">*</span></label>
+          <input type="text" name="full_name" class="form-control" placeholder="مثال: مخيم النور" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">المحافظة <span class="text-danger">*</span></label>
+          <input type="text" name="governorate" class="form-control" placeholder="مثال: حلب">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">المدينة / المنطقة</label>
+          <input type="text" name="city" class="form-control" placeholder="مثال: عفرين">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">الحي أو أقرب معلم</label>
+          <input type="text" name="address" class="form-control" placeholder="مثال: قرب مدرسة الشهيد، حي السلام">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">اسم مدير المخيم</label>
+          <input type="text" name="camp_manager_name" class="form-control" placeholder="الاسم الرباعي">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">رقم جوال المدير</label>
+          <input type="text" name="camp_coordinator_phone" class="form-control" placeholder="05xxxxxxxx">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">عدد الأسر / العائلات</label>
+          <input type="number" name="camp_family_count" class="form-control" min="0" placeholder="0">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">عدد الأفراد الإجمالي</label>
+          <input type="number" name="family_size" class="form-control" min="0" placeholder="0" value="1">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">ملاحظات</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="أي معلومات إضافية..."></textarea>
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-warning fw-bold" style="color:#7a5800;">
+          <i class="fas fa-plus me-1"></i>إضافة المخيم
+        </button>
+        <button type="button" onclick="document.getElementById('add-camp-modal').style.display='none'" class="btn btn-light">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- ════════ مودال تعديل المخيم ════════ -->
 <div id="camp-edit-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:20px;">

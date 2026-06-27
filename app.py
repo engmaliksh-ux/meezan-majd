@@ -5145,8 +5145,26 @@ def api_bell_all():
     except Exception:
         camp_join_count = 0
 
+    # طلبات تعاون المخيمات مع المؤسسة
+    coop_count = 0
+    coop_requests = []
+    try:
+        c.execute("""
+            SELECT icl.id, icl.created_at, icl.notes,
+                   ce.name, ce.manager_name, ce.mobile,
+                   ce.governorate, ce.city, ce.street, ce.registered_families
+            FROM institution_camp_links icl
+            JOIN camp_entities ce ON ce.id = icl.camp_entity_id
+            WHERE icl.org_id=? AND icl.status='pending'
+            ORDER BY icl.created_at DESC
+        """, (org_id,))
+        coop_requests = [dict(r) for r in c.fetchall()]
+        coop_count = len(coop_requests)
+    except Exception:
+        coop_count = 0
+
     sys_unread = sum(1 for n in sys_notifs if not n["is_read"])
-    total_unread = sys_unread + join_count + camp_join_count
+    total_unread = sys_unread + join_count + camp_join_count + coop_count
 
     conn.close()
     return jsonify({
@@ -5156,6 +5174,8 @@ def api_bell_all():
         "sys_unread": sys_unread,
         "join_count": join_count,
         "camp_join_count": camp_join_count,
+        "coop_count": coop_count,
+        "coop_requests": coop_requests,
     })
 
 
@@ -5169,6 +5189,93 @@ def api_bell_mark_sys_read():
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════
+# ── نظام التعاون بين المخيمات والمؤسسات ──
+# ══════════════════════════════════════════════════════
+
+@app.route("/api/camp/available-orgs")
+def api_camp_available_orgs():
+    """قائمة المؤسسات المتاحة التي لم يتقدم لها المخيم"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    camp_id = session["camp_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT o.id, o.name, o.email
+        FROM organizations o
+        WHERE o.is_active=1
+        AND o.id NOT IN (
+            SELECT org_id FROM institution_camp_links
+            WHERE camp_entity_id=? AND status IN ('pending','approved')
+        )
+        ORDER BY o.name
+    """, (camp_id,))
+    orgs = [dict(r) for r in c.fetchall()]
+    c.execute("""
+        SELECT icl.id, icl.org_id, icl.status, o.name as org_name
+        FROM institution_camp_links icl
+        JOIN organizations o ON o.id=icl.org_id
+        WHERE icl.camp_entity_id=?
+        ORDER BY icl.created_at DESC
+    """, (camp_id,))
+    my_requests = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"ok": True, "orgs": orgs, "my_requests": my_requests})
+
+
+@app.route("/api/camp/request-cooperation", methods=["POST"])
+def api_camp_request_cooperation():
+    """المخيم يرسل طلب تعاون لمؤسسة"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    camp_id = session["camp_id"]
+    data = request.get_json() or {}
+    org_id = data.get("org_id")
+    if not org_id:
+        return jsonify({"ok": False, "error": "معرّف المؤسسة مطلوب"})
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM institution_camp_links WHERE org_id=? AND camp_entity_id=?",
+              (org_id, camp_id))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "طلب موجود مسبقاً لهذه المؤسسة"})
+    c.execute("SELECT name, manager_name, mobile, governorate, city, street, registered_families FROM camp_entities WHERE id=?", (camp_id,))
+    camp = dict(c.fetchone())
+    notes = f"المخيم: {camp['name']} | المدير: {camp.get('manager_name','')} | الجوال: {camp.get('mobile','')} | العنوان: {camp.get('governorate','')} {camp.get('city','')} {camp.get('street','')} | عدد الأسر: {camp.get('registered_families',0)}"
+    c.execute("INSERT INTO institution_camp_links (org_id, camp_entity_id, status, notes) VALUES (?, ?, 'pending', ?)",
+              (org_id, camp_id, notes))
+    try:
+        c.execute("""INSERT INTO sys_notifications (org_id, title, body, is_read, created_at)
+                     VALUES (?, ?, ?, 0, datetime('now','localtime'))""",
+                  (org_id, f"طلب تعاون من مخيم {camp['name']}",
+                   f"عدد الأسر: {camp.get('registered_families',0)} | {camp.get('governorate','')} {camp.get('city','')}"))
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/org/camp-link/<int:link_id>/<action>")
+@login_required
+def org_handle_camp_link(link_id, action):
+    """المؤسسة تقبل أو ترفض طلب تعاون مخيم"""
+    if action not in ("approve", "reject"):
+        return redirect(url_for("beneficiaries"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    new_status = "approved" if action == "approve" else "rejected"
+    c.execute("UPDATE institution_camp_links SET status=?, resolved_at=datetime('now','localtime') WHERE id=? AND org_id=?",
+              (new_status, link_id, org_id))
+    conn.commit()
+    conn.close()
+    flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم رفض الطلب", "success" if action == "approve" else "warning")
+    return redirect(url_for("beneficiaries"))
 
 
 if __name__ == "__main__":
@@ -7489,6 +7596,93 @@ def api_camp_join_request_add():
         try: conn.close()
         except: pass
         return jsonify({"ok": False, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════
+# ── نظام التعاون بين المخيمات والمؤسسات ──
+# ══════════════════════════════════════════════════════
+
+@app.route("/api/camp/available-orgs")
+def api_camp_available_orgs():
+    """قائمة المؤسسات المتاحة التي لم يتقدم لها المخيم"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    camp_id = session["camp_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT o.id, o.name, o.email
+        FROM organizations o
+        WHERE o.is_active=1
+        AND o.id NOT IN (
+            SELECT org_id FROM institution_camp_links
+            WHERE camp_entity_id=? AND status IN ('pending','approved')
+        )
+        ORDER BY o.name
+    """, (camp_id,))
+    orgs = [dict(r) for r in c.fetchall()]
+    c.execute("""
+        SELECT icl.id, icl.org_id, icl.status, o.name as org_name
+        FROM institution_camp_links icl
+        JOIN organizations o ON o.id=icl.org_id
+        WHERE icl.camp_entity_id=?
+        ORDER BY icl.created_at DESC
+    """, (camp_id,))
+    my_requests = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"ok": True, "orgs": orgs, "my_requests": my_requests})
+
+
+@app.route("/api/camp/request-cooperation", methods=["POST"])
+def api_camp_request_cooperation():
+    """المخيم يرسل طلب تعاون لمؤسسة"""
+    if "camp_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
+    camp_id = session["camp_id"]
+    data = request.get_json() or {}
+    org_id = data.get("org_id")
+    if not org_id:
+        return jsonify({"ok": False, "error": "معرّف المؤسسة مطلوب"})
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM institution_camp_links WHERE org_id=? AND camp_entity_id=?",
+              (org_id, camp_id))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"ok": False, "error": "طلب موجود مسبقاً لهذه المؤسسة"})
+    c.execute("SELECT name, manager_name, mobile, governorate, city, street, registered_families FROM camp_entities WHERE id=?", (camp_id,))
+    camp = dict(c.fetchone())
+    notes = f"المخيم: {camp['name']} | المدير: {camp.get('manager_name','')} | الجوال: {camp.get('mobile','')} | العنوان: {camp.get('governorate','')} {camp.get('city','')} {camp.get('street','')} | عدد الأسر: {camp.get('registered_families',0)}"
+    c.execute("INSERT INTO institution_camp_links (org_id, camp_entity_id, status, notes) VALUES (?, ?, 'pending', ?)",
+              (org_id, camp_id, notes))
+    try:
+        c.execute("""INSERT INTO sys_notifications (org_id, title, body, is_read, created_at)
+                     VALUES (?, ?, ?, 0, datetime('now','localtime'))""",
+                  (org_id, f"طلب تعاون من مخيم {camp['name']}",
+                   f"عدد الأسر: {camp.get('registered_families',0)} | {camp.get('governorate','')} {camp.get('city','')}"))
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/org/camp-link/<int:link_id>/<action>")
+@login_required
+def org_handle_camp_link(link_id, action):
+    """المؤسسة تقبل أو ترفض طلب تعاون مخيم"""
+    if action not in ("approve", "reject"):
+        return redirect(url_for("beneficiaries"))
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+    new_status = "approved" if action == "approve" else "rejected"
+    c.execute("UPDATE institution_camp_links SET status=?, resolved_at=datetime('now','localtime') WHERE id=? AND org_id=?",
+              (new_status, link_id, org_id))
+    conn.commit()
+    conn.close()
+    flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم رفض الطلب", "success" if action == "approve" else "warning")
+    return redirect(url_for("beneficiaries"))
 
 
 if __name__ == "__main__":
