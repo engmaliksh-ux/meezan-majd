@@ -1507,6 +1507,33 @@ def beneficiaries():
     else:
         c.execute("SELECT * FROM beneficiary_family_members WHERE 1=0")
     fam_rows = c.fetchall()
+
+    # جلب مخيمات التعاون المقبولة مع مستفيديها
+    coop_camps = []
+    try:
+        c.execute("""
+            SELECT ce.id as entity_id, ce.name, ce.manager_name, ce.mobile,
+                   ce.governorate, ce.city, ce.street, ce.registered_families,
+                   icl.id as link_id
+            FROM institution_camp_links icl
+            JOIN camp_entities ce ON ce.id = icl.camp_entity_id
+            WHERE icl.org_id=? AND icl.status='approved'
+            ORDER BY ce.name ASC
+        """, (org_id,))
+        for cc in [dict(r) for r in c.fetchall()]:
+            c.execute("""
+                SELECT b.id, b.full_name, b.phone, b.id_number, b.family_size,
+                       b.gender, b.city, b.neighborhood, b.has_orphans,
+                       b.wife_pregnant, b.wife_nursing
+                FROM beneficiaries b
+                WHERE b.camp_entity_id=? AND b.beneficiary_status='in_camp'
+                ORDER BY b.full_name ASC
+            """, (cc['entity_id'],))
+            cc['persons'] = [dict(r) for r in c.fetchall()]
+            coop_camps.append(cc)
+    except Exception:
+        coop_camps = []
+
     conn.close()
 
     # بناء قاموس أفراد الأسرة مرتبة بـ beneficiary_id
@@ -1603,6 +1630,7 @@ def beneficiaries():
 
     return render_template("beneficiaries.html",
                            beneficiaries=data, camps=camps,
+                           coop_camps=coop_camps,
                            unlinked_persons=unlinked, persons=persons,
                            persons_sorted=persons_sorted,
                            orphan_list=orphan_list,

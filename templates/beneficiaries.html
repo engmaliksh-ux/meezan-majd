@@ -118,6 +118,7 @@
       </table>
     </div>
     {% else %}
+    {% if not coop_camps %}
     <div class="text-center py-5" style="color:#6c7a72;">
       <i class="fas fa-tents fa-3x mb-3" style="color:#ffe082;"></i>
       <p class="fw-bold">لا توجد مخيمات مضافة بعد</p>
@@ -128,6 +129,111 @@
     {% endif %}
   </div>
 </div>
+
+{% if coop_camps %}
+<!-- ─── مخيمات التعاون المقبولة ─── -->
+<div class="section-card mb-4">
+  <div class="section-card-header" onclick="toggleSection('coop-camps-body','coop-camps-chev')">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-handshake" style="color:#0d6832;font-size:1rem;"></i>
+      <span style="font-weight:800;color:#0d6832;">مخيمات التعاون</span>
+      <span class="count-badge" style="background:#d1fae5;color:#065f46;">{{ coop_camps|length }}</span>
+      <i class="fas fa-chevron-up" id="coop-camps-chev" style="font-size:.72rem;color:#94a3b8;transition:.25s;margin-right:4px;"></i>
+    </div>
+    <div style="font-size:.82rem;color:#6c7a72;">
+      <strong>{{ coop_camps|sum(attribute='registered_families') }}</strong> أسرة مسجلة
+    </div>
+  </div>
+  <div id="coop-camps-body">
+    <div class="table-responsive">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>اسم المخيم</th>
+            <th>مدير المخيم</th>
+            <th>الجوال</th>
+            <th>الموقع</th>
+            <th style="text-align:center;">الأسر المسجلة</th>
+            <th style="text-align:center;">الأعضاء في النظام</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cc in coop_camps %}
+          <tr style="cursor:pointer;" onclick="openCoopCampDetail({{ loop.index0 }})">
+            <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
+            <td>
+              <div style="font-weight:800;color:#0d6832;">
+                <i class="fas fa-handshake me-2" style="opacity:.55;"></i>{{ cc.name }}
+              </div>
+              <span style="font-size:.7rem;background:#d1fae5;color:#065f46;padding:1px 7px;border-radius:10px;">مرتبط عبر التعاون</span>
+            </td>
+            <td style="font-weight:600;">{{ cc.manager_name or '—' }}</td>
+            <td style="color:#6c7a72;">{{ cc.mobile or '—' }}</td>
+            <td style="color:#6c7a72;font-size:.82rem;">
+              {{ cc.governorate or '' }}{% if cc.city %} / {{ cc.city }}{% endif %}
+            </td>
+            <td style="text-align:center;font-weight:700;color:#1565c0;">{{ cc.registered_families or 0 }}</td>
+            <td style="text-align:center;font-weight:700;color:#0d6832;">{{ cc.persons|length }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+var coopCampsData = {{ coop_camps | tojson }};
+
+function openCoopCampDetail(idx) {
+  var cc = coopCampsData[idx];
+  if (!cc) return;
+  var title = cc.name;
+  var sub = (cc.governorate||'') + (cc.city ? ' / '+cc.city : '') + (cc.street ? ' - '+cc.street : '');
+  document.getElementById('cd-title').textContent = title;
+  document.getElementById('cd-sub').textContent = sub;
+  var html = '';
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">';
+  html += '<div style="background:#f0fdf4;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">';
+  html += '<div style="font-size:.75rem;color:#6c7a72;">مدير المخيم</div>';
+  html += '<div style="font-weight:700;">'+(cc.manager_name||'—')+'</div></div>';
+  html += '<div style="background:#f0fdf4;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">';
+  html += '<div style="font-size:.75rem;color:#6c7a72;">الجوال</div>';
+  html += '<div style="font-weight:700;">'+(cc.mobile||'—')+'</div></div>';
+  html += '<div style="background:#f0fdf4;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">';
+  html += '<div style="font-size:.75rem;color:#6c7a72;">الأسر المسجلة</div>';
+  html += '<div style="font-weight:700;">'+(cc.registered_families||0)+'</div></div>';
+  html += '</div>';
+  if (cc.persons && cc.persons.length) {
+    html += '<div style="font-weight:700;margin-bottom:8px;color:#0d6832;">المستفيدون في النظام ('+cc.persons.length+')</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:.85rem;">';
+    html += '<thead><tr style="background:#f0fdf4;">';
+    html += '<th style="padding:6px 10px;text-align:right;">#</th>';
+    html += '<th style="padding:6px 10px;text-align:right;">الاسم</th>';
+    html += '<th style="padding:6px 10px;text-align:right;">رقم الهوية</th>';
+    html += '<th style="padding:6px 10px;text-align:right;">الجوال</th>';
+    html += '<th style="padding:6px 10px;text-align:center;">أفراد</th>';
+    html += '</tr></thead><tbody>';
+    cc.persons.forEach(function(p, i) {
+      html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+      html += '<td style="padding:6px 10px;color:#aaa;">'+(i+1)+'</td>';
+      html += '<td style="padding:6px 10px;font-weight:600;">'+(p.full_name||'—')+'</td>';
+      html += '<td style="padding:6px 10px;color:#6c7a72;">'+(p.id_number||'—')+'</td>';
+      html += '<td style="padding:6px 10px;color:#6c7a72;">'+(p.phone||'—')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:center;font-weight:700;">'+(p.family_size||1)+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<div style="text-align:center;padding:30px;color:#6c7a72;"><i class="fas fa-users fa-2x mb-2" style="display:block;color:#d1fae5;"></i>لا يوجد مستفيدون مسجلون في النظام بعد</div>';
+  }
+  document.getElementById('cd-body').innerHTML = html;
+  document.getElementById('camp-detail-modal').style.display = 'flex';
+  document.getElementById('camp-detail-overlay').style.display = 'block';
+}
+</script>
 
 <!-- ─── مودال تفاصيل المخيم ─── -->
 <div id="camp-detail-overlay" onclick="closeCampDetail()"
