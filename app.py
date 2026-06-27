@@ -3019,56 +3019,48 @@ def outgoing_invoice():
             flash(err, "warning")
         if not errors:
             flash("✅ تم حفظ فاتورة الصرف وتم خصم الكمية من المخزن تلقائياً", "success")
-            return redirect(url_for("outgoing_invoices_list"))
-        return redirect(url_for("outgoing_invoice"))
+            return redirect(url_for("outgoing_invoice"))
+        # Re-render with invoices list on error
+        pl, bl, progs = get_render_data()
+        inventory, total_value = get_inventory()
+        c.execute("""SELECT id, invoice_number, invoice_date, beneficiary, notes, created_at,
+                            COALESCE(is_closed,0) AS is_closed
+                     FROM outgoing_invoices WHERE org_id=? ORDER BY id DESC""", (org_id,))
+        out_rows = c.fetchall()
+        out_invoices = []
+        for inv in out_rows:
+            inv_d = dict(inv)
+            c.execute("""SELECT oi.quantity, oi.unit_price, oi.total_price, p.name as product_name, p.unit
+                         FROM outgoing_invoice_items oi JOIN products p ON p.id=oi.product_id
+                         WHERE oi.invoice_id=? ORDER BY oi.id""", (inv["id"],))
+            inv_d["lines"] = [dict(r) for r in c.fetchall()]
+            inv_d["total"] = sum(it["total_price"] for it in inv_d["lines"])
+            out_invoices.append(inv_d)
+        conn.close()
+        return render_template("outgoing_invoices.html",
+            products=pl, beneficiaries=bl, programs=progs,
+            inventory=inventory, total_value=total_value, out_invoices=out_invoices)
 
     pl, bl, progs = get_render_data()
     inventory, total_value = get_inventory()
+    # جلب كشف فواتير الصرف
+    c.execute("""SELECT id, invoice_number, invoice_date, beneficiary, notes, created_at,
+                        COALESCE(is_closed,0) AS is_closed
+                 FROM outgoing_invoices WHERE org_id=? ORDER BY id DESC""", (org_id,))
+    out_rows = c.fetchall()
+    out_invoices = []
+    for inv in out_rows:
+        inv_d = dict(inv)
+        c.execute("""SELECT oi.quantity, oi.unit_price, oi.total_price, p.name as product_name, p.unit
+                     FROM outgoing_invoice_items oi JOIN products p ON p.id=oi.product_id
+                     WHERE oi.invoice_id=? ORDER BY oi.id""", (inv["id"],))
+        inv_d["lines"] = [dict(r) for r in c.fetchall()]
+        inv_d["total"] = sum(it["total_price"] for it in inv_d["lines"])
+        out_invoices.append(inv_d)
     conn.close()
     return render_template("outgoing_invoices.html",
         products=pl, beneficiaries=bl, programs=progs,
-        inventory=inventory, total_value=total_value)
-
-
-# ══════════════════════════════════════════
-# كشف فواتير الصرف
-# ══════════════════════════════════════════
-@app.route("/outgoing_invoices_list")
-@invoices_view_required
-def outgoing_invoices_list():
-    org_id = session["org_id"]
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, invoice_number, invoice_date, beneficiary, notes, created_at,
-               COALESCE(is_closed,0) AS is_closed
-        FROM outgoing_invoices WHERE org_id=? ORDER BY id DESC
-    """, (org_id,))
-    invoices_rows = c.fetchall()
-
-    invoices = []
-    total_all = 0.0
-    for inv in invoices_rows:
-        inv_d = dict(inv)
-        c.execute("""
-            SELECT oi.id, oi.quantity, oi.unit_price, oi.total_price,
-                   p.name as product_name, p.unit
-            FROM outgoing_invoice_items oi
-            JOIN products p ON p.id = oi.product_id
-            WHERE oi.invoice_id=?
-            ORDER BY oi.id
-        """, (inv["id"],))
-        items = [dict(r) for r in c.fetchall()]
-        inv_total = sum(it["total_price"] for it in items)
-        inv_d["lines"] = items
-        inv_d["total"] = inv_total
-        total_all += inv_total
-        invoices.append(inv_d)
-
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    conn.close()
-    return render_template("outgoing_invoices_list.html",
-                           invoices=invoices, total_all=total_all, today_str=today_str)
+        inventory=inventory, total_value=total_value, out_invoices=out_invoices)
 
 
 # ══════════════════════════════════════════
@@ -3332,7 +3324,7 @@ def delete_outgoing_invoice(id):
     """حذف فاتورة صرف مع إعادة كل الكميات للمخزن (أدمن فقط)"""
     if session.get("role") != "admin":
         flash("هذا الإجراء مخصص للأدمن فقط", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
@@ -3340,7 +3332,7 @@ def delete_outgoing_invoice(id):
     if not c.fetchone():
         conn.close()
         flash("الفاتورة غير موجودة", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
 
     # إعادة كل الكميات للمخزن
     c.execute("SELECT product_id, quantity, unit_price FROM outgoing_invoice_items WHERE invoice_id=?", (id,))
@@ -3365,7 +3357,7 @@ def delete_outgoing_invoice(id):
     conn.commit()
     conn.close()
     flash("✅ تم حذف الفاتورة وإعادة جميع الكميات للمخزن", "success")
-    return redirect(url_for("outgoing_invoices_list"))
+    return redirect(url_for("outgoing_invoice"))
 
 
 @app.route("/outgoing_invoice/<int:id>/close")
@@ -3378,7 +3370,7 @@ def close_outgoing_invoice(id):
     conn.commit()
     conn.close()
     flash("✅ تم إغلاق فاتورة الصرف", "success")
-    return redirect(url_for("outgoing_invoices_list"))
+    return redirect(url_for("outgoing_invoice"))
 
 
 @app.route("/outgoing_invoice/<int:id>/update", methods=["POST"])
@@ -3387,7 +3379,7 @@ def update_outgoing_invoice(id):
     """تعديل رأس فاتورة الصرف المفتوحة + أصنافها (أدمن فقط)"""
     if session.get("role") != "admin":
         flash("هذا الإجراء مخصص للأدمن فقط", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
@@ -3396,7 +3388,7 @@ def update_outgoing_invoice(id):
     if not inv or inv["is_closed"]:
         conn.close()
         flash("الفاتورة مغلقة أو غير موجودة", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
 
     # تعديل الرأس
     invoice_number = request.form.get("invoice_number", "").strip()
@@ -3439,7 +3431,7 @@ def update_outgoing_invoice(id):
     conn.commit()
     conn.close()
     flash("✅ تم حفظ التعديلات", "success")
-    return redirect(url_for("outgoing_invoices_list") + f"#inv-{id}")
+    return redirect(url_for("outgoing_invoice"))
 
 
 @app.route("/outgoing_invoice/item/<int:item_id>/delete")
@@ -3448,7 +3440,7 @@ def delete_outgoing_item(item_id):
     """حذف صنف من فاتورة الصرف المفتوحة مع إعادة كميته للمخزن"""
     if session.get("role") != "admin":
         flash("هذا الإجراء مخصص للأدمن فقط", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
@@ -3464,7 +3456,7 @@ def delete_outgoing_item(item_id):
     if not item:
         conn.close()
         flash("الصنف غير موجود أو الفاتورة مغلقة", "danger")
-        return redirect(url_for("outgoing_invoices_list"))
+        return redirect(url_for("outgoing_invoice"))
 
     invoice_id = item["invoice_id"]
     product_id = item["product_id"]
@@ -3492,7 +3484,7 @@ def delete_outgoing_item(item_id):
     conn.commit()
     conn.close()
     flash("✅ تم حذف الصنف وإعادة الكمية للمخزن", "success")
-    return redirect(url_for("outgoing_invoices_list") + f"#inv-{invoice_id}")
+    return redirect(url_for("outgoing_invoice"))
 
 
 # ══════════════════════════════════════════

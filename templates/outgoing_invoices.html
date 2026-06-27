@@ -1,234 +1,240 @@
 {% extends 'base.html' %}
 {% block title %}المخزن – ميزان مجد{% endblock %}
-{% block page_title %}<i class="fas fa-file-export"></i> فاتورة صادرة{% endblock %}
+{% block page_title %}<i class="fas fa-warehouse"></i> المخزن{% endblock %}
 {% block content %}
 
-<div class="page-header">
-  <h2 class="page-title"><i class="fas fa-warehouse"></i> المخزن</h2>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('outgoing_invoices_list') }}" class="btn btn-outline-danger btn-sm">
-      <i class="fas fa-list me-1"></i> كشف فواتير الصرف
-    </a>
-    {% if session.get('role') != 'observer' %}
-    <button class="btn btn-danger" type="button" id="toggle-outgoing">
-      <i class="fas fa-file-export me-1"></i> فاتورة صرف جديدة
-    </button>
-    {% endif %}
-  </div>
-</div>
+<!-- ===== Overlay ===== -->
+<div id="out-modal-overlay" onclick="closeOutModal()"
+     style="display:none;position:fixed;inset:0;background:#0006;z-index:1050;"></div>
 
-<!-- كشف الأصناف الموجودة بالمخزن -->
-<div class="table-wrapper mb-4">
-  <div class="table-header">
-    <h5><i class="fas fa-boxes me-2" style="color:#1a6b3a;"></i>الأصناف الموجودة بالمخزن</h5>
-    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ inventory|length }} صنف</span>
-  </div>
-  {% if inventory %}
-  <div class="table-responsive">
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>الصنف</th>
-          <th>الوحدة</th>
-          <th>الكمية المتاحة</th>
-          <th>متوسط السعر</th>
-          <th>القيمة الإجمالية</th>
-          <th>الحالة</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in inventory %}
-        <tr>
-          <td style="color:#6c7a72;font-size:.85rem;">{{ loop.index }}</td>
-          <td style="font-weight:700;text-align:right;">{{ item.name }}</td>
-          <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">{{ item.unit }}</span></td>
-          <td>
-            <span class="fw-bold {% if item.total_qty == 0 %}text-danger{% elif item.total_qty < 10 %}text-warning{% else %}text-success{% endif %}">
-              {{ "%.2f"|format(item.total_qty) }}
-            </span>
-          </td>
-          <td style="color:#6c7a72;">{{ "%.2f"|format(item.avg_price) }}</td>
-          <td class="fw-bold" style="color:#1a6b3a;">{{ "%.2f"|format(item.value) }}</td>
-          <td>
-            {% if item.total_qty == 0 %}
-              <span class="badge" style="background:#fde8e8;color:#c62828;">نفد</span>
-            {% elif item.total_qty < 10 %}
-              <span class="badge" style="background:#fff3cd;color:#856404;">منخفض</span>
-            {% else %}
-              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">متوفر</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <!-- إجمالي قيمة المخزون -->
-  <div class="inventory-total-box">
-    <i class="fas fa-coins me-2" style="color:#f0a500;"></i>
-    إجمالي قيمة المخزون الحالي:
-    <span class="inventory-total-value">{{ "%.2f"|format(total_value) }}</span>
-  </div>
-  {% else %}
-  <div class="text-center py-5" style="color:#6c7a72;">
-    <i class="fas fa-box-open fa-3x mb-3" style="color:#d8e8de;"></i>
-    <p class="fw-bold">المخزن فارغ — لا توجد أصناف متاحة</p>
-    <a href="/incoming_invoice" class="btn btn-primary btn-sm">
-      <i class="fas fa-cart-shopping me-1"></i> إضافة مشتريات
-    </a>
-  </div>
-  {% endif %}
-</div>
-
-<!-- Datalist لأصناف المخزون (مشترك بين كل الصفوف) -->
-<datalist id="inventory-datalist">
-  {% for item in inventory %}
-  <option value="{{ item.name }}"
-          data-id="{{ item.id }}"
-          data-avail="{{ item.total_qty }}"
-          data-unit="{{ item.unit }}">
-  {% endfor %}
-</datalist>
-
-<!-- فورم فاتورة الصرف -->
+<!-- ===== Modal فاتورة صرف جديدة ===== -->
 {% if session.get('role') != 'observer' %}
-<div id="outgoing-card" style="display:none;">
-  <div class="card mb-4">
-    <div class="card-header" style="background:#fde8e8;border-bottom:2px solid #f5c6cb;">
-      <i class="fas fa-file-export" style="color:#c62828;"></i>
-      <strong style="color:#c62828;">فاتورة صرف جديدة</strong>
-    </div>
-    <div class="card-body">
-      <form method="POST" action="/outgoing_invoice">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-
-        <!-- رأس الفاتورة -->
-        <div class="row g-3 mb-4">
-          <div class="col-md-3">
-            <label class="form-label">رقم الفاتورة <span class="text-danger">*</span></label>
-            <input class="form-control" name="invoice_number" placeholder="OUT-001" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">التاريخ <span class="text-danger">*</span></label>
-            <input type="date" class="form-control" name="invoice_date" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">البرنامج / المشروع <span class="text-danger">*</span></label>
-            <select class="form-select" name="program_id" required>
-              <option value="">-- اختر البرنامج --</option>
-              {% for p in programs %}
-              <option value="{{ p.id }}">
-                {% if p.name == 'كفالات أيتام' %}💛
-                {% elif p.name == 'طرود غذائية' %}📦
-                {% elif p.name == 'تكية' %}🍽️
-                {% elif p.name == 'مياه حلوة' %}💧
-                {% elif p.name == 'وجبات ساخنة' %}🔥
-                {% else %}📋{% endif %}
-                {{ p.name }}
-              </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">المستفيد <span style="color:#aaa;font-size:.78rem;">(اختياري)</span></label>
-            <select class="form-select" name="beneficiary">
-              <option value="">-- اختياري --</option>
-              {% for b in beneficiaries %}
-              <option value="{{ b[1] }}">{{ b[1] }}</option>
-              {% endfor %}
-            </select>
-          </div>
+<div id="out-modal"
+     style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:1051;width:min(98vw,760px);background:#fff;border-radius:18px;
+            box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;max-height:90vh;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#b71c1c,#c62828);padding:16px 22px;
+              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="color:#fff;font-weight:800;font-size:1rem;">
+      <i class="fas fa-file-export me-2"></i>فاتورة صرف جديدة
+    </span>
+    <button onclick="closeOutModal()"
+            style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;
+                   width:32px;height:32px;font-size:1.1rem;cursor:pointer;line-height:1;">×</button>
+  </div>
+  <div style="overflow-y:auto;padding:20px 24px;">
+    <form method="POST" action="/outgoing_invoice" id="out-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <label class="form-label fw-bold" style="font-size:.82rem;">رقم الفاتورة <span class="text-danger">*</span></label>
+          <input class="form-control form-control-sm" name="invoice_number" placeholder="OUT-001" required>
         </div>
-
-        <!-- الأصناف -->
-        <div class="table-responsive mb-3">
-          <table class="table table-bordered">
-            <thead style="background:#fde8e8;">
-              <tr>
-                <th style="width:55%;">الصنف</th>
-                <th>الكمية المطلوبة</th>
-                <th>المتاح</th>
-                <th style="width:55px;"></th>
-              </tr>
-            </thead>
-            <tbody id="out-items-body">
-              <tr class="out-row">
-                <td>
-                  <input type="hidden" name="product_id[]" class="pid-hidden" value="">
-                  <input type="text"
-                         class="form-control product-name-input"
-                         name="product_name[]"
-                         list="inventory-datalist"
-                         placeholder="اكتب اسم الصنف أو اختر من القائمة..."
-                         autocomplete="off">
-                  <div class="manual-hint" style="display:none;font-size:.72rem;color:#856404;margin-top:3px;">
-                    <i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن
-                  </div>
-                </td>
-                <td>
-                  <input type="number" class="form-control" name="quantity[]"
-                         step="0.01" min="0.01" placeholder="0" required>
-                </td>
-                <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
-                <td class="text-center">
-                  <button type="button" class="btn btn-danger btn-sm remove-out-row" disabled>
-                    <i class="fas fa-times"></i>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="col-md-3">
+          <label class="form-label fw-bold" style="font-size:.82rem;">التاريخ <span class="text-danger">*</span></label>
+          <input type="date" class="form-control form-control-sm" name="invoice_date" required>
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <button type="button" class="btn btn-outline-danger btn-sm" id="add-out-row">
-            <i class="fas fa-plus me-1"></i> إضافة صنف
-          </button>
+        <div class="col-md-3">
+          <label class="form-label fw-bold" style="font-size:.82rem;">البرنامج <span class="text-danger">*</span></label>
+          <select class="form-select form-select-sm" name="program_id" required>
+            <option value="">-- اختر --</option>
+            {% for p in programs %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
         </div>
-
-        <div class="mb-3">
-          <label class="form-label">ملاحظات</label>
-          <textarea class="form-control" name="notes" rows="2" placeholder="أي ملاحظات..."></textarea>
+        <div class="col-md-3">
+          <label class="form-label fw-bold" style="font-size:.82rem;">المستفيد <span style="color:#aaa;font-size:.75rem;">(اختياري)</span></label>
+          <select class="form-select form-select-sm" name="beneficiary">
+            <option value="">-- اختياري --</option>
+            {% for b in beneficiaries %}
+            <option value="{{ b[1] }}">{{ b[1] }}</option>
+            {% endfor %}
+          </select>
         </div>
+      </div>
 
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-danger">
-            <i class="fas fa-save me-1"></i> حفظ وخصم من المخزن
-          </button>
-          <button type="button" class="btn btn-secondary" id="cancel-outgoing">إلغاء</button>
-        </div>
-
-      </form>
-    </div>
+      <!-- جدول الأصناف -->
+      <datalist id="inventory-datalist">
+        {% for item in inventory %}
+        <option value="{{ item.name }}" data-id="{{ item.id }}" data-avail="{{ item.total_qty }}" data-unit="{{ item.unit }}">
+        {% endfor %}
+      </datalist>
+      <div class="table-responsive mb-3" style="border-radius:10px;border:1px solid #fecaca;overflow:hidden;">
+        <table class="table table-sm table-bordered mb-0" style="font-size:.83rem;">
+          <thead style="background:#fde8e8;">
+            <tr>
+              <th style="padding:7px 10px;width:50%;">الصنف</th>
+              <th style="padding:7px 10px;">الكمية</th>
+              <th style="padding:7px 10px;">المتاح</th>
+              <th style="padding:7px 6px;width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="out-items-body">
+            <tr class="out-row">
+              <td style="padding:5px 8px;">
+                <input type="hidden" name="product_id[]" class="pid-hidden" value="">
+                <input type="text" class="form-control form-control-sm product-name-input"
+                       name="product_name[]" list="inventory-datalist"
+                       placeholder="اختر أو اكتب اسم الصنف" autocomplete="off">
+                <div class="manual-hint" style="display:none;font-size:.7rem;color:#856404;margin-top:2px;">
+                  <i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن
+                </div>
+              </td>
+              <td style="padding:5px 8px;">
+                <input type="number" class="form-control form-control-sm" name="quantity[]"
+                       step="0.01" min="0.01" placeholder="0" required>
+              </td>
+              <td class="available-cell" style="padding:5px 8px;font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
+              <td style="padding:5px 6px;text-align:center;">
+                <button type="button" class="btn btn-danger btn-sm remove-out-row" disabled style="padding:2px 6px;">
+                  <i class="fas fa-times"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-outline-danger btn-sm mb-3" id="add-out-row">
+        <i class="fas fa-plus me-1"></i>إضافة صنف
+      </button>
+      <div class="mb-3">
+        <label class="form-label fw-bold" style="font-size:.82rem;">ملاحظات</label>
+        <textarea class="form-control form-control-sm" name="notes" rows="2" placeholder="اختياري..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-danger btn-sm fw-bold">
+          <i class="fas fa-save me-1"></i>حفظ وخصم من المخزن
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeOutModal()">إلغاء</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endif %}
 
+<!-- ===== Modal تفاصيل فاتورة صرف ===== -->
+<div id="out-detail-overlay" onclick="closeOutDetail()"
+     style="display:none;position:fixed;inset:0;background:#0006;z-index:1050;"></div>
+<div id="out-detail-modal"
+     style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:1051;width:min(98vw,700px);background:#fff;border-radius:18px;
+            box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;max-height:90vh;flex-direction:column;">
+  <div style="background:linear-gradient(135deg,#b71c1c,#c62828);padding:14px 20px;
+              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span id="out-detail-title" style="color:#fff;font-weight:800;font-size:.95rem;"></span>
+    <button onclick="closeOutDetail()"
+            style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;
+                   width:30px;height:30px;font-size:1.1rem;cursor:pointer;line-height:1;">×</button>
+  </div>
+  <div id="out-detail-body" style="overflow-y:auto;padding:18px 22px;"></div>
+</div>
+
+<!-- ===== Page Header ===== -->
+<div class="page-header">
+  <h2 class="page-title"><i class="fas fa-warehouse"></i> المخزن</h2>
+  {% if session.get('role') != 'observer' %}
+  <button class="btn btn-danger btn-sm" onclick="openOutModal()">
+    <i class="fas fa-file-export me-1"></i>فاتورة صرف جديدة
+  </button>
+  {% endif %}
+</div>
+
+<!-- ===== كشف فواتير الصرف ===== -->
+<div class="table-wrapper" id="out-inv-wrapper">
+  <div class="table-header" style="cursor:pointer;" onclick="toggleOutList()">
+    <h5>
+      <i class="fas fa-file-export me-2" style="color:#c62828;"></i>فواتير الصرف
+      <span class="badge ms-2" style="background:#fde8e8;color:#c62828;" id="out-inv-badge">{{ out_invoices|length }}</span>
+      <i class="fas fa-chevron-up ms-2" id="out-list-chev" style="font-size:.75rem;color:#94a3b8;transition:.2s;"></i>
+    </h5>
+    {% if out_invoices %}
+    <span style="font-size:.82rem;color:#6c7a72;font-weight:600;">
+      إجمالي الصرف: <strong style="color:#c62828;">{{ "%.2f"|format(out_invoices|sum(attribute='total')) }}</strong>
+    </span>
+    {% endif %}
+  </div>
+
+  <div id="out-inv-list-body">
+    {% if out_invoices %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.85rem;">
+        <thead style="background:#fde8e8;">
+          <tr>
+            <th style="padding:9px 14px;">#</th>
+            <th style="padding:9px 14px;">رقم الفاتورة</th>
+            <th style="padding:9px 14px;">التاريخ</th>
+            <th style="padding:9px 14px;">الجهة / المستفيد</th>
+            <th style="padding:9px 14px;">الإجمالي</th>
+            <th style="padding:9px 14px;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in out_invoices %}
+          <tr style="cursor:pointer;" onclick="openOutDetail({{ loop.index0 }})"
+              title="انقر لعرض التفاصيل">
+            <td style="padding:9px 14px;color:#6c7a72;">{{ loop.index }}</td>
+            <td style="padding:9px 14px;font-weight:700;color:#c62828;">{{ inv.invoice_number }}</td>
+            <td style="padding:9px 14px;color:#6c7a72;">{{ inv.invoice_date }}</td>
+            <td style="padding:9px 14px;">{{ inv.beneficiary or '—' }}</td>
+            <td style="padding:9px 14px;font-weight:700;">{{ "%.2f"|format(inv.total) }}</td>
+            <td style="padding:9px 14px;">
+              {% if inv.is_closed %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">مغلقة</span>
+              {% else %}
+              <span class="badge" style="background:#e3f2fd;color:#1565c0;">مفتوحة</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5" style="color:#6c7a72;">
+      <i class="fas fa-file-export fa-3x mb-3" style="color:#fecaca;"></i>
+      <p class="fw-bold">لا توجد فواتير صرف حتى الآن</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- بيانات الفواتير مخزنة بـ JS لفتح المودال -->
+<script id="out-invoices-data" type="application/json">
+{{ out_invoices | tojson }}
+</script>
+
 {% endblock %}
 
 {% block scripts %}
-{% if session.get('role') != 'observer' %}
 <script>
-// خريطة الأصناف: اسم الصنف → {id, avail, unit}
+/* ══ بيانات المخزن ══ */
 const inventoryMap = {};
 {% for item in inventory %}
-inventoryMap[{{ item.name | tojson }}] = {
-  id:    {{ item.id }},
-  avail: {{ item.total_qty }},
-  unit:  {{ item.unit | tojson }}
-};
+inventoryMap[{{ item.name | tojson }}] = {id:{{ item.id }},avail:{{ item.total_qty }},unit:{{ item.unit | tojson }}};
 {% endfor %}
 
-// عند تغيير حقل الصنف — تحديث الـ product_id والكمية المتاحة
-function handleProductInput(input) {
-  const row     = input.closest('.out-row');
-  const pidHid  = row.querySelector('.pid-hidden');
-  const avCell  = row.querySelector('.available-cell');
-  const hint    = row.querySelector('.manual-hint');
-  const name    = input.value.trim();
-  const match   = inventoryMap[name];
+/* ══ فتح/إغلاق مودال الإضافة ══ */
+function openOutModal() {
+  document.getElementById('out-modal-overlay').style.display = 'block';
+  document.getElementById('out-modal').style.display = 'flex';
+  // ضع تاريخ اليوم
+  var di = document.querySelector('#out-form input[name="invoice_date"]');
+  if (di && !di.value) di.value = new Date().toISOString().slice(0,10);
+}
+function closeOutModal() {
+  document.getElementById('out-modal-overlay').style.display = 'none';
+  document.getElementById('out-modal').style.display = 'none';
+}
 
+/* ══ تحديث الصنف عند الاختيار ══ */
+function handleProductInput(input) {
+  var row = input.closest('.out-row');
+  var pidHid = row.querySelector('.pid-hidden');
+  var avCell = row.querySelector('.available-cell');
+  var hint = row.querySelector('.manual-hint');
+  var name = input.value.trim();
+  var match = inventoryMap[name];
   if (match) {
     pidHid.value = match.id;
     avCell.textContent = match.avail.toFixed(2);
@@ -241,75 +247,108 @@ function handleProductInput(input) {
     hint.style.display = name ? 'block' : 'none';
   }
 }
-
-// إضافة مستمعي الأحداث للصف الأول
-document.querySelectorAll('.product-name-input').forEach(inp => {
-  inp.addEventListener('input',  () => handleProductInput(inp));
-  inp.addEventListener('change', () => handleProductInput(inp));
+document.querySelectorAll('.product-name-input').forEach(function(inp) {
+  inp.addEventListener('input',  function(){ handleProductInput(inp); });
+  inp.addEventListener('change', function(){ handleProductInput(inp); });
 });
 
-// إظهار/إخفاء فورم الصرف
-const outCard = document.getElementById('outgoing-card');
-document.getElementById('toggle-outgoing').addEventListener('click', () => {
-  const show = outCard.style.display === 'none';
-  outCard.style.display = show ? 'block' : 'none';
-  if (show) outCard.scrollIntoView({ behavior:'smooth', block:'start' });
-});
-document.getElementById('cancel-outgoing').addEventListener('click', () => {
-  outCard.style.display = 'none';
-});
-
-function newRowHTML() {
-  return `
-    <td>
-      <input type="hidden" name="product_id[]" class="pid-hidden" value="">
-      <input type="text"
-             class="form-control product-name-input"
-             name="product_name[]"
-             list="inventory-datalist"
-             placeholder="اكتب اسم الصنف أو اختر من القائمة..."
-             autocomplete="off">
-      <div class="manual-hint" style="display:none;font-size:.72rem;color:#856404;margin-top:3px;">
-        <i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن
-      </div>
-    </td>
-    <td><input type="number" class="form-control" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>
-    <td class="available-cell" style="font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>
-    <td class="text-center">
-      <button type="button" class="btn btn-danger btn-sm remove-out-row">
-        <i class="fas fa-times"></i>
-      </button>
-    </td>`;
+function newOutRowHTML() {
+  return '<td style="padding:5px 8px;">'
+    + '<input type="hidden" name="product_id[]" class="pid-hidden" value="">'
+    + '<input type="text" class="form-control form-control-sm product-name-input" name="product_name[]" list="inventory-datalist" placeholder="اختر أو اكتب اسم الصنف" autocomplete="off">'
+    + '<div class="manual-hint" style="display:none;font-size:.7rem;color:#856404;margin-top:2px;"><i class="fas fa-info-circle me-1"></i>صنف يدوي — لن يُخصم من المخزن</div>'
+    + '</td>'
+    + '<td style="padding:5px 8px;"><input type="number" class="form-control form-control-sm" name="quantity[]" step="0.01" min="0.01" placeholder="0" required></td>'
+    + '<td class="available-cell" style="padding:5px 8px;font-weight:700;color:#1a6b3a;vertical-align:middle;">—</td>'
+    + '<td style="padding:5px 6px;text-align:center;"><button type="button" class="btn btn-danger btn-sm remove-out-row" style="padding:2px 6px;"><i class="fas fa-times"></i></button></td>';
 }
-
 function updateRemoveBtns() {
-  const rows = document.querySelectorAll('.out-row');
-  rows.forEach(r => r.querySelector('.remove-out-row').disabled = rows.length === 1);
+  var rows = document.querySelectorAll('.out-row');
+  rows.forEach(function(r){ r.querySelector('.remove-out-row').disabled = rows.length === 1; });
 }
-
-document.getElementById('add-out-row').addEventListener('click', () => {
-  const tbody = document.getElementById('out-items-body');
-  const tr = document.createElement('tr');
+document.getElementById('add-out-row').addEventListener('click', function() {
+  var tbody = document.getElementById('out-items-body');
+  var tr = document.createElement('tr');
   tr.className = 'out-row';
-  tr.innerHTML = newRowHTML();
+  tr.innerHTML = newOutRowHTML();
   tbody.appendChild(tr);
-
-  // ربط المستمعين للصف الجديد
-  const inp = tr.querySelector('.product-name-input');
-  inp.addEventListener('input',  () => handleProductInput(inp));
-  inp.addEventListener('change', () => handleProductInput(inp));
-
+  var inp = tr.querySelector('.product-name-input');
+  inp.addEventListener('input',  function(){ handleProductInput(inp); });
+  inp.addEventListener('change', function(){ handleProductInput(inp); });
   updateRemoveBtns();
 });
-
-document.getElementById('out-items-body').addEventListener('click', e => {
+document.getElementById('out-items-body').addEventListener('click', function(e) {
   if (e.target.closest('.remove-out-row')) {
     e.target.closest('.out-row').remove();
     updateRemoveBtns();
   }
 });
 
-updateRemoveBtns();
+/* ══ طي/فتح قائمة الفواتير ══ */
+function toggleOutList() {
+  var body = document.getElementById('out-inv-list-body');
+  var chev = document.getElementById('out-list-chev');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+/* ══ مودال تفاصيل فاتورة الصرف ══ */
+var _outInvoices = [];
+try { _outInvoices = JSON.parse(document.getElementById('out-invoices-data').textContent); } catch(e){}
+
+function openOutDetail(idx) {
+  var inv = _outInvoices[idx];
+  if (!inv) return;
+  document.getElementById('out-detail-title').innerHTML =
+    '<i class="fas fa-file-export me-2"></i>فاتورة ' + inv.invoice_number + ' — ' + (inv.beneficiary || '');
+  var rows = (inv.lines || []).map(function(it, i) {
+    return '<tr>'
+      + '<td style="padding:7px 12px;color:#6c7a72;">' + (i+1) + '</td>'
+      + '<td style="padding:7px 12px;font-weight:700;">' + it.product_name + '</td>'
+      + '<td style="padding:7px 12px;">' + it.unit + '</td>'
+      + '<td style="padding:7px 12px;">' + parseFloat(it.quantity).toFixed(2) + '</td>'
+      + '<td style="padding:7px 12px;">' + parseFloat(it.unit_price).toFixed(2) + '</td>'
+      + '<td style="padding:7px 12px;font-weight:700;color:#c62828;">' + parseFloat(it.total_price).toFixed(2) + '</td>'
+      + '</tr>';
+  }).join('');
+  var total = (inv.lines || []).reduce(function(s,it){ return s + (it.total_price||0); }, 0);
+  document.getElementById('out-detail-body').innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;">'
+    + '<div style="background:#fde8e8;border-radius:10px;padding:10px 14px;">'
+    + '<div style="font-size:.7rem;color:#94a3b8;font-weight:700;">رقم الفاتورة</div>'
+    + '<div style="font-weight:900;color:#c62828;">' + inv.invoice_number + '</div></div>'
+    + '<div style="background:#fde8e8;border-radius:10px;padding:10px 14px;">'
+    + '<div style="font-size:.7rem;color:#94a3b8;font-weight:700;">التاريخ</div>'
+    + '<div style="font-weight:700;">' + inv.invoice_date + '</div></div>'
+    + '<div style="background:#fde8e8;border-radius:10px;padding:10px 14px;">'
+    + '<div style="font-size:.7rem;color:#94a3b8;font-weight:700;">الجهة / المستفيد</div>'
+    + '<div style="font-weight:700;">' + (inv.beneficiary || '—') + '</div></div>'
+    + '<div style="background:#fde8e8;border-radius:10px;padding:10px 14px;">'
+    + '<div style="font-size:.7rem;color:#94a3b8;font-weight:700;">الحالة</div>'
+    + '<div style="font-weight:700;">' + (inv.is_closed ? 'مغلقة' : 'مفتوحة') + '</div></div>'
+    + '</div>'
+    + (inv.notes ? '<div style="background:#fff3cd;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.82rem;color:#856404;">ملاحظة: ' + inv.notes + '</div>' : '')
+    + '<div class="table-responsive" style="border-radius:10px;border:1px solid #fecaca;overflow:hidden;">'
+    + '<table class="table table-sm mb-0" style="font-size:.83rem;">'
+    + '<thead style="background:#fde8e8;"><tr>'
+    + '<th style="padding:7px 12px;">#</th><th style="padding:7px 12px;">الصنف</th>'
+    + '<th style="padding:7px 12px;">الوحدة</th><th style="padding:7px 12px;">الكمية</th>'
+    + '<th style="padding:7px 12px;">السعر</th><th style="padding:7px 12px;">الإجمالي</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody>'
+    + '<tfoot><tr style="background:#fde8e8;">'
+    + '<td colspan="5" style="padding:8px 12px;font-weight:900;text-align:left;">الإجمالي</td>'
+    + '<td style="padding:8px 12px;font-weight:900;color:#c62828;">' + total.toFixed(2) + '</td>'
+    + '</tr></tfoot>'
+    + '</table></div>';
+  document.getElementById('out-detail-overlay').style.display = 'block';
+  document.getElementById('out-detail-modal').style.display = 'flex';
+  document.getElementById('out-detail-modal').style.flexDirection = 'column';
+}
+function closeOutDetail() {
+  document.getElementById('out-detail-overlay').style.display = 'none';
+  document.getElementById('out-detail-modal').style.display = 'none';
+}
 </script>
-{% endif %}
 {% endblock %}
