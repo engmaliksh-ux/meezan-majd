@@ -747,9 +747,9 @@ async function loadCoopOrgs() {
   }
   listDiv.innerHTML = r.orgs.map(org =>
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;border:1px solid #d1fae5;border-radius:8px;margin-bottom:6px;">'
-    + '<span style="font-size:.83rem;font-weight:700;"><i class="fas fa-building me-1" style="color:#1a6b3a;"></i>'+org.name+'</span>'
-    + '<button onclick="sendCoopRequest('+org.id+',''+org.name+'',this)" class="btn btn-g" style="padding:4px 12px;font-size:.76rem;">'
-    + '<i class="fas fa-paper-plane me-1"></i>طلب تعاون</button>'
+    + '<span style="font-size:.83rem;font-weight:700;"><i class=\"fas fa-building me-1\" style=\"color:#1a6b3a;\"></i>'+org.name+'</span>'
+    + '<button data-oid="'+org.id+'" data-oname="'+org.name+'" onclick="sendCoopRequest(this.dataset.oid,this.dataset.oname,this)" class="btn btn-g" style="padding:4px 12px;font-size:.76rem;">'
+    + '<i class=\"fas fa-paper-plane me-1\"></i>طلب تعاون</button>'
     + '</div>'
   ).join('');
   listDiv.style.display='block';
