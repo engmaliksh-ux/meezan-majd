@@ -31,6 +31,7 @@ def smart_backup() -> str:
 
 def get_connection():
     conn = sqlite3.connect(DB_NAME, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=15000")
     return conn
