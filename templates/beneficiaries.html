@@ -24,38 +24,34 @@
 {% endfor %}
 {% for p in unlinked_persons %}{% set ns.unlinked_pers = ns.unlinked_pers + (p.family_size or 1) %}{% endfor %}
 
-<!-- ════════ شريط التصنيف + الإجراءات ════════ -->
-<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;">
-  <div class="filter-bubbles" style="justify-content:flex-start;">
-    <button class="filter-bubble fb-camps active" id="btn-camps" onclick="showTab('camps')">
-      <i class="fas fa-tents"></i> {{ camps|length }} مخيم
-    </button>
-    <button class="filter-bubble fb-families" id="btn-families" onclick="showTab('families')">
-      <i class="fas fa-users"></i> {{ persons|length }} أسرة
-    </button>
-    <button class="filter-bubble fb-orphans" id="btn-orphans" onclick="showTab('orphans')">
-      <i class="fas fa-child"></i> {{ orphan_list|length }} يتيم
-    </button>
-    <button class="filter-bubble fb-pregnant" id="btn-pregnant" onclick="showTab('pregnant')">
-      <i class="fas fa-baby"></i> {{ pregnant_list|length }} حامل
-    </button>
-    <button class="filter-bubble fb-nursing" id="btn-nursing" onclick="showTab('nursing')">
-      <i class="fas fa-heart"></i> {{ nursing_list|length }} مرضع
-    </button>
-    <button class="filter-bubble fb-sick" id="btn-sick" onclick="showTab('sick')">
-      <i class="fas fa-notes-medical"></i> {{ sick_list|length }} مريض
-    </button>
-  </div>
-  {% if session.get('role') != 'observer' %}
-  <div style="display:flex;gap:8px;flex-shrink:0;">
-    <a href="/add_beneficiary" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1"></i>إضافة مستفيد</a>
-    <a href="/add_beneficiary?beneficiary_type=camp" class="btn btn-warning btn-sm" style="color:#7a5800;"><i class="fas fa-tents me-1"></i>إضافة مخيم</a>
-  </div>
-  {% endif %}
+<!-- ════════ فقاعات التصنيف ════════ -->
+<div class="filter-bubbles mb-4">
+  <button class="filter-bubble fb-all active" id="btn-all" onclick="showTab('all')">
+    <i class="fas fa-layer-group"></i> الكل
+  </button>
+  <button class="filter-bubble fb-camps" id="btn-camps" onclick="showTab('camps')">
+    <i class="fas fa-tents"></i> {{ camps|length }} مخيم
+  </button>
+  <button class="filter-bubble fb-families" id="btn-families" onclick="showTab('families')">
+    <i class="fas fa-users"></i> {{ persons|length }} أسرة
+  </button>
+  <button class="filter-bubble fb-orphans" id="btn-orphans" onclick="showTab('orphans')">
+    <i class="fas fa-child"></i> {{ orphan_list|length }} يتيم
+  </button>
+  <button class="filter-bubble fb-pregnant" id="btn-pregnant" onclick="showTab('pregnant')">
+    <i class="fas fa-baby"></i> {{ pregnant_list|length }} حامل
+  </button>
+  <button class="filter-bubble fb-nursing" id="btn-nursing" onclick="showTab('nursing')">
+    <i class="fas fa-heart"></i> {{ nursing_list|length }} مرضع
+  </button>
+  <button class="filter-bubble fb-sick" id="btn-sick" onclick="showTab('sick')">
+    <i class="fas fa-notes-medical"></i> {{ sick_list|length }} مريض
+  </button>
 </div>
 
 <!-- ════════ تبويب: المخيمات + المستفيدون ════════ -->
-<div id="tab-camps" class="tab-section">
+<div id="tab-all" class="tab-section">
+<div id="tab-camps" class="tab-section" style="display:none;">
 
 <!-- ─── كشف المخيمات ─── -->
 <div class="section-card mb-4">
@@ -159,7 +155,7 @@
   <div id="cd-body" style="overflow-y:auto;padding:18px 22px;flex:1;"></div>
 </div>
 
-<!-- ─── كشف المستفيدون دون مخيم ─── -->
+<div id="unlinked-section"><!-- ─── كشف المستفيدون دون مخيم ─── -->
 <div class="section-card">
   <div class="section-card-header" onclick="toggleSection('unlinked-body','unlinked-chev')">
     <div style="display:flex;align-items:center;gap:10px;">
@@ -232,6 +228,8 @@
   </div>
 </div>
 
+</div><!-- /unlinked-section -->
+</div><!-- /tab-all -->
 </div><!-- /tab-camps -->
 
 <!-- ════════ تبويب: الأسر ════════ -->
@@ -480,10 +478,27 @@ const CAMPS_DATA = JSON.parse(document.getElementById('camps-json').textContent)
 
 // ── تبويب التصنيف ──
 function showTab(tab) {
+  // أخفِ كل التبويبات
   document.querySelectorAll('.tab-section').forEach(s => s.style.display = 'none');
   document.querySelectorAll('.filter-bubble').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + tab).style.display = '';
-  document.getElementById('btn-' + tab).classList.add('active');
+
+  if (tab === 'all') {
+    // الكل: أظهر tab-all (المخيمات + المستفيدون بدون مخيم)
+    document.getElementById('tab-all').style.display = '';
+    var us = document.getElementById('unlinked-section');
+    if (us) us.style.display = '';
+  } else if (tab === 'camps') {
+    // فقط المخيمات: أظهر tab-all لكن اخفِ قسم المستفيدين
+    document.getElementById('tab-all').style.display = '';
+    var us = document.getElementById('unlinked-section');
+    if (us) us.style.display = 'none';
+  } else {
+    // باقي التبويبات العادية
+    var el = document.getElementById('tab-' + tab);
+    if (el) el.style.display = '';
+  }
+  var btn = document.getElementById('btn-' + tab);
+  if (btn) btn.classList.add('active');
 }
 
 // ── طي/فتح الأقسام ──
@@ -677,6 +692,7 @@ function deletePerson(id,name) {
 .fb-pregnant{border-color:#ffcc80;color:#e65100;}.fb-pregnant:hover,.fb-pregnant.active{background:#fff3e0;border-color:#e65100;color:#e65100;box-shadow:0 3px 10px rgba(230,81,0,.18);}
 .fb-nursing{border-color:#f48fb1;color:#c2185b;}.fb-nursing:hover,.fb-nursing.active{background:#fce4ec;border-color:#c2185b;color:#c2185b;box-shadow:0 3px 10px rgba(194,24,91,.18);}
 .fb-sick{border-color:#a5d6a7;color:#2e7d32;}.fb-sick:hover,.fb-sick.active{background:#e8f5e9;border-color:#2e7d32;color:#2e7d32;box-shadow:0 3px 10px rgba(46,125,50,.18);}
+.fb-all{border-color:#b0bec5;color:#455a64;}.fb-all:hover,.fb-all.active{background:#eceff1;border-color:#455a64;color:#455a64;box-shadow:0 3px 10px rgba(69,90,100,.18);}
 /* بطاقات الأقسام */
 .section-card{border:1px solid #e8e8e8;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);background:#fff;}
 .section-card-header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;cursor:pointer;background:#fafafa;flex-wrap:wrap;gap:8px;border-bottom:1px solid #f0f0f0;}
