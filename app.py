@@ -2295,6 +2295,23 @@ def api_update_invoice_items(id):
     now_str = _dt2.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     item_ids   = request.form.getlist("item_id[]")
     names      = request.form.getlist("product_name[]")
+    # Delete items that were removed (not in submission)
+    submitted_ids = [iid.strip() for iid in item_ids if iid.strip()]
+    if submitted_ids:
+        placeholders = ",".join("?" * len(submitted_ids))
+        c.execute(f"SELECT id, product_id, quantity FROM incoming_invoice_items WHERE invoice_id=? AND id NOT IN ({placeholders})", [id] + submitted_ids)
+        removed = c.fetchall()
+        for rem in removed:
+            c.execute("UPDATE stock_batches SET quantity_remaining=MAX(0,quantity_remaining-?) WHERE product_id=? AND invoice_id=? AND org_id=?",
+                      (rem["quantity"], rem["product_id"], id, org_id))
+            c.execute("DELETE FROM incoming_invoice_items WHERE id=?", (rem["id"],))
+    else:
+        # All items removed: delete everything
+        c.execute("SELECT product_id, quantity FROM incoming_invoice_items WHERE invoice_id=?", (id,))
+        for rem in c.fetchall():
+            c.execute("UPDATE stock_batches SET quantity_remaining=MAX(0,quantity_remaining-?) WHERE product_id=? AND invoice_id=? AND org_id=?",
+                      (rem["quantity"], rem["product_id"], id, org_id))
+        c.execute("DELETE FROM incoming_invoice_items WHERE invoice_id=?", (id,))
     units      = request.form.getlist("product_unit[]")
     qtys       = request.form.getlist("quantity[]")
     prices     = request.form.getlist("unit_price[]")
