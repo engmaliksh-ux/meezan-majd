@@ -40,6 +40,71 @@ def get_connection():
     return conn
 
 
+def _db_is_healthy() -> bool:
+    """يتحقق من سلامة قاعدة البيانات."""
+    try:
+        conn = sqlite3.connect(DB_NAME, timeout=5)
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        conn.execute("SELECT COUNT(*) FROM beneficiaries")
+        conn.close()
+        return result and result[0] == "ok"
+    except Exception:
+        return False
+
+
+def auto_recover() -> str:
+    """
+    يُنفَّذ عند كل بداية للسيرفر:
+    1. يحذف ملفات الجورنال القديمة لتجنب التلف التلقائي
+    2. يتحقق من سلامة DB
+    3. إذا كانت تالفة يستعيد أفضل نسخة احتياطية (الأكبر حجماً)
+    يُرجع رسالة توضح ما حدث.
+    """
+    # دائماً احذف ملفات الجورنال القبل الاتصال
+    for ext in ("-journal", "-wal", "-shm"):
+        jfile = DB_NAME + ext
+        if os.path.exists(jfile):
+            try:
+                os.remove(jfile)
+            except Exception:
+                pass
+
+    if _db_is_healthy():
+        return "DB_OK"
+
+    # DB تالفة — استعادة أفضل نسخة
+    if not os.path.exists(BACKUP_DIR):
+        return "DB_CORRUPT_NO_BACKUP"
+
+    backups = sorted(
+        [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")],
+        key=lambda f: os.path.getsize(os.path.join(BACKUP_DIR, f)),
+        reverse=True  # الأكبر حجماً = الأكثر بيانات
+    )
+
+    for bk in backups:
+        bk_path = os.path.join(BACKUP_DIR, bk)
+        try:
+            # تحقق من سلامة النسخة الاحتياطية أولاً
+            tc = sqlite3.connect(bk_path, timeout=5)
+            r  = tc.execute("PRAGMA integrity_check").fetchone()
+            tc.execute("SELECT COUNT(*) FROM beneficiaries")
+            tc.close()
+            if not (r and r[0] == "ok"):
+                continue
+            # استعادة
+            shutil.copy2(bk_path, DB_NAME)
+            for ext in ("-journal", "-wal", "-shm"):
+                jf = DB_NAME + ext
+                if os.path.exists(jf):
+                    os.remove(jf)
+            return f"DB_RESTORED_FROM:{bk}"
+        except Exception:
+            continue
+
+    return "DB_CORRUPT_ALL_BACKUPS_FAILED"
+
+
 def create_backup(label: str = "auto") -> str:
     """
     ينشئ نسخة احتياطية من قاعدة البيانات.

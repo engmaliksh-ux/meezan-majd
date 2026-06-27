@@ -1,7 +1,7 @@
 import os
 import secrets
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
-from database import get_connection, init_db, generate_org_code, create_backup, list_backups, restore_backup, BACKUP_DIR, smart_backup
+from database import get_connection, init_db, generate_org_code, create_backup, list_backups, restore_backup, BACKUP_DIR, smart_backup, auto_recover
 from translations import TRANSLATIONS
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -121,6 +121,11 @@ def check_session_timeout():
             flash("انتهت جلستك، يرجى تسجيل الدخول مجدداً", "warning")
             return redirect(url_for("login"))
     session["_last_active"] = datetime.now().isoformat()
+
+# ← أول شيء: فحص وإصلاح تلقائي للداتابيز قبل أي عملية
+_recover_status = auto_recover()
+import logging
+logging.warning(f"[STARTUP] DB status: {_recover_status}")
 
 init_db()
 from database import migrate_db; migrate_db()
