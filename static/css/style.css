@@ -339,7 +339,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
 }
 .topbar-pill {
   background: #fff;
