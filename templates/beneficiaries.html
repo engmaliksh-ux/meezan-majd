@@ -17,11 +17,12 @@
 </div>
 {% endmacro %}
 
-{% set total_camp_families = camps|sum(attribute='persons'|length) if camps else 0 %}
-{% set total_camp_persons = namespace(n=0) %}
-{% for camp in camps %}{% for p in camp.persons %}{% set total_camp_persons.n = total_camp_persons.n + (p.family_size or 1) %}{% endfor %}{% endfor %}
-{% set total_unlinked_ind = namespace(n=0) %}
-{% for p in unlinked_persons %}{% set total_unlinked_ind.n = total_unlinked_ind.n + (p.family_size or 1) %}{% endfor %}
+{% set ns = namespace(camp_fam=0, camp_pers=0, unlinked_pers=0) %}
+{% for camp in camps %}
+  {% set ns.camp_fam = ns.camp_fam + camp.persons|length %}
+  {% for p in camp.persons %}{% set ns.camp_pers = ns.camp_pers + (p.family_size or 1) %}{% endfor %}
+{% endfor %}
+{% for p in unlinked_persons %}{% set ns.unlinked_pers = ns.unlinked_pers + (p.family_size or 1) %}{% endfor %}
 
 <!-- ════════ شريط التصنيف + الإجراءات ════════ -->
 <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;">
@@ -68,8 +69,8 @@
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;" onclick="event.stopPropagation()">
       <div class="header-stats">
         <span><i class="fas fa-tents" style="color:#856404;"></i> <strong>{{ camps|length }}</strong> مخيم</span>
-        <span><i class="fas fa-users" style="color:#1565c0;"></i> <strong>{{ total_camp_families }}</strong> أسرة</span>
-        <span><i class="fas fa-user" style="color:#1a6b3a;"></i> <strong>{{ total_camp_persons.n }}</strong> شخص</span>
+        <span><i class="fas fa-users" style="color:#1565c0;"></i> <strong>{{ ns.camp_fam }}</strong> أسرة</span>
+        <span><i class="fas fa-user" style="color:#1a6b3a;"></i> <strong>{{ ns.camp_pers }}</strong> شخص</span>
       </div>
       {% if session.get('role') != 'observer' %}
       <a href="/add_beneficiary?beneficiary_type=camp" class="btn btn-warning btn-sm" style="color:#7a5800;font-size:.78rem;">
@@ -168,7 +169,7 @@
       <i class="fas fa-chevron-up" id="unlinked-chev" style="font-size:.72rem;color:#94a3b8;transition:.25s;margin-right:4px;"></i>
     </div>
     <div style="display:flex;align-items:center;gap:12px;" onclick="event.stopPropagation()">
-      <span style="font-size:.82rem;color:#6c7a72;"><strong>{{ total_unlinked_ind.n }}</strong> شخص</span>
+      <span style="font-size:.82rem;color:#6c7a72;"><strong>{{ ns.unlinked_pers }}</strong> شخص</span>
       {% if session.get('role') != 'observer' %}
       <a href="/add_beneficiary" class="btn btn-primary btn-sm" style="font-size:.78rem;">
         <i class="fas fa-user-plus me-1"></i>إضافة مستفيد
