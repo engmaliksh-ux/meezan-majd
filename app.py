@@ -2116,12 +2116,18 @@ def incoming_invoice():
     c2.execute("SELECT name, unit FROM products WHERE org_id=? AND COALESCE(is_temp,0)=0 ORDER BY name", (org_id,))
     existing_products = [dict(r) for r in c2.fetchall()]
     today_str = datetime.now().strftime("%Y-%m-%d")
+    # بنود المصروفات التشغيلية
+    c2.execute("SELECT * FROM expense_items WHERE org_id=? ORDER BY expense_date DESC, id DESC", (org_id,))
+    expense_items = [dict(r) for r in c2.fetchall()]
+    expense_total = sum(e['amount'] or 0 for e in expense_items)
     conn.close()
     return render_template("incoming_invoices.html",
         summary=summary,
         total_purchases=total_purchases,
         existing_products=existing_products,
-        today_str=today_str)
+        today_str=today_str,
+        expense_items=expense_items,
+        expense_total=expense_total)
 
 
 @app.route("/api/incoming_invoice/<int:id>/detail")
@@ -3074,9 +3080,9 @@ import os as _os
 @login_required
 def expense_add():
     if session.get("role") not in ("admin", "accountant", "data_entry"):
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     if not validate_csrf():
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     org_id       = session["org_id"]
     category     = request.form.get("category", "").strip()
     expense_date = request.form.get("expense_date", "").strip()
@@ -3084,7 +3090,7 @@ def expense_add():
     notes        = request.form.get("notes", "").strip()
     if not category:
         flash("يرجى إدخال الصنف", "danger")
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     try:
         amount = float(amount)
     except ValueError:
@@ -3106,16 +3112,16 @@ def expense_add():
     conn.commit()
     conn.close()
     flash("✅ تم إضافة البند", "success")
-    return redirect(url_for("incoming_invoices_list") + "#expense-card")
+    return redirect(url_for("incoming_invoice"))
 
 
 @app.route("/expenses/edit/<int:eid>", methods=["POST"])
 @login_required
 def expense_edit(eid):
     if session.get("role") not in ("admin", "accountant"):
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     if not validate_csrf():
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     org_id       = session["org_id"]
     category     = request.form.get("category", "").strip()
     expense_date = request.form.get("expense_date", "").strip()
@@ -3145,16 +3151,16 @@ def expense_edit(eid):
     conn.commit()
     conn.close()
     flash("✅ تم تعديل البند", "success")
-    return redirect(url_for("incoming_invoices_list") + "#expense-card")
+    return redirect(url_for("incoming_invoice"))
 
 
 @app.route("/expenses/delete/<int:eid>", methods=["POST"])
 @login_required
 def expense_delete(eid):
     if session.get("role") not in ("admin", "accountant"):
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     if not validate_csrf():
-        return redirect(url_for("incoming_invoices_list"))
+        return redirect(url_for("incoming_invoice"))
     org_id = session["org_id"]
     conn   = get_connection()
     c      = conn.cursor()
@@ -3169,7 +3175,7 @@ def expense_delete(eid):
     conn.commit()
     conn.close()
     flash("تم حذف البند", "warning")
-    return redirect(url_for("incoming_invoices_list") + "#expense-card")
+    return redirect(url_for("incoming_invoice"))
 
 
 # ══════════════════════════════════════════

@@ -139,11 +139,185 @@
 .seq-num-badge { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#1565c0;color:#fff;border-radius:8px;font-weight:800;font-size:.88rem; }
 </style>
 
+
+<!-- ══ بطاقة المصروفات التشغيلية ══ -->
+<div id="expense-card" style="border:2px solid #f0a500;border-radius:14px;overflow:hidden;margin-bottom:18px;">
+
+  <!-- هيدر — قابل للطي -->
+  <div style="background:linear-gradient(135deg,#fff8e1,#ffe082);padding:11px 16px;
+              display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer;"
+       onclick="toggleExpCard()">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="background:#f0a500;color:#fff;border-radius:8px;padding:4px 10px;font-weight:900;font-size:.8rem;">
+        <i class="fas fa-thumbtack me-1"></i>ثابت
+      </span>
+      <span style="font-weight:800;font-size:.95rem;color:#7a5800;">
+        <i class="fas fa-wallet me-1"></i>بند المصروفات التشغيلية
+      </span>
+      <span style="font-size:.82rem;color:#7a5800;">
+        الإجمالي: <strong>{{ "%.2f"|format(expense_total) }}</strong>
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;" onclick="event.stopPropagation()">
+      {% if session.get('role') in ['admin','accountant','data_entry'] %}
+      <button onclick="document.getElementById('exp-add-form').style.display=
+                        document.getElementById('exp-add-form').style.display==='none'?'block':'none'"
+              class="btn btn-sm"
+              style="background:#f0a500;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.78rem;">
+        <i class="fas fa-plus me-1"></i>إضافة بند
+      </button>
+      {% endif %}
+      <i class="fas fa-chevron-up" id="exp-card-chev" style="color:#7a5800;font-size:.85rem;transition:.2s;"></i>
+    </div>
+  </div>
+
+  <!-- جسم القابل للطي -->
+  <div id="exp-card-body">
+    <!-- فورم الإضافة -->
+    {% if session.get('role') in ['admin','accountant','data_entry'] %}
+    <div id="exp-add-form" style="display:none;background:#fffde7;padding:12px 16px;border-bottom:1px solid #ffe082;">
+      <form method="POST" action="/expenses/add" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label fw-bold" style="font-size:.8rem;">الصنف <span class="text-danger">*</span></label>
+            <input class="form-control form-control-sm" name="category" list="exp-cat-list" required placeholder="اسم البند">
+            <datalist id="exp-cat-list">
+              {% for e in expense_items %}<option value="{{ e.category|e }}">{% endfor %}
+            </datalist>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold" style="font-size:.8rem;">التاريخ</label>
+            <input type="date" class="form-control form-control-sm" name="expense_date" value="{{ today_str }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold" style="font-size:.8rem;">المبلغ <span class="text-danger">*</span></label>
+            <input type="number" class="form-control form-control-sm" name="amount" step="0.01" min="0" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold" style="font-size:.8rem;">ملاحظة</label>
+            <input class="form-control form-control-sm" name="notes" placeholder="اختياري">
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-warning btn-sm fw-bold w-100">
+              <i class="fas fa-plus me-1"></i>إضافة
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- جدول البنود -->
+    {% if expense_items %}
+    <div style="overflow-x:auto;">
+      <table class="table table-sm mb-0" style="font-size:.82rem;">
+        <thead style="background:#fff8e1;">
+          <tr>
+            <th style="padding:7px 12px;">#</th>
+            <th style="padding:7px 12px;">الصنف</th>
+            <th style="padding:7px 12px;">التاريخ</th>
+            <th style="padding:7px 12px;">المبلغ</th>
+            <th style="padding:7px 12px;">ملاحظة</th>
+            <th style="padding:7px 12px;">إثبات</th>
+            {% if session.get('role') in ['admin','accountant'] %}<th style="padding:7px 12px;"></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expense_items %}
+          <tr style="border-bottom:1px solid #fff3cd;">
+            <td style="padding:7px 12px;color:#6c757d;">{{ loop.index }}</td>
+            <td style="padding:7px 12px;font-weight:700;">{{ e.category }}</td>
+            <td style="padding:7px 12px;color:#6c757d;white-space:nowrap;">{{ e.expense_date or "&#8212;" }}</td>
+            <td style="padding:7px 12px;font-weight:700;color:#c62828;">{{ "%.2f"|format(e.amount or 0) }}</td>
+            <td style="padding:7px 12px;color:#555;">{{ e.notes or "" }}</td>
+            <td style="padding:7px 12px;">
+              {% if e.proof_image %}
+              <a href="/static/uploads/{{ e.proof_image }}" target="_blank" style="color:#1565c0;font-size:.75rem;">
+                <i class="fas fa-image"></i> صورة
+              </a>
+              {% endif %}
+            </td>
+            {% if session.get('role') in ['admin','accountant'] %}
+            <td style="padding:6px 10px;white-space:nowrap;">
+              <button onclick="openExpEdit({{ e.id }},'{{ e.category|e }}','{{ e.expense_date or '' }}',{{ e.amount or 0 }},'{{ e.notes|e if e.notes else '' }}')"
+                      style="background:none;border:1px solid #f0a500;color:#f0a500;border-radius:6px;padding:2px 8px;font-size:.73rem;cursor:pointer;margin-left:4px;">
+                <i class="fas fa-pen"></i>
+              </button>
+              <form method="POST" action="/expenses/delete/{{ e.id }}" onsubmit="return confirm('حذف هذا البند؟')" style="display:inline;">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="background:none;border:1px solid #dc3545;color:#dc3545;border-radius:6px;padding:2px 8px;font-size:.73rem;cursor:pointer;">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+          <tr style="background:#fff3cd;">
+            <td colspan="{{ 5 if session.get('role') not in ['admin','accountant'] else 6 }}" style="padding:8px 12px;font-weight:900;text-align:left;">الإجمالي</td>
+            <td style="padding:8px 12px;font-weight:900;color:#c62828;">{{ "%.2f"|format(expense_total) }}</td>
+            {% if session.get('role') in ['admin','accountant'] %}<td></td>{% endif %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:22px;color:#b8860b;font-size:.85rem;">
+      <i class="fas fa-wallet" style="font-size:1.3rem;display:block;margin-bottom:5px;"></i>
+      لا توجد مصروفات مسجلة
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal تعديل بند -->
+{% if session.get('role') in ['admin','accountant'] %}
+<div id="exp-edit-modal" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:24px;max-width:500px;width:95%;
+       box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h5 style="margin:0;color:#7a5800;font-size:.95rem;"><i class="fas fa-pen me-2"></i>تعديل بند المصروف</h5>
+      <button onclick="closeExpEdit()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">×</button>
+    </div>
+    <form id="exp-edit-form" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold" style="font-size:.82rem;">الصنف</label>
+          <input class="form-control form-control-sm" id="ee-cat" name="category" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold" style="font-size:.82rem;">التاريخ</label>
+          <input type="date" class="form-control form-control-sm" id="ee-date" name="expense_date">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold" style="font-size:.82rem;">المبلغ</label>
+          <input type="number" class="form-control form-control-sm" id="ee-amount" name="amount" step="0.01" min="0">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold" style="font-size:.82rem;">ملاحظة</label>
+          <input class="form-control form-control-sm" id="ee-notes" name="notes">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="submit" class="btn btn-warning btn-sm fw-bold"><i class="fas fa-save me-1"></i>حفظ</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeExpEdit()">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+
 {% if summary %}
-<div class="table-wrapper">
+<div class="table-wrapper" id="inv-table-wrapper">
   <div class="table-header">
-    <h5><i class="fas fa-list-alt me-2" style="color:#1565c0;"></i>كشف الفواتير
+    <h5 style="cursor:pointer;user-select:none;" onclick="toggleInvTable()">
+      <i class="fas fa-list-alt me-2" style="color:#1565c0;"></i>كشف الفواتير
       <span class="badge ms-2" style="background:#e3f2fd;color:#1565c0;" id="inv-count-badge">{{ summary|length }}</span>
+      <i class="fas fa-chevron-up ms-2" id="inv-table-chev" style="font-size:.75rem;color:#94a3b8;transition:.2s;"></i>
     </h5>
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <!-- Filter bubble -->
@@ -175,6 +349,7 @@
       {% endif %}
     </div>
   </div>
+  <div id="inv-table-body">
   <div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead style="background:#e3f2fd;">
@@ -224,7 +399,8 @@
     إجمالي المشتريات:
     <span class="inventory-total-value">{{ "%.2f"|format(total_purchases) }}</span>
   </div>
-</div>
+</div><!-- end inv-table-body -->
+</div><!-- end table-wrapper -->
 
 {% else %}
 <div class="text-center py-5" style="color:#6c7a72;">
@@ -800,5 +976,41 @@ function _showUnknownDialog(queue, onDone) {
   box.querySelector('#unk-yes').onclick = function(){ choose(true); };
   box.querySelector('#unk-no').onclick = function(){ choose(false); };
 }
+
+/* ===== Collapsible sections ===== */
+function toggleExpCard() {
+  var body = document.getElementById('exp-card-body');
+  var chev = document.getElementById('exp-card-chev');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function toggleInvTable() {
+  var body = document.getElementById('inv-table-body');
+  var chev = document.getElementById('inv-table-chev');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+/* ===== Expense edit modal ===== */
+function openExpEdit(id, cat, date, amount, notes) {
+  var m = document.getElementById('exp-edit-modal');
+  if (!m) return;
+  document.getElementById('ee-cat').value = cat || '';
+  document.getElementById('ee-date').value = date || '';
+  document.getElementById('ee-amount').value = amount || '';
+  document.getElementById('ee-notes').value = notes || '';
+  document.getElementById('exp-edit-form').action = '/expenses/edit/' + id;
+  m.style.display = 'flex';
+}
+function closeExpEdit() {
+  var m = document.getElementById('exp-edit-modal');
+  if (m) m.style.display = 'none';
+}
+
 </script>
 {% endblock %}
