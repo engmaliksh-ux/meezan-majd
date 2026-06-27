@@ -123,36 +123,40 @@
   <div style="background:linear-gradient(135deg,#b71c1c,#c62828);padding:14px 20px;
               display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
     <span id="out-detail-title" style="color:#fff;font-weight:800;font-size:.95rem;"></span>
-    <button onclick="closeOutDetail()"
-            style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;
-                   width:30px;height:30px;font-size:1.1rem;cursor:pointer;line-height:1;">×</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button onclick="exportOutDetailPNG()" id="out-png-btn"
+              style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;
+                     border-radius:8px;padding:4px 12px;font-size:.78rem;font-weight:700;cursor:pointer;">
+        <i class="fas fa-image me-1"></i>PNG
+      </button>
+      <button onclick="closeOutDetail()"
+              style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;
+                     width:30px;height:30px;font-size:1.1rem;cursor:pointer;line-height:1;">×</button>
+    </div>
   </div>
   <div id="out-detail-body" style="overflow-y:auto;padding:18px 22px;"></div>
 </div>
 
-<!-- ===== Page Header ===== -->
-<div class="page-header">
-  <h2 class="page-title"><i class="fas fa-warehouse"></i> المخزن</h2>
-  {% if session.get('role') != 'observer' %}
-  <button class="btn btn-danger btn-sm" onclick="openOutModal()">
-    <i class="fas fa-file-export me-1"></i>فاتورة صرف جديدة
-  </button>
-  {% endif %}
-</div>
-
 <!-- ===== كشف فواتير الصرف ===== -->
 <div class="table-wrapper" id="out-inv-wrapper">
-  <div class="table-header" style="cursor:pointer;" onclick="toggleOutList()">
-    <h5>
+  <div class="table-header">
+    <h5 style="cursor:pointer;" onclick="toggleOutList()">
       <i class="fas fa-file-export me-2" style="color:#c62828;"></i>فواتير الصرف
       <span class="badge ms-2" style="background:#fde8e8;color:#c62828;" id="out-inv-badge">{{ out_invoices|length }}</span>
       <i class="fas fa-chevron-up ms-2" id="out-list-chev" style="font-size:.75rem;color:#94a3b8;transition:.2s;"></i>
     </h5>
-    {% if out_invoices %}
-    <span style="font-size:.82rem;color:#6c7a72;font-weight:600;">
-      إجمالي الصرف: <strong style="color:#c62828;">{{ "%.2f"|format(out_invoices|sum(attribute='total')) }}</strong>
-    </span>
-    {% endif %}
+    <div style="display:flex;align-items:center;gap:12px;">
+      {% if out_invoices %}
+      <span style="font-size:.82rem;color:#6c7a72;font-weight:600;">
+        إجمالي الصرف: <strong style="color:#c62828;">{{ "%.2f"|format(out_invoices|sum(attribute='total')) }}</strong>
+      </span>
+      {% endif %}
+      {% if session.get('role') != 'observer' %}
+      <button class="btn btn-danger btn-sm" onclick="openOutModal()" style="white-space:nowrap;">
+        <i class="fas fa-file-export me-1"></i>فاتورة صرف جديدة
+      </button>
+      {% endif %}
+    </div>
   </div>
 
   <div id="out-inv-list-body">
@@ -207,6 +211,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* ══ بيانات المخزن ══ */
 const inventoryMap = {};
@@ -350,5 +355,22 @@ function closeOutDetail() {
   document.getElementById('out-detail-overlay').style.display = 'none';
   document.getElementById('out-detail-modal').style.display = 'none';
 }
+/* ══ تصدير تفاصيل فاتورة الصرف كـ PNG ══ */
+function exportOutDetailPNG() {
+  var el = document.getElementById('out-detail-body');
+  if (!el) return;
+  var btn = document.getElementById('out-png-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>...'; }
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(function(canvas) {
+    var a = document.createElement('a');
+    a.download = 'sarf_' + (document.getElementById('out-detail-title').textContent.replace(/[^\w]/g,'_')) + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-image me-1"></i>PNG'; }
+  }).catch(function(){
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-image me-1"></i>PNG'; }
+  });
+}
+
 </script>
 {% endblock %}
