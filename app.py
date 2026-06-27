@@ -2009,10 +2009,11 @@ def add_incoming_invoice():
         quantities      = request.form.getlist("quantity[]")
         unit_prices     = request.form.getlist("unit_price[]")
         purchase_dates  = request.form.getlist("purchase_date[]")
+        add_to_stock_flags = request.form.getlist("add_to_stock[]")
 
         valid_items = [
-            (nm.strip(), un.strip(), qty, price, pdate)
-            for nm, un, qty, price, pdate in zip(product_names, product_units, quantities, unit_prices, purchase_dates)
+            (nm.strip(), un.strip(), qty, price, pdate, (add_to_stock_flags[i] if i < len(add_to_stock_flags) else "1"))
+            for i, (nm, un, qty, price, pdate) in enumerate(zip(product_names, product_units, quantities, unit_prices, purchase_dates))
             if nm.strip() and qty and price and pdate
         ]
 
@@ -2042,28 +2043,34 @@ def add_incoming_invoice():
             )
             invoice_id = c.lastrowid
 
-            for pname, punit, qty, price, pdate in valid_items:
+            for pname, punit, qty, price, pdate, add_stock_flag in valid_items:
                 try:
                     qty_f, price_f = float(qty), float(price)
+                    add_stock = add_stock_flag != "0"
                     c.execute("SELECT id FROM products WHERE org_id=? AND LOWER(name)=LOWER(?)", (org_id, pname))
                     row = c.fetchone()
                     if row:
                         pid = row["id"]
                         if punit:
                             c.execute("UPDATE products SET unit=?, last_modified=? WHERE id=?", (punit, pdate, pid))
+                        # if previously is_temp but now user wants to add to stock, update
+                        if add_stock:
+                            c.execute("UPDATE products SET is_temp=0 WHERE id=? AND COALESCE(is_temp,0)=1", (pid,))
                     else:
                         unit = punit or "وحدة"
-                        c.execute("INSERT INTO products (org_id, name, unit, last_modified) VALUES (?,?,?,?)",
-                                  (org_id, pname, unit, pdate))
+                        is_temp_val = 0 if add_stock else 1
+                        c.execute("INSERT INTO products (org_id, name, unit, last_modified, is_temp) VALUES (?,?,?,?,?)",
+                                  (org_id, pname, unit, pdate, is_temp_val))
                         pid = c.lastrowid
                     c.execute(
                         "INSERT INTO incoming_invoice_items (invoice_id, product_id, quantity, unit_price, total_price, purchase_date) VALUES (?,?,?,?,?,?)",
                         (invoice_id, pid, qty_f, price_f, qty_f * price_f, pdate)
                     )
-                    c.execute(
-                        "INSERT INTO stock_batches (org_id, product_id, quantity_remaining, unit_price, entry_date, invoice_id) VALUES (?,?,?,?,?,?)",
-                        (org_id, pid, qty_f, price_f, pdate, invoice_id)
-                    )
+                    if add_stock:
+                        c.execute(
+                            "INSERT INTO stock_batches (org_id, product_id, quantity_remaining, unit_price, entry_date, invoice_id) VALUES (?,?,?,?,?,?)",
+                            (org_id, pid, qty_f, price_f, pdate, invoice_id)
+                        )
                     c.execute("UPDATE products SET last_modified=? WHERE id=?", (pdate, pid))
                 except ValueError:
                     pass
@@ -5094,9 +5101,10 @@ def api_sys_notif_count():
 
 
 @app.route("/api/bell/all")
-@login_required
 def api_bell_all():
     """جلب جميع الإشعارات للجرس: نظام + طلبات انضمام"""
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "غير مصرح"})
     org_id = session["org_id"]
     role   = session.get("role", "")
     conn   = get_connection()
@@ -5151,8 +5159,9 @@ def api_bell_all():
 
 
 @app.route("/api/bell/mark_sys_read", methods=["POST"])
-@login_required
 def api_bell_mark_sys_read():
+    if "user_id" not in session:
+        return jsonify({"ok": False})
     org_id = session["org_id"]
     conn = get_connection()
     conn.execute("UPDATE sys_notifications SET is_read=1 WHERE (org_id=? OR org_id IS NULL) AND is_read=0", (org_id,))

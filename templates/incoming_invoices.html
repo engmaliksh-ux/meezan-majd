@@ -155,9 +155,9 @@
           <i class="fas fa-chevron-down" style="font-size:.6rem;color:#94a3b8;" id="inv-filter-chev"></i>
         </button>
         <div id="inv-filter-drop"
-             style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:160px;
-                    background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
-                    z-index:500;overflow:hidden;border:1px solid #e2e8f0;">
+             style="display:none;position:fixed;min-width:175px;
+                    background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);
+                    z-index:9999;overflow:hidden;border:1px solid #e2e8f0;">
           <div onclick="applyInvFilter('all','الكل','#374151')" class="inv-filter-opt" style="padding:9px 14px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;"><i class="fas fa-list" style="color:#64748b;width:14px;"></i>الكل</div>
           <div onclick="applyInvFilter('unpaid','غير مدفوعة','#c62828')" class="inv-filter-opt" style="padding:9px 14px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;"><i class="fas fa-clock" style="color:#c62828;width:14px;"></i>غير مدفوعة</div>
           <div onclick="applyInvFilter('paid','مدفوعة','#1a6b3a')" class="inv-filter-opt" style="padding:9px 14px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;"><i class="fas fa-check-circle" style="color:#1a6b3a;width:14px;"></i>مدفوعة</div>
@@ -325,15 +325,12 @@ document.getElementById('inv-items-body').addEventListener('click', function(e) 
   }
 });
 
-async function submitAddInvoice(e) {
-  e.preventDefault();
+async function _doSubmitInvoice() {
   var btn = document.getElementById('addinv-btn');
   var err = document.getElementById('addinv-error');
   if (!err) {
-    err = document.createElement('div');
-    err.id = 'addinv-error';
-    err.className = 'alert alert-danger mb-3';
-    err.style.display = 'none';
+    err = document.createElement('div'); err.id = 'addinv-error';
+    err.className = 'alert alert-danger mb-3'; err.style.display = 'none';
     var form = document.getElementById('addinv-form');
     if (form) form.parentNode.insertBefore(err, form);
   }
@@ -342,6 +339,10 @@ async function submitAddInvoice(e) {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جارٍ الحفظ…';
   try {
     var fd = new FormData(document.getElementById('addinv-form'));
+    // Append per-row add_to_stock flags
+    document.querySelectorAll('#inv-items-body .inv-item-row').forEach(function(row) {
+      fd.append('add_to_stock[]', row.getAttribute('data-add-stock') !== '0' ? '1' : '0');
+    });
     var csrf = fd.get('_csrf_token') || '';
     var res = await fetch('/add_incoming_invoice', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf } });
     var text = await res.text();
@@ -360,6 +361,23 @@ async function submitAddInvoice(e) {
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-save me-1"></i> حفظ الفاتورة';
+}
+
+async function submitAddInvoice(e) {
+  e.preventDefault();
+  // Check for unknown products first
+  var unknownRows = [];
+  document.querySelectorAll('#inv-items-body .inv-item-row').forEach(function(row) {
+    if (row.getAttribute('data-unknown') === '1' && row.getAttribute('data-add-stock') === null) {
+      var nameInp = row.querySelector('input[name="product_name[]"]');
+      if (nameInp && nameInp.value.trim()) unknownRows.push({name: nameInp.value.trim(), row: row});
+    }
+  });
+  if (unknownRows.length > 0) {
+    _showUnknownDialog(unknownRows, _doSubmitInvoice);
+  } else {
+    await _doSubmitInvoice();
+  }
 }
 
 /* ===== Invoice Detail Modal ===== */
@@ -440,7 +458,7 @@ function renderDetailModal(inv) {
     + '<div style="font-weight:900;color:#1565c0;font-size:.9rem;">' + inv.supplier + '</div></div>'
     + '<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;border:1px solid #e2e8f0;">'
     + '<div style="font-size:.7rem;color:#64748b;font-weight:700;margin-bottom:4px;"><i class="fas fa-calendar-check me-1"></i>تاريخ الدفع</div>'
-    + '<div id="detail-payment-date" style="font-weight:700;color:#374151;">' + (inv.payment_date || (inv.is_paid ? '—' : 'غير مدفوعة')) + '</div></div>'
+    + '<div id="detail-payment-date" style="font-weight:700;color:#374151;">' + (inv.payment_date || (inv.is_paid ? (inv.created_at ? inv.created_at.slice(0,10) : '—') : 'غير مدفوعة')) + '</div></div>'
     + (inv.invoice_name ? '<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;border:1px solid #e2e8f0;">'
     + '<div style="font-size:.7rem;color:#64748b;font-weight:700;margin-bottom:4px;"><i class="fas fa-tag me-1"></i>اسم الفاتورة</div>'
     + '<div style="font-weight:700;color:#374151;">' + inv.invoice_name + '</div></div>' : '')
@@ -670,7 +688,14 @@ var _invFilter = 'all';
 function toggleInvFilter() {
   var drop = document.getElementById('inv-filter-drop');
   var chev = document.getElementById('inv-filter-chev');
+  var btn = document.getElementById('inv-filter-btn');
   var open = drop.style.display === 'none';
+  if (open) {
+    var rect = btn.getBoundingClientRect();
+    drop.style.top = (rect.bottom + 6) + 'px';
+    drop.style.right = (window.innerWidth - rect.right) + 'px';
+    drop.style.left = 'auto';
+  }
   drop.style.display = open ? 'block' : 'none';
   if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
 }
@@ -706,36 +731,68 @@ document.addEventListener('click', function(e) {
   }
 });
 
-/* ===== Unknown product warning in Add Invoice Modal ===== */
+/* ===== Unknown product detection (Add Invoice Modal) ===== */
+// Auto-fill unit + show badge on product name change
 document.getElementById('inv-items-body').addEventListener('change', function(e) {
   var inp = e.target;
   if (!inp || inp.getAttribute('name') !== 'product_name[]') return;
   var val = inp.value.trim();
-  if (!val) return;
-  var known = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
   var row = inp.closest('tr');
-  var existing = row ? row.querySelector('.inv-unknown-badge') : null;
+  if (!val || !row) return;
+  // Auto-fill unit from datalist
+  var opt = document.querySelector('#inv-products-datalist option[value="' + val.replace(/"/g,'&quot;') + '"]');
+  var unitInp = row.querySelector('.inv-unit');
+  if (opt && unitInp && !unitInp.value) unitInp.value = opt.textContent.trim();
+  // Mark unknown products
+  var known = _existingProducts.map(function(p){ return p.name.trim().toLowerCase(); });
+  var badge = row.querySelector('.inv-unknown-badge');
   if (known.indexOf(val.toLowerCase()) === -1) {
-    // Auto-fill unit from datalist if possible
-    var opt = document.querySelector('#inv-products-datalist option[value="' + val + '"]');
-    if (opt) {
-      var unitInp = row ? row.querySelector('.inv-unit') : null;
-      if (unitInp && !unitInp.value) unitInp.value = opt.textContent.trim() || opt.getAttribute('label') || '';
-    }
-    if (!existing) {
-      var badge = document.createElement('span');
+    row.setAttribute('data-unknown', '1');
+    if (!badge) {
+      badge = document.createElement('span');
       badge.className = 'inv-unknown-badge';
-      badge.style.cssText = 'font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 5px;margin-right:4px;border:1px solid #f59e0b;white-space:nowrap;';
-      badge.textContent = '⚠ صنف جديد';
+      badge.style.cssText = 'font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 6px;margin-right:4px;border:1px solid #f59e0b;white-space:nowrap;vertical-align:middle;';
+      badge.innerHTML = '⚠ صنف جديد';
       inp.parentNode.insertBefore(badge, inp.nextSibling);
     }
   } else {
-    // Auto-fill unit
-    var opt2 = document.querySelector('#inv-products-datalist option[value="' + val + '"]');
-    var unitInp2 = row ? row.querySelector('.inv-unit') : null;
-    if (opt2 && unitInp2 && !unitInp2.value) unitInp2.value = opt2.textContent.trim() || opt2.getAttribute('label') || '';
-    if (existing) existing.remove();
+    row.removeAttribute('data-unknown');
+    if (badge) badge.remove();
   }
 });
+
+/* Unknown product mini-modal */
+var _unknownQueue = [];
+var _unknownStockDecisions = {}; // rowIndex -> true/false
+
+function _showUnknownDialog(queue, onDone) {
+  if (queue.length === 0) { onDone(); return; }
+  var item = queue[0];
+  var rest = queue.slice(1);
+  // Create overlay
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:#0007;z-index:9998;display:flex;align-items:center;justify-content:center;direction:rtl;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;padding:0;width:min(92vw,360px);box-shadow:0 16px 48px rgba(0,0,0,.28);overflow:hidden;';
+  box.innerHTML =
+    '<div style="background:linear-gradient(135deg,#b45309,#d97706);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">'
+    + '<span style="color:#fff;font-weight:800;font-size:.9rem;"><i class="fas fa-exclamation-circle me-2"></i>صنف غير موجود بالمخزن</span></div>'
+    + '<div style="padding:18px 20px;">'
+    + '<p style="font-size:.88rem;color:#374151;margin-bottom:6px;">الصنف <strong style="color:#b45309;">' + item.name + '</strong> غير موجود في قائمة المخزون.</p>'
+    + '<p style="font-size:.82rem;color:#6b7280;margin-bottom:18px;">هل تريد إضافته للمخزون أم تسجيله بالفاتورة فقط؟</p>'
+    + '<div style="display:flex;gap:10px;">'
+    + '<button id="unk-yes" class="btn btn-primary" style="flex:1;font-size:.84rem;"><i class="fas fa-plus-circle me-1"></i>إضافة للمخزون</button>'
+    + '<button id="unk-no" class="btn btn-outline-secondary" style="flex:1;font-size:.84rem;"><i class="fas fa-file-invoice me-1"></i>فاتورة فقط</button>'
+    + '</div></div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  function choose(addToStock) {
+    item.row.setAttribute('data-add-stock', addToStock ? '1' : '0');
+    document.body.removeChild(ov);
+    _showUnknownDialog(rest, onDone);
+  }
+  box.querySelector('#unk-yes').onclick = function(){ choose(true); };
+  box.querySelector('#unk-no').onclick = function(){ choose(false); };
+}
 </script>
 {% endblock %}
