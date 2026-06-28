@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}توزيع – {{ program.name }}{% endblock %}
+{% block page_title %}<i class="fas fa-boxes"></i> توزيع جديد{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/program/{{ program.id }}" class="btn btn-secondary btn-sm">
+      <i class="fas fa-arrow-right"></i>
+    </a>
+    <h2 class="page-title mb-0">
+      توزيع جديد —
+      {% if program.name == 'كفالات أيتام' %}💛
+      {% elif program.name == 'طرود غذائية' %}📦
+      {% elif program.name == 'تكية' %}🍽️
+      {% elif program.name == 'مياه حلوة' %}💧
+      {% elif program.name == 'وجبات ساخنة' %}🔥
+      {% else %}📋{% endif %}
+      {{ program.name }}
+    </h2>
+  </div>
+  <a href="/program/{{ program.id }}/archive" class="btn btn-sm" style="background:#e8f5ee;color:#1a6b3a;border:1px solid #b7dfca;">
+    <i class="fas fa-archive"></i> الأرشيف
+  </a>
+</div>
+
+<form method="POST" action="/program/{{ program.id }}/distribute" id="distForm">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+<!-- بيانات التوزيع -->
+<div class="card mb-4">
+  <div class="card-header" style="background:#f0fdf4;">
+    <i class="fas fa-info-circle" style="color:#1a6b3a;"></i>
+    بيانات التوزيع
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label fw-bold">التاريخ <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" name="dist_date" required
+               value="{{ today }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">نوع المساعدة <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" name="aid_type" required
+               placeholder="مثال: طرد غذائي، كفالة، وجبات...">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold">الكمية</label>
+        <input type="text" class="form-control" name="quantity" placeholder="مثال: 50 كرتون">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-bold">القيمة / الوصف</label>
+        <input type="text" class="form-control" name="value_desc"
+               placeholder="مثال: قيمة الكفالة 50$">
+      </div>
+      <div class="col-12">
+        <label class="form-label fw-bold">ملاحظات</label>
+        <textarea class="form-control" name="notes" rows="2" placeholder="أي ملاحظات إضافية..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- تصفية المستفيدين -->
+<div class="card mb-3">
+  <div class="card-header" style="background:#f0fdf4;">
+    <i class="fas fa-filter" style="color:#1a6b3a;"></i>
+    تحديد الفئة المستهدفة
+  </div>
+  <div class="card-body">
+    <input type="hidden" name="target_type" id="targetTypeInput" value="individuals">
+    <input type="hidden" name="target_category" id="targetCatInput" value="">
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <button type="button" class="btn btn-sm filter-btn active" data-filter="all" onclick="applyFilter('all','')">
+        <i class="fas fa-users"></i> الكل
+      </button>
+      <button type="button" class="btn btn-sm filter-btn" data-filter="orphans" onclick="applyFilter('category','orphans')">
+        👶 الأيتام
+      </button>
+      <button type="button" class="btn btn-sm filter-btn" data-filter="pregnant" onclick="applyFilter('category','pregnant')">
+        🤰 الحوامل
+      </button>
+      <button type="button" class="btn btn-sm filter-btn" data-filter="nursing" onclick="applyFilter('category','nursing')">
+        🍼 المرضعات
+      </button>
+      <button type="button" class="btn btn-sm filter-btn" data-filter="widows" onclick="applyFilter('category','widows')">
+        🕊️ الأرامل
+      </button>
+      {% for cc in coop_bens | groupby('camp_name') %}
+      <button type="button" class="btn btn-sm filter-btn" data-filter="camp_{{ loop.index }}"
+              onclick="applyFilter('camp','{{ cc.grouper }}')">
+        🏕️ {{ cc.grouper }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="d-flex gap-2 mb-2">
+      <input type="text" class="form-control form-control-sm" id="searchInput"
+             placeholder="بحث بالاسم..." oninput="searchBens(this.value)"
+             style="max-width:260px;">
+      <button type="button" class="btn btn-sm" style="background:#1a6b3a;color:#fff;"
+              onclick="selectAll()">تحديد الكل</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary"
+              onclick="deselectAll()">إلغاء الكل</button>
+      <span class="ms-auto align-self-center text-muted small" id="selCount">
+        محدد: <strong id="selNum">0</strong>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- جدول المستفيدين -->
+<div class="card mb-4">
+  <div class="card-header" style="background:#f0fdf4;">
+    <i class="fas fa-list-check" style="color:#1a6b3a;"></i>
+    قائمة المستفيدين
+    <span class="badge ms-2" style="background:#1a6b3a;color:#fff;" id="totalCount">
+      {{ own_bens|length + coop_bens|length }}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+      <table class="table table-sm table-hover mb-0" id="benTable">
+        <thead style="position:sticky;top:0;z-index:2;background:#fff;">
+          <tr style="background:#e8f5ee;">
+            <th style="width:40px;"><input type="checkbox" id="masterCheck" onchange="toggleAll(this)"></th>
+            <th>الاسم</th>
+            <th>المخيم / المصدر</th>
+            <th>عدد الأسرة</th>
+            <th>الفئات</th>
+            <th style="width:100px;text-align:center;">استلم ✔</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in own_bens %}
+          <tr class="ben-row"
+              data-name="{{ b.full_name }}"
+              data-orphans="{{ b.has_orphans or 0 }}"
+              data-pregnant="{{ b.wife_pregnant or 0 }}"
+              data-nursing="{{ b.wife_nursing or 0 }}"
+              data-widowed="{{ '1' if b.marital_status=='widowed' else '0' }}"
+              data-camp="">
+            <td>
+              <input type="checkbox" name="beneficiary_ids" value="b_{{ b.id }}"
+                     class="ben-check" onchange="updateCount()">
+            </td>
+            <td class="fw-semibold">{{ b.full_name }}</td>
+            <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">مستفيدو المؤسسة</span></td>
+            <td>{{ b.family_size or '—' }}</td>
+            <td>
+              {% if b.has_orphans %}<span class="badge bg-warning text-dark me-1">أيتام</span>{% endif %}
+              {% if b.wife_pregnant %}<span class="badge bg-pink me-1" style="background:#fce4ec;color:#880e4f;">حامل</span>{% endif %}
+              {% if b.wife_nursing %}<span class="badge me-1" style="background:#e3f2fd;color:#1565c0;">مرضعة</span>{% endif %}
+              {% if b.marital_status == 'widowed' %}<span class="badge me-1" style="background:#f3e5f5;color:#6a1b9a;">أرملة</span>{% endif %}
+            </td>
+            <td style="text-align:center;">
+              <input type="checkbox" name="received_ids" value="b_{{ b.id }}" checked
+                     class="rec-check" title="استلم">
+            </td>
+          </tr>
+          {% endfor %}
+
+          {% for b in coop_bens %}
+          <tr class="ben-row"
+              data-name="{{ b.full_name }}"
+              data-orphans="{{ b.has_orphans or 0 }}"
+              data-pregnant="{{ b.wife_pregnant or 0 }}"
+              data-nursing="{{ b.wife_nursing or 0 }}"
+              data-widowed="{{ '1' if b.marital_status=='widowed' else '0' }}"
+              data-camp="{{ b.camp_name }}">
+            <td>
+              <input type="checkbox" name="beneficiary_ids" value="c_{{ b.camp_id }}_{{ b.id }}"
+                     class="ben-check" onchange="updateCount()">
+            </td>
+            <td class="fw-semibold">{{ b.full_name }}</td>
+            <td>
+              <span class="badge" style="background:#fff3e0;color:#e65100;">
+                🏕️ {{ b.camp_name }}
+              </span>
+            </td>
+            <td>{{ b.family_size or '—' }}</td>
+            <td>
+              {% if b.has_orphans %}<span class="badge bg-warning text-dark me-1">أيتام</span>{% endif %}
+              {% if b.wife_pregnant %}<span class="badge me-1" style="background:#fce4ec;color:#880e4f;">حامل</span>{% endif %}
+              {% if b.wife_nursing %}<span class="badge me-1" style="background:#e3f2fd;color:#1565c0;">مرضعة</span>{% endif %}
+              {% if b.marital_status == 'widowed' %}<span class="badge me-1" style="background:#f3e5f5;color:#6a1b9a;">أرملة</span>{% endif %}
+            </td>
+            <td style="text-align:center;">
+              <input type="checkbox" name="received_ids" value="c_{{ b.camp_id }}_{{ b.id }}" checked
+                     class="rec-check" title="استلم">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- زر الحفظ -->
+<div class="d-flex justify-content-end gap-3 mb-5">
+  <a href="/program/{{ program.id }}" class="btn btn-outline-secondary">
+    <i class="fas fa-times"></i> إلغاء
+  </a>
+  <button type="submit" class="btn" style="background:#1a6b3a;color:#fff;padding:10px 32px;font-weight:700;"
+          onclick="return confirmSubmit()">
+    <i class="fas fa-check-circle"></i> تسجيل التوزيع
+  </button>
+</div>
+
+</form>
+
+<style>
+.filter-btn {
+  background: #f8f9fa;
+  color: #555;
+  border: 1px solid #dee2e6;
+  font-size: .82rem;
+}
+.filter-btn.active {
+  background: #1a6b3a;
+  color: #fff;
+  border-color: #1a6b3a;
+}
+.ben-row.hidden { display: none; }
+.rec-check { width: 18px; height: 18px; cursor: pointer; accent-color: #1a6b3a; }
+.ben-check { width: 18px; height: 18px; cursor: pointer; accent-color: #1a6b3a; }
+</style>
+
+<script>
+let currentFilter = 'all';
+let currentCamp   = '';
+let currentSearch = '';
+
+function applyFilter(type, value) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.filter-btn').classList.add('active');
+
+  document.getElementById('targetTypeInput').value = (type === 'category') ? 'category' : (type === 'camp') ? 'camp' : 'individuals';
+  document.getElementById('targetCatInput').value  = (type === 'category') ? value : '';
+
+  currentFilter = type === 'all' ? 'all' : type + ':' + value;
+  currentCamp   = (type === 'camp') ? value : '';
+  filterRows();
+}
+
+function searchBens(q) {
+  currentSearch = q.trim().toLowerCase();
+  filterRows();
+}
+
+function filterRows() {
+  document.querySelectorAll('.ben-row').forEach(row => {
+    let show = true;
+    const name    = (row.dataset.name || '').toLowerCase();
+    const camp    = row.dataset.camp || '';
+    const orphans = row.dataset.orphans === '1';
+    const preg    = row.dataset.pregnant === '1';
+    const nurs    = row.dataset.nursing  === '1';
+    const widow   = row.dataset.widowed  === '1';
+
+    if (currentSearch && !name.includes(currentSearch)) show = false;
+
+    if (show && currentFilter !== 'all') {
+      const [ftype, fval] = currentFilter.split(':');
+      if (ftype === 'category') {
+        if (fval === 'orphans'  && !orphans) show = false;
+        if (fval === 'pregnant' && !preg)    show = false;
+        if (fval === 'nursing'  && !nurs)    show = false;
+        if (fval === 'widows'   && !widow)   show = false;
+      } else if (ftype === 'camp') {
+        if (camp !== fval) show = false;
+      }
+    }
+
+    row.classList.toggle('hidden', !show);
+  });
+  updateCount();
+}
+
+function selectAll() {
+  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = true);
+  updateCount();
+}
+function deselectAll() {
+  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = false);
+  updateCount();
+}
+function toggleAll(master) {
+  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = master.checked);
+  updateCount();
+}
+function updateCount() {
+  const n = document.querySelectorAll('.ben-check:checked').length;
+  document.getElementById('selNum').textContent = n;
+}
+function confirmSubmit() {
+  const n = document.querySelectorAll('.ben-check:checked').length;
+  if (n === 0) { alert('يرجى اختيار مستفيد واحد على الأقل'); return false; }
+  return confirm(`سيتم تسجيل التوزيع لـ ${n} مستفيد. تأكيد؟`);
+}
+</script>
+{% endblock %}

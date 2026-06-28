@@ -3003,6 +3003,213 @@ def delete_program_record(id, record_id):
 
 
 # ══════════════════════════════════════════
+# توزيع جماعي – إنشاء حدث توزيع
+# ══════════════════════════════════════════
+@app.route("/program/<int:id>/distribute", methods=["GET", "POST"])
+@admin_required
+def program_distribute(id):
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM programs WHERE id=? AND org_id=?", (id, org_id))
+    program = c.fetchone()
+    if not program:
+        conn.close()
+        flash("البرنامج غير موجود", "danger")
+        return redirect(url_for("programs_list"))
+    program = dict(program)
+
+    if request.method == "POST":
+        dist_date    = request.form.get("dist_date", "").strip()
+        aid_type     = request.form.get("aid_type", "").strip()
+        quantity     = request.form.get("quantity", "").strip()
+        value_desc   = request.form.get("value_desc", "").strip()
+        target_type  = request.form.get("target_type", "individuals")
+        target_cat   = request.form.get("target_category", "").strip()
+        notes        = request.form.get("notes", "").strip()
+        selected_ids = request.form.getlist("beneficiary_ids")   # list of "b_123" or "c_456_78"
+
+        if not dist_date or not aid_type or not selected_ids:
+            flash("يرجى تعبئة التاريخ ونوع المساعدة واختيار مستفيد واحد على الأقل", "danger")
+            conn.close()
+            return redirect(url_for("program_distribute", id=id))
+
+        # إنشاء حدث التوزيع
+        c.execute("""
+            INSERT INTO program_distributions
+              (org_id, program_id, dist_date, aid_type, quantity, value_desc,
+               target_type, target_category, notes, created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (org_id, id, dist_date, aid_type, quantity, value_desc,
+              target_type, target_cat, notes, session["user"]))
+        dist_id = c.lastrowid
+
+        # إنشاء سجل لكل مستفيد
+        # الـ key: "b_{beneficiary_id}" للمستفيدين العاديين
+        #           "c_{camp_entity_id}_{beneficiary_id}" لمستفيدي مخيمات التعاون
+        received_set = set(request.form.getlist("received_ids"))
+
+        for key in selected_ids:
+            parts = key.split("_")
+            if parts[0] == "b" and len(parts) == 2:
+                ben_id  = int(parts[1])
+                camp_id = None
+            elif parts[0] == "c" and len(parts) == 3:
+                camp_id = int(parts[1])
+                ben_id  = int(parts[2])
+            else:
+                continue
+
+            received = 1 if key in received_set else 0
+            c.execute("""
+                INSERT INTO program_records
+                  (org_id, program_id, distribution_id, beneficiary_id, camp_entity_id,
+                   benefit_date, benefit_type, quantity, value_desc, received,
+                   notes, created_by, ben_confirmed)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)
+            """, (org_id, id, dist_id, ben_id, camp_id,
+                  dist_date, aid_type, quantity, value_desc, received,
+                  notes, session["user"]))
+
+        conn.commit()
+        conn.close()
+        flash(f"✅ تم تسجيل التوزيع لـ {len(selected_ids)} مستفيد", "success")
+        return redirect(url_for("program_archive", id=id))
+
+    # GET: جلب المستفيدين (خاصة المؤسسة + مخيمات التعاون)
+    c.execute("""
+        SELECT id, seq_num, full_name, family_size, city, neighborhood,
+               has_orphans, wife_pregnant, wife_nursing,
+               orphans_count, gender, marital_status
+        FROM beneficiaries WHERE org_id=?
+        ORDER BY seq_num
+    """, (org_id,))
+    own_bens = [dict(r) for r in c.fetchall()]
+
+    # مخيمات التعاون المرتبطة
+    c.execute("""
+        SELECT ce.id as camp_id, ce.camp_name, ce.manager_name, icl.id as link_id
+        FROM institution_camp_links icl
+        JOIN camp_entities ce ON ce.id = icl.camp_entity_id
+        WHERE icl.org_id=? AND icl.status='approved'
+    """, (org_id,))
+    coop_camps = [dict(r) for r in c.fetchall()]
+
+    coop_bens = []
+    for cc in coop_camps:
+        c.execute("""
+            SELECT id, full_name, family_size, city, neighborhood,
+                   has_orphans, wife_pregnant, wife_nursing, orphans_count,
+                   gender, marital_status
+            FROM beneficiaries
+            WHERE camp_entity_id=? AND beneficiary_status='in_camp'
+            ORDER BY full_name
+        """, (cc["camp_id"],))
+        for b in c.fetchall():
+            row = dict(b)
+            row["camp_name"] = cc["camp_name"]
+            row["camp_id"]   = cc["camp_id"]
+            coop_bens.append(row)
+
+    conn.close()
+    return render_template("program_distribute.html",
+        program=program, own_bens=own_bens, coop_bens=coop_bens,
+        today=datetime.now().strftime("%Y-%m-%d"))
+
+
+# ══════════════════════════════════════════
+# أرشيف البرنامج – عرض التوزيعات السابقة
+# ══════════════════════════════════════════
+@app.route("/program/<int:id>/archive")
+@programs_view_required
+def program_archive(id):
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM programs WHERE id=? AND org_id=?", (id, org_id))
+    program = c.fetchone()
+    if not program:
+        conn.close()
+        flash("البرنامج غير موجود", "danger")
+        return redirect(url_for("programs_list"))
+    program = dict(program)
+
+    # كل أحداث التوزيع لهذا البرنامج
+    c.execute("""
+        SELECT pd.*,
+               COUNT(pr.id) as total_records,
+               SUM(CASE WHEN pr.received=1 THEN 1 ELSE 0 END) as received_count,
+               SUM(CASE WHEN pr.received=0 THEN 1 ELSE 0 END) as not_received_count
+        FROM program_distributions pd
+        LEFT JOIN program_records pr ON pr.distribution_id=pd.id
+        WHERE pd.org_id=? AND pd.program_id=?
+        GROUP BY pd.id
+        ORDER BY pd.dist_date DESC, pd.id DESC
+    """, (org_id, id))
+    distributions = [dict(r) for r in c.fetchall()]
+
+    # لكل توزيع: جلب المستفيدين
+    for d in distributions:
+        c.execute("""
+            SELECT pr.id, pr.received, pr.beneficiary_id, pr.camp_entity_id,
+                   b.full_name, b.family_size,
+                   ce.camp_name
+            FROM program_records pr
+            JOIN beneficiaries b ON b.id = pr.beneficiary_id
+            LEFT JOIN camp_entities ce ON ce.id = pr.camp_entity_id
+            WHERE pr.distribution_id=?
+            ORDER BY pr.received DESC, b.full_name
+        """, (d["id"],))
+        d["records"] = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+    return render_template("program_archive.html",
+        program=program, distributions=distributions)
+
+
+# ══════════════════════════════════════════
+# طباعة حدث التوزيع
+# ══════════════════════════════════════════
+@app.route("/program/distribution/<int:dist_id>/print")
+@programs_view_required
+def program_distribution_print(dist_id):
+    org_id = session["org_id"]
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT pd.*, p.name as program_name, o.name as org_name
+        FROM program_distributions pd
+        JOIN programs p ON p.id = pd.program_id
+        JOIN organizations o ON o.id = pd.org_id
+        WHERE pd.id=? AND pd.org_id=?
+    """, (dist_id, org_id))
+    dist = c.fetchone()
+    if not dist:
+        conn.close()
+        flash("التوزيع غير موجود", "danger")
+        return redirect(url_for("programs_list"))
+    dist = dict(dist)
+
+    c.execute("""
+        SELECT pr.received, b.full_name, b.family_size, b.id_number,
+               ce.camp_name
+        FROM program_records pr
+        JOIN beneficiaries b ON b.id = pr.beneficiary_id
+        LEFT JOIN camp_entities ce ON ce.id = pr.camp_entity_id
+        WHERE pr.distribution_id=?
+        ORDER BY pr.received DESC, b.full_name
+    """, (dist_id,))
+    records = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+    return render_template("program_distribution_print.html",
+        dist=dist, records=records)
+
+
+# ══════════════════════════════════════════
 # فواتير الصرف
 # ══════════════════════════════════════════
 @app.route("/outgoing_invoice", methods=["GET", "POST"])

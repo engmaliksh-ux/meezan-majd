@@ -354,18 +354,41 @@ def init_db():
     # جدول سجل استفادة المستفيدين من البرامج
     c.execute("""
     CREATE TABLE IF NOT EXISTS program_records (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        org_id         INTEGER NOT NULL,
-        program_id     INTEGER NOT NULL,
-        beneficiary_id INTEGER NOT NULL,
-        benefit_date   TEXT    NOT NULL,
-        benefit_type   TEXT,
-        quantity       TEXT,
-        notes          TEXT,
-        created_by     TEXT,
-        created_at     TEXT DEFAULT (datetime('now','localtime')),
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id           INTEGER NOT NULL,
+        program_id       INTEGER NOT NULL,
+        distribution_id  INTEGER,
+        beneficiary_id   INTEGER NOT NULL,
+        camp_entity_id   INTEGER,
+        benefit_date     TEXT    NOT NULL,
+        benefit_type     TEXT,
+        quantity         TEXT,
+        value_desc       TEXT,
+        received         INTEGER NOT NULL DEFAULT 1,
+        notes            TEXT,
+        created_by       TEXT,
+        created_at       TEXT DEFAULT (datetime('now','localtime')),
         FOREIGN KEY (program_id)     REFERENCES programs(id),
         FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(id)
+    )
+    """)
+
+    # جدول أحداث التوزيع
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS program_distributions (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id          INTEGER NOT NULL,
+        program_id      INTEGER NOT NULL,
+        dist_date       TEXT    NOT NULL,
+        aid_type        TEXT    NOT NULL,
+        quantity        TEXT,
+        value_desc      TEXT,
+        target_type     TEXT    NOT NULL DEFAULT 'individuals',
+        target_category TEXT,
+        notes           TEXT,
+        created_by      TEXT,
+        created_at      TEXT DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (program_id) REFERENCES programs(id)
     )
     """)
 
@@ -1018,6 +1041,37 @@ def init_camp_tables():
         c.execute("ALTER TABLE expense_items ADD COLUMN period_id INTEGER")
     except Exception:
         pass
+
+    # أعمدة جديدة في program_records
+    for col, defn in [
+        ("distribution_id", "INTEGER"),
+        ("camp_entity_id",  "INTEGER"),
+        ("value_desc",      "TEXT"),
+        ("received",        "INTEGER NOT NULL DEFAULT 1"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE program_records ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+
+    # جدول أحداث التوزيع
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS program_distributions (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id          INTEGER NOT NULL,
+        program_id      INTEGER NOT NULL,
+        dist_date       TEXT    NOT NULL,
+        aid_type        TEXT    NOT NULL,
+        quantity        TEXT,
+        value_desc      TEXT,
+        target_type     TEXT    NOT NULL DEFAULT 'individuals',
+        target_category TEXT,
+        notes           TEXT,
+        created_by      TEXT,
+        created_at      TEXT DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (program_id) REFERENCES programs(id)
+    )
+    """)
 
     conn.commit()
 

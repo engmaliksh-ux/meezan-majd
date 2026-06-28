@@ -18,9 +18,21 @@
       {{ program.name }}
     </h2>
   </div>
-  <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.85rem;padding:6px 14px;">
-    {{ records|length }} {{ t.benefit_records_suffix }}
-  </span>
+  <div class="d-flex align-items-center gap-2">
+    {% if session.get('role') != 'observer' %}
+    <a href="/program/{{ program.id }}/distribute" class="btn btn-sm"
+       style="background:#1a6b3a;color:#fff;">
+      <i class="fas fa-boxes"></i> توزيع جديد
+    </a>
+    {% endif %}
+    <a href="/program/{{ program.id }}/archive" class="btn btn-sm"
+       style="background:#e8f5ee;color:#1a6b3a;border:1px solid #b7dfca;">
+      <i class="fas fa-archive"></i> الأرشيف
+    </a>
+    <span class="badge" style="background:#e8f5ee;color:#1a6b3a;font-size:.85rem;padding:6px 14px;">
+      {{ records|length }} {{ t.benefit_records_suffix }}
+    </span>
+  </div>
 </div>
 
 {% if session.get('role') != 'observer' %}

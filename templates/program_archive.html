@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}أرشيف – {{ program.name }}{% endblock %}
+{% block page_title %}<i class="fas fa-archive"></i> أرشيف البرامج{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/program/{{ program.id }}" class="btn btn-secondary btn-sm">
+      <i class="fas fa-arrow-right"></i>
+    </a>
+    <h2 class="page-title mb-0">
+      أرشيف —
+      {% if program.name == 'كفالات أيتام' %}💛
+      {% elif program.name == 'طرود غذائية' %}📦
+      {% elif program.name == 'تكية' %}🍽️
+      {% elif program.name == 'مياه حلوة' %}💧
+      {% elif program.name == 'وجبات ساخنة' %}🔥
+      {% else %}📋{% endif %}
+      {{ program.name }}
+    </h2>
+  </div>
+  {% if session.get('role') != 'observer' %}
+  <a href="/program/{{ program.id }}/distribute" class="btn btn-sm" style="background:#1a6b3a;color:#fff;">
+    <i class="fas fa-plus"></i> توزيع جديد
+  </a>
+  {% endif %}
+</div>
+
+{% if distributions %}
+
+<!-- ملخص سريع -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-mini">
+      <div class="stat-mini-icon" style="color:#1a6b3a;"><i class="fas fa-box-open"></i></div>
+      <div class="stat-mini-value" style="color:#1a6b3a;">{{ distributions|length }}</div>
+      <div class="stat-mini-label">عدد التوزيعات</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-mini">
+      <div class="stat-mini-icon" style="color:#2196f3;"><i class="fas fa-users"></i></div>
+      <div class="stat-mini-value" style="color:#2196f3;">{{ distributions|sum(attribute='received_count') }}</div>
+      <div class="stat-mini-label">إجمالي من استلموا</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-mini">
+      <div class="stat-mini-icon" style="color:#f44336;"><i class="fas fa-clock"></i></div>
+      <div class="stat-mini-value" style="color:#f44336;">{{ distributions|sum(attribute='not_received_count') }}</div>
+      <div class="stat-mini-label">لم يستلموا (أولوية)</div>
+    </div>
+  </div>
+</div>
+
+<!-- قائمة التوزيعات -->
+{% for d in distributions %}
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center justify-content-between"
+       style="cursor:pointer;background:#f8fffe;"
+       onclick="toggleDist({{ d.id }})">
+    <div class="d-flex align-items-center gap-3">
+      <i class="fas fa-chevron-down toggle-icon-{{ d.id }}" style="color:#1a6b3a;transition:.2s;"></i>
+      <div>
+        <span class="fw-bold" style="color:#1a6b3a;font-size:1rem;">📦 {{ d.aid_type }}</span>
+        {% if d.quantity %}
+        <span class="text-muted ms-2 small">| {{ d.quantity }}</span>
+        {% endif %}
+        {% if d.value_desc %}
+        <span class="text-muted ms-2 small">| {{ d.value_desc }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="text-center">
+        <div class="small text-muted">التاريخ</div>
+        <strong>{{ d.dist_date }}</strong>
+      </div>
+      <div class="text-center">
+        <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">
+          <i class="fas fa-check"></i> {{ d.received_count }}
+        </span>
+        {% if d.not_received_count > 0 %}
+        <span class="badge ms-1" style="background:#fdecea;color:#c62828;">
+          <i class="fas fa-clock"></i> {{ d.not_received_count }} أولوية
+        </span>
+        {% endif %}
+      </div>
+      <a href="/program/distribution/{{ d.id }}/print" target="_blank"
+         onclick="event.stopPropagation()"
+         class="btn btn-sm" style="background:#e8f5ee;color:#1a6b3a;border:1px solid #b7dfca;">
+        <i class="fas fa-print"></i>
+      </a>
+    </div>
+  </div>
+
+  <div id="dist-{{ d.id }}" style="display:none;">
+    {% if d.notes %}
+    <div class="px-4 py-2 bg-light" style="font-size:.85rem;color:#666;">
+      <i class="fas fa-comment-dots text-muted me-1"></i>{{ d.notes }}
+    </div>
+    {% endif %}
+    <div style="overflow-x:auto;">
+      <table class="table table-sm mb-0">
+        <thead style="background:#e8f5ee;">
+          <tr>
+            <th>#</th>
+            <th>اسم المستفيد</th>
+            <th>المخيم / المصدر</th>
+            <th>عدد الأسرة</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in d.records %}
+          <tr>
+            <td style="color:#aaa;">{{ loop.index }}</td>
+            <td class="fw-semibold">{{ r.full_name }}</td>
+            <td>
+              {% if r.camp_name %}
+              <span class="badge" style="background:#fff3e0;color:#e65100;">🏕️ {{ r.camp_name }}</span>
+              {% else %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">مستفيدو المؤسسة</span>
+              {% endif %}
+            </td>
+            <td>{{ r.family_size or '—' }}</td>
+            <td>
+              {% if r.received %}
+              <span class="badge" style="background:#e8f5ee;color:#1a6b3a;">
+                <i class="fas fa-check-circle"></i> استلم
+              </span>
+              {% else %}
+              <span class="badge" style="background:#fff3e0;color:#e65100;">
+                <i class="fas fa-clock"></i> لم يستلم – أولوية
+              </span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5">
+    <i class="fas fa-archive fa-3x mb-3" style="color:#ccc;"></i>
+    <h5 class="text-muted">لا توجد توزيعات مسجلة بعد</h5>
+    {% if session.get('role') != 'observer' %}
+    <a href="/program/{{ program.id }}/distribute" class="btn mt-3"
+       style="background:#1a6b3a;color:#fff;">
+      <i class="fas fa-plus"></i> إنشاء أول توزيع
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+function toggleDist(id) {
+  const body = document.getElementById('dist-' + id);
+  const icon = document.querySelector('.toggle-icon-' + id);
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  icon.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+</script>
+{% endblock %}
