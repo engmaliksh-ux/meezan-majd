@@ -3089,7 +3089,7 @@ def program_distribute(id):
 
     # مخيمات التعاون المرتبطة
     c.execute("""
-        SELECT ce.id as camp_id, ce.camp_name, ce.manager_name, icl.id as link_id
+        SELECT ce.id as camp_id, ce.name as camp_name, ce.manager_name, icl.id as link_id
         FROM institution_camp_links icl
         JOIN camp_entities ce ON ce.id = icl.camp_entity_id
         WHERE icl.org_id=? AND icl.status='approved'
@@ -3155,7 +3155,7 @@ def program_archive(id):
         c.execute("""
             SELECT pr.id, pr.received, pr.beneficiary_id, pr.camp_entity_id,
                    b.full_name, b.family_size,
-                   ce.camp_name
+                   ce.name as camp_name
             FROM program_records pr
             JOIN beneficiaries b ON b.id = pr.beneficiary_id
             LEFT JOIN camp_entities ce ON ce.id = pr.camp_entity_id
@@ -3195,7 +3195,7 @@ def program_distribution_print(dist_id):
 
     c.execute("""
         SELECT pr.received, b.full_name, b.family_size, b.id_number,
-               ce.camp_name
+               ce.name as camp_name
         FROM program_records pr
         JOIN beneficiaries b ON b.id = pr.beneficiary_id
         LEFT JOIN camp_entities ce ON ce.id = pr.camp_entity_id
