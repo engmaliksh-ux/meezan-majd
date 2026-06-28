@@ -316,8 +316,13 @@ tr:hover td{background:#fafaf7;}
     </a>
 
     <!-- تسليمات المؤسسات -->
-    <a href="{{ url_for('camp_deliveries') }}" class="ni">
-      <i class="ic fas fa-truck-loading"></i><span class="lbl">تسليمات المؤسسات</span>
+    <a href="#" class="ni" onclick="showPage('overview',document.getElementById('nav-overview'));return false;">
+      <i class="ic fas fa-truck-loading"></i>
+      <span class="lbl">توزيعات المؤسسات
+        {% if unread_notif > 0 %}
+        <span class="nbadge" style="background:#e8a020;">{{ unread_notif }}</span>
+        {% endif %}
+      </span>
     </a>
 
     <div class="sb-divider"></div>
@@ -448,6 +453,63 @@ tr:hover td{background:#fafaf7;}
         <div class="empty"><i class="fas fa-hand-holding-heart"></i>لم يُسجَّل أي توزيع بعد</div>
         {% endif %}
       </div>
+
+      <!-- ══ إشعارات توزيعات المؤسسات ══ -->
+      {% if org_notifications %}
+      <div class="sec" style="margin-top:16px;">
+        <div class="sec-hd">
+          <span>
+            <i class="fas fa-bell" style="color:#e8a020;margin-left:6px;"></i>
+            توزيعات من المؤسسات
+            {% if unread_notif > 0 %}
+            <span style="background:#e8a020;color:#fff;border-radius:999px;padding:1px 8px;font-size:.72rem;margin-right:6px;font-weight:700;">
+              {{ unread_notif }} جديد
+            </span>
+            {% endif %}
+          </span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>المؤسسة</th>
+            <th>البرنامج</th>
+            <th>نوع المساعدة</th>
+            <th style="text-align:center;">الأسر</th>
+            <th style="text-align:center;">الأشخاص</th>
+            <th>التاريخ</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+          {% for n in org_notifications %}
+          <tr style="{% if not n.is_read %}background:#fffbeb;{% endif %}">
+            <td>
+              {% if not n.is_read %}
+              <span style="display:inline-block;width:8px;height:8px;background:#e8a020;border-radius:50%;margin-left:6px;"></span>
+              {% endif %}
+              <strong>{{ n.org_name }}</strong>
+            </td>
+            <td>{{ n.program_name or '—' }}</td>
+            <td>
+              <span style="background:#d1fae5;color:#065f46;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;">
+                {{ n.aid_type or '—' }}
+              </span>
+            </td>
+            <td style="text-align:center;font-weight:700;color:#1a6b3a;">{{ n.ben_count }}</td>
+            <td style="text-align:center;font-weight:700;color:#1a6b3a;">{{ n.pers_count }}</td>
+            <td style="font-size:.78rem;color:var(--ink4);">{{ n.dist_date or n.created_at[:10] }}</td>
+            <td>
+              {% if not n.is_read %}
+              <a href="/camp/notification/{{ n.id }}/read"
+                 style="font-size:.74rem;color:#888;text-decoration:underline;">تمييز كمقروء</a>
+              {% else %}
+              <span style="font-size:.72rem;color:#aaa;">✓ مقروء</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
 
     </div>
 
@@ -727,55 +789,4 @@ async function loadCoopOrgs() {
     var statusColor = {pending:'#d97706', approved:'#16a34a', rejected:'#dc2626'};
     myDiv.innerHTML = '<div style="font-weight:800;font-size:.85rem;color:#555;margin-bottom:8px;">طلباتي الحالية</div>'
       + r.my_requests.map(req =>
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;">'
-        + '<span style="font-size:.83rem;font-weight:700;"><i class="fas fa-building me-1" style="color:#1a6b3a;"></i>'+req.org_name+'</span>'
-        + '<span style="font-size:.76rem;font-weight:800;color:'+statusColor[req.status]+';">'+statusLabel[req.status]+'</span>'
-        + '</div>'
-      ).join('');
-    // تحديث badge
-    var pend = r.my_requests.filter(x=>x.status==='pending').length;
-    var badge = document.getElementById('coop-badge');
-    if(badge) { if(pend){badge.textContent=pend;badge.style.display='inline-block';}else{badge.style.display='none';} }
-  }
-
-  // عرض المؤسسات المتاحة
-  var listDiv = document.getElementById('coop-orgs-list');
-  if(!r.orgs || !r.orgs.length) {
-    listDiv.innerHTML = '<p style="color:#aaa;font-size:.8rem;padding:8px 0;">لا توجد مؤسسات متاحة للطلب حالياً</p>';
-    listDiv.style.display='block';
-    return;
-  }
-  listDiv.innerHTML = r.orgs.map(org =>
-    '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;border:1px solid #d1fae5;border-radius:8px;margin-bottom:6px;">'
-    + '<span style="font-size:.83rem;font-weight:700;"><i class=\"fas fa-building me-1\" style=\"color:#1a6b3a;\"></i>'+org.name+'</span>'
-    + '<button data-oid="'+org.id+'" data-oname="'+org.name+'" onclick="sendCoopRequest(this.dataset.oid,this.dataset.oname,this)" class="btn btn-g" style="padding:4px 12px;font-size:.76rem;">'
-    + '<i class=\"fas fa-paper-plane me-1\"></i>طلب تعاون</button>'
-    + '</div>'
-  ).join('');
-  listDiv.style.display='block';
-}
-
-async function sendCoopRequest(orgId, orgName, btn) {
-  if(!confirm('إرسال طلب تعاون إلى مؤسسة "'+orgName+'"؟')) return;
-  btn.disabled=true;
-  var r = await fetch('/api/camp/request-cooperation',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({org_id:orgId})
-  }).then(x=>x.json()).catch(()=>({ok:false,error:'خطأ في الاتصال'}));
-  var flash = document.getElementById('coop-flash');
-  if(r.ok) {
-    flash.textContent='✓ تم إرسال طلب التعاون بنجاح — سيتم إخطار المؤسسة';
-    flash.style.background='#dcfce7'; flash.style.color='#166534';
-    flash.style.display='block';
-    setTimeout(()=>loadCoopOrgs(), 800);
-  } else {
-    flash.textContent=r.error||'حدث خطأ';
-    flash.style.background='#fee2e2'; flash.style.color='#991b1b';
-    flash.style.display='block';
-    btn.disabled=false;
-  }
-}
-
-</script>
-</body>
-</html>
+        '<div style="display:flex;align-items:center;justify-cont
