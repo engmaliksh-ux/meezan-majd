@@ -23,6 +23,11 @@
   {% for p in camp.persons %}{% set ns.camp_pers = ns.camp_pers + (p.family_size or 1) %}{% endfor %}
 {% endfor %}
 {% for p in unlinked_persons %}{% set ns.unlinked_pers = ns.unlinked_pers + (p.family_size or 1) %}{% endfor %}
+{% set all_camps_count = camps|length + coop_camps|length %}
+{% set coop_fam = namespace(n=0) %}
+{% for cc in coop_camps %}{% set coop_fam.n = coop_fam.n + cc.persons|length %}{% endfor %}
+{% set coop_pers_ns = namespace(n=0) %}
+{% for cc in coop_camps %}{% for p in cc.persons %}{% set coop_pers_ns.n = coop_pers_ns.n + (p.family_size or 1) %}{% endfor %}{% endfor %}
 
 <!-- ════════ فقاعات التصنيف ════════ -->
 <div class="filter-bubbles mb-4">
@@ -52,10 +57,7 @@
 <!-- ════════ تبويب: المخيمات + المستفيدون ════════ -->
 <div id="tab-all" class="tab-section">
 
-{% set all_camps_count = camps|length + coop_camps|length %}
-{% set coop_fam = coop_camps|sum(attribute='registered_families') %}
-{% set coop_pers_ns = namespace(n=0) %}
-{% for cc in coop_camps %}{% for p in cc.persons %}{% set coop_pers_ns.n = coop_pers_ns.n + (p.family_size or 1) %}{% endfor %}{% endfor %}
+{# الحسابات معرّفة في الأعلى #}
 
 <!-- ─── كشف المخيمات (موحد) ─── -->
 <div class="section-card mb-4">
@@ -69,7 +71,7 @@
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
       <div class="header-stats" onclick="event.stopPropagation()">
         <span><i class="fas fa-tents" style="color:#856404;"></i> <strong>{{ all_camps_count }}</strong> مخيم</span>
-        <span><i class="fas fa-users" style="color:#1565c0;"></i> <strong>{{ ns.camp_fam + coop_fam }}</strong> أسرة</span>
+        <span><i class="fas fa-users" style="color:#1565c0;"></i> <strong>{{ ns.camp_fam + coop_fam.n }}</strong> أسرة</span>
         <span><i class="fas fa-user" style="color:#1a6b3a;"></i> <strong>{{ ns.camp_pers + coop_pers_ns.n }}</strong> شخص</span>
       </div>
       {% if session.get('role') != 'observer' %}
@@ -143,7 +145,7 @@
             <td style="color:#6c7a72;font-size:.82rem;">
               {{ cc.governorate or '' }}{% if cc.city %} / {{ cc.city }}{% endif %}
             </td>
-            <td style="text-align:center;font-weight:700;color:#1565c0;">{{ cc.registered_families or 0 }}</td>
+            <td style="text-align:center;font-weight:700;color:#1565c0;">{{ cc.persons|length }}</td>
             <td style="text-align:center;font-weight:700;color:#0d6832;">{{ cc_pers.n }}</td>
             {% if session.get('role') != 'observer' %}
             <td onclick="event.stopPropagation()" style="white-space:nowrap;">
