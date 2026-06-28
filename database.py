@@ -1204,4 +1204,25 @@ def init_camp_tables():
     except Exception:
         pass
 
+    # إشعارات المؤسسات للمخيمات (عند تنفيذ توزيع)
+    try:
+        c.execute("""CREATE TABLE IF NOT EXISTS camp_org_notifications (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            camp_entity_id  INTEGER NOT NULL,
+            org_id          INTEGER NOT NULL,
+            distribution_id INTEGER,
+            program_name    TEXT,
+            aid_type        TEXT,
+            dist_date       TEXT,
+            ben_count       INTEGER DEFAULT 0,
+            pers_count      INTEGER DEFAULT 0,
+            is_read         INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (camp_entity_id) REFERENCES camp_entities(id),
+            FOREIGN KEY (org_id)         REFERENCES organizations(id)
+        )""")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()

@@ -3025,30 +3025,26 @@ def program_distribute(id):
         aid_type     = request.form.get("aid_type", "").strip()
         quantity     = request.form.get("quantity", "").strip()
         value_desc   = request.form.get("value_desc", "").strip()
-        target_type  = request.form.get("target_type", "individuals")
-        target_cat   = request.form.get("target_category", "").strip()
+        target_cat   = request.form.get("target_category", "all").strip()
         notes        = request.form.get("notes", "").strip()
-        selected_ids = request.form.getlist("beneficiary_ids")   # list of "b_123" or "c_456_78"
+        selected_ids = request.form.getlist("beneficiary_ids")
 
         if not dist_date or not aid_type or not selected_ids:
             flash("يرجى تعبئة التاريخ ونوع المساعدة واختيار مستفيد واحد على الأقل", "danger")
             conn.close()
             return redirect(url_for("program_distribute", id=id))
 
-        # إنشاء حدث التوزيع
         c.execute("""
             INSERT INTO program_distributions
               (org_id, program_id, dist_date, aid_type, quantity, value_desc,
                target_type, target_category, notes, created_by)
             VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (org_id, id, dist_date, aid_type, quantity, value_desc,
-              target_type, target_cat, notes, session["user"]))
+              "individuals", target_cat, notes, session["user"]))
         dist_id = c.lastrowid
 
-        # إنشاء سجل لكل مستفيد
-        # الـ key: "b_{beneficiary_id}" للمستفيدين العاديين
-        #           "c_{camp_entity_id}_{beneficiary_id}" لمستفيدي مخيمات التعاون
         received_set = set(request.form.getlist("received_ids"))
+        camp_ben_count = {}   # camp_id -> {ben_count, pers_count}
 
         for key in selected_ids:
             parts = key.split("_")
@@ -3072,49 +3068,79 @@ def program_distribute(id):
                   dist_date, aid_type, quantity, value_desc, received,
                   notes, session["user"]))
 
+            if camp_id:
+                c.execute("SELECT COALESCE(family_size,1) FROM beneficiaries WHERE id=?", (ben_id,))
+                fs = (c.fetchone() or [1])[0]
+                if camp_id not in camp_ben_count:
+                    camp_ben_count[camp_id] = {"ben": 0, "pers": 0}
+                camp_ben_count[camp_id]["ben"]  += 1
+                camp_ben_count[camp_id]["pers"] += fs
+
+        # إشعار لكل مخيم مشارك
+        c.execute("SELECT name FROM organizations WHERE id=?", (org_id,))
+        org_row = c.fetchone()
+        org_name = org_row["name"] if org_row else "مؤسسة"
+        for camp_id, cnts in camp_ben_count.items():
+            c.execute("""
+                INSERT INTO camp_org_notifications
+                  (camp_entity_id, org_id, distribution_id, program_name,
+                   aid_type, dist_date, ben_count, pers_count)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (camp_id, org_id, dist_id, program["name"],
+                  aid_type, dist_date, cnts["ben"], cnts["pers"]))
+
         conn.commit()
         conn.close()
         flash(f"✅ تم تسجيل التوزيع لـ {len(selected_ids)} مستفيد", "success")
         return redirect(url_for("program_archive", id=id))
 
-    # GET: جلب المستفيدين (خاصة المؤسسة + مخيمات التعاون)
-    c.execute("""
-        SELECT id, seq_num, full_name, family_size, city, neighborhood,
-               has_orphans, wife_pregnant, wife_nursing,
-               orphans_count, gender, marital_status
-        FROM beneficiaries WHERE org_id=?
-        ORDER BY seq_num
-    """, (org_id,))
-    own_bens = [dict(r) for r in c.fetchall()]
+    # GET: جلب المخيمات مع مستفيديها مجمعين
+    camps_data = []
 
-    # مخيمات التعاون المرتبطة
+    # مخيمات التعاون
     c.execute("""
-        SELECT ce.id as camp_id, ce.name as camp_name, ce.manager_name, icl.id as link_id
+        SELECT ce.id as camp_id, ce.name as camp_name, ce.manager_name,
+               ce.mobile, ce.governorate, ce.city
         FROM institution_camp_links icl
         JOIN camp_entities ce ON ce.id = icl.camp_entity_id
         WHERE icl.org_id=? AND icl.status='approved'
+        ORDER BY ce.name
     """, (org_id,))
-    coop_camps = [dict(r) for r in c.fetchall()]
-
-    coop_bens = []
-    for cc in coop_camps:
+    for cc in c.fetchall():
+        cc = dict(cc)
         c.execute("""
-            SELECT id, full_name, family_size, city, neighborhood,
-                   has_orphans, wife_pregnant, wife_nursing, orphans_count,
-                   gender, marital_status
+            SELECT id, full_name, COALESCE(family_size,1) as family_size,
+                   COALESCE(has_orphans,0) as has_orphans,
+                   COALESCE(wife_pregnant,0) as wife_pregnant,
+                   COALESCE(wife_nursing,0) as wife_nursing,
+                   COALESCE(marital_status,'') as marital_status
             FROM beneficiaries
             WHERE camp_entity_id=? AND beneficiary_status='in_camp'
             ORDER BY full_name
         """, (cc["camp_id"],))
-        for b in c.fetchall():
-            row = dict(b)
-            row["camp_name"] = cc["camp_name"]
-            row["camp_id"]   = cc["camp_id"]
-            coop_bens.append(row)
+        bens = [dict(b) for b in c.fetchall()]
+        for b in bens:
+            b["key"] = f"c_{cc['camp_id']}_{b['id']}"
+        camps_data.append({
+            "id":           cc["camp_id"],
+            "name":         cc["camp_name"],
+            "manager":      cc["manager_name"] or "—",
+            "location":     f"{cc['governorate'] or ''} / {cc['city'] or ''}".strip(" /"),
+            "source":       "coop",
+            "beneficiaries": bens,
+            "count_total":   len(bens),
+            "count_orphans": sum(1 for b in bens if b["has_orphans"]),
+            "count_pregnant":sum(1 for b in bens if b["wife_pregnant"]),
+            "count_nursing": sum(1 for b in bens if b["wife_nursing"]),
+            "count_widows":  sum(1 for b in bens if b["marital_status"]=="widowed"),
+        })
 
     conn.close()
+    import json as _json
     return render_template("program_distribute.html",
-        program=program, own_bens=own_bens, coop_bens=coop_bens,
+        program=program,
+        camps_data=camps_data,
+        camps_json=_json.dumps(camps_data, ensure_ascii=False),
         today=datetime.now().strftime("%Y-%m-%d"))
 
 
@@ -6783,6 +6809,17 @@ def camp_dashboard():
     """, (camp_id, camp_id))
     recent_benefits = [dict(r) for r in c.fetchall()]
 
+    # إشعارات المؤسسات (توزيعات)
+    c.execute("""
+        SELECT n.*, o.name as org_name
+        FROM camp_org_notifications n
+        JOIN organizations o ON o.id = n.org_id
+        WHERE n.camp_entity_id=?
+        ORDER BY n.created_at DESC LIMIT 20
+    """, (camp_id,))
+    org_notifications = [dict(r) for r in c.fetchall()]
+    unread_notif = sum(1 for n in org_notifications if not n["is_read"])
+
     conn.close()
     pending_n = sum(1 for r in requests_list if r.get("status") == "pending")
     return render_template("camp_dashboard.html",
@@ -6795,7 +6832,19 @@ def camp_dashboard():
         nursing_count=nursing_count,
         sick_total=sick_total,
         sick_breakdown=sick_breakdown,
-        pending_n=pending_n)
+        pending_n=pending_n,
+        org_notifications=org_notifications,
+        unread_notif=unread_notif)
+
+
+@app.route("/camp/notification/<int:notif_id>/read")
+@camp_login_required
+def camp_mark_notif_read(notif_id):
+    camp_id = session["camp_id"]
+    conn = get_connection(); c = conn.cursor()
+    c.execute("UPDATE camp_org_notifications SET is_read=1 WHERE id=? AND camp_entity_id=?", (notif_id, camp_id))
+    conn.commit(); conn.close()
+    return redirect(url_for("camp_dashboard"))
 
 
 @app.route("/camp/join-request/<int:req_id>/<action>")

@@ -1,21 +1,14 @@
 {% extends 'base.html' %}
-{% block title %}توزيع – {{ program.name }}{% endblock %}
+{% block title %}توزيع جديد – {{ program.name }}{% endblock %}
 {% block page_title %}<i class="fas fa-boxes"></i> توزيع جديد{% endblock %}
 {% block content %}
 
 <div class="page-header">
   <div class="d-flex align-items-center gap-3">
-    <a href="/program/{{ program.id }}" class="btn btn-secondary btn-sm">
-      <i class="fas fa-arrow-right"></i>
-    </a>
+    <a href="/program/{{ program.id }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-right"></i></a>
     <h2 class="page-title mb-0">
       توزيع جديد —
-      {% if program.name == 'كفالات أيتام' %}💛
-      {% elif program.name == 'طرود غذائية' %}📦
-      {% elif program.name == 'تكية' %}🍽️
-      {% elif program.name == 'مياه حلوة' %}💧
-      {% elif program.name == 'وجبات ساخنة' %}🔥
-      {% else %}📋{% endif %}
+      {% if program.name == 'كفالات أيتام' %}💛{% elif program.name == 'طرود غذائية' %}📦{% elif program.name == 'تكية' %}🍽️{% elif program.name == 'مياه حلوة' %}💧{% elif program.name == 'وجبات ساخنة' %}🔥{% else %}📋{% endif %}
       {{ program.name }}
     </h2>
   </div>
@@ -24,26 +17,34 @@
   </a>
 </div>
 
+{% if not camps_data %}
+<div class="card">
+  <div class="card-body text-center py-5">
+    <i class="fas fa-handshake fa-3x mb-3" style="color:#ccc;"></i>
+    <h5 class="text-muted">لا توجد مخيمات مرتبطة بعد</h5>
+    <p class="text-muted small">يجب ربط مخيم تعاون أولاً من قسم المستفيدين</p>
+  </div>
+</div>
+{% else %}
+
 <form method="POST" action="/program/{{ program.id }}/distribute" id="distForm">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="target_category" id="targetCatInput" value="all">
 
-<!-- بيانات التوزيع -->
+<!-- ① بيانات التوزيع -->
 <div class="card mb-4">
-  <div class="card-header" style="background:#f0fdf4;">
-    <i class="fas fa-info-circle" style="color:#1a6b3a;"></i>
-    بيانات التوزيع
+  <div class="card-header" style="background:#f0fdf4;font-weight:700;">
+    <i class="fas fa-clipboard-list" style="color:#1a6b3a;"></i> ① بيانات التوزيع
   </div>
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-3">
         <label class="form-label fw-bold">التاريخ <span class="text-danger">*</span></label>
-        <input type="date" class="form-control" name="dist_date" required
-               value="{{ today }}">
+        <input type="date" class="form-control" name="dist_date" required value="{{ today }}">
       </div>
       <div class="col-md-3">
         <label class="form-label fw-bold">نوع المساعدة <span class="text-danger">*</span></label>
-        <input type="text" class="form-control" name="aid_type" required
-               placeholder="مثال: طرد غذائي، كفالة، وجبات...">
+        <input type="text" class="form-control" name="aid_type" required placeholder="مثال: طرد غذائي، كفالة، مياه...">
       </div>
       <div class="col-md-2">
         <label class="form-label fw-bold">الكمية</label>
@@ -51,8 +52,7 @@
       </div>
       <div class="col-md-4">
         <label class="form-label fw-bold">القيمة / الوصف</label>
-        <input type="text" class="form-control" name="value_desc"
-               placeholder="مثال: قيمة الكفالة 50$">
+        <input type="text" class="form-control" name="value_desc" placeholder="مثال: قيمة الكفالة 50$">
       </div>
       <div class="col-12">
         <label class="form-label fw-bold">ملاحظات</label>
@@ -62,244 +62,225 @@
   </div>
 </div>
 
-<!-- تصفية المستفيدين -->
-<div class="card mb-3">
-  <div class="card-header" style="background:#f0fdf4;">
-    <i class="fas fa-filter" style="color:#1a6b3a;"></i>
-    تحديد الفئة المستهدفة
+<!-- ② الفئة المستهدفة -->
+<div class="card mb-4">
+  <div class="card-header" style="background:#f0fdf4;font-weight:700;">
+    <i class="fas fa-filter" style="color:#1a6b3a;"></i> ② الفئة المستهدفة
+    <span class="text-muted small fw-normal me-2">(تصفية تلقائية للقائمة)</span>
   </div>
-  <div class="card-body">
-    <input type="hidden" name="target_type" id="targetTypeInput" value="individuals">
-    <input type="hidden" name="target_category" id="targetCatInput" value="">
-
-    <div class="d-flex flex-wrap gap-2 mb-3">
-      <button type="button" class="btn btn-sm filter-btn active" data-filter="all" onclick="applyFilter('all','')">
-        <i class="fas fa-users"></i> الكل
-      </button>
-      <button type="button" class="btn btn-sm filter-btn" data-filter="orphans" onclick="applyFilter('category','orphans')">
-        👶 الأيتام
-      </button>
-      <button type="button" class="btn btn-sm filter-btn" data-filter="pregnant" onclick="applyFilter('category','pregnant')">
-        🤰 الحوامل
-      </button>
-      <button type="button" class="btn btn-sm filter-btn" data-filter="nursing" onclick="applyFilter('category','nursing')">
-        🍼 المرضعات
-      </button>
-      <button type="button" class="btn btn-sm filter-btn" data-filter="widows" onclick="applyFilter('category','widows')">
-        🕊️ الأرامل
-      </button>
-      {% for cc in coop_bens | groupby('camp_name') %}
-      <button type="button" class="btn btn-sm filter-btn" data-filter="camp_{{ loop.index }}"
-              onclick="applyFilter('camp','{{ cc.grouper }}')">
-        🏕️ {{ cc.grouper }}
-      </button>
-      {% endfor %}
-    </div>
-
-    <div class="d-flex gap-2 mb-2">
-      <input type="text" class="form-control form-control-sm" id="searchInput"
-             placeholder="بحث بالاسم..." oninput="searchBens(this.value)"
-             style="max-width:260px;">
-      <button type="button" class="btn btn-sm" style="background:#1a6b3a;color:#fff;"
-              onclick="selectAll()">تحديد الكل</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary"
-              onclick="deselectAll()">إلغاء الكل</button>
-      <span class="ms-auto align-self-center text-muted small" id="selCount">
-        محدد: <strong id="selNum">0</strong>
-      </span>
-    </div>
+  <div class="card-body d-flex flex-wrap gap-2">
+    <button type="button" class="cat-btn active" data-cat="all" onclick="setCategory('all',this)">
+      <i class="fas fa-users"></i> الكل
+    </button>
+    <button type="button" class="cat-btn" data-cat="orphans" onclick="setCategory('orphans',this)">
+      👶 الأيتام
+    </button>
+    <button type="button" class="cat-btn" data-cat="pregnant" onclick="setCategory('pregnant',this)">
+      🤰 الحوامل
+    </button>
+    <button type="button" class="cat-btn" data-cat="nursing" onclick="setCategory('nursing',this)">
+      🍼 المرضعات
+    </button>
+    <button type="button" class="cat-btn" data-cat="widows" onclick="setCategory('widows',this)">
+      🕊️ الأرامل
+    </button>
   </div>
 </div>
 
-<!-- جدول المستفيدين -->
+<!-- ③ المخيمات والمستفيدون -->
 <div class="card mb-4">
   <div class="card-header" style="background:#f0fdf4;">
-    <i class="fas fa-list-check" style="color:#1a6b3a;"></i>
-    قائمة المستفيدين
-    <span class="badge ms-2" style="background:#1a6b3a;color:#fff;" id="totalCount">
-      {{ own_bens|length + coop_bens|length }}
-    </span>
-  </div>
-  <div class="card-body p-0">
-    <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
-      <table class="table table-sm table-hover mb-0" id="benTable">
-        <thead style="position:sticky;top:0;z-index:2;background:#fff;">
-          <tr style="background:#e8f5ee;">
-            <th style="width:40px;"><input type="checkbox" id="masterCheck" onchange="toggleAll(this)"></th>
-            <th>الاسم</th>
-            <th>المخيم / المصدر</th>
-            <th>عدد الأسرة</th>
-            <th>الفئات</th>
-            <th style="width:100px;text-align:center;">استلم ✔</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for b in own_bens %}
-          <tr class="ben-row"
-              data-name="{{ b.full_name }}"
-              data-orphans="{{ b.has_orphans or 0 }}"
-              data-pregnant="{{ b.wife_pregnant or 0 }}"
-              data-nursing="{{ b.wife_nursing or 0 }}"
-              data-widowed="{{ '1' if b.marital_status=='widowed' else '0' }}"
-              data-camp="">
-            <td>
-              <input type="checkbox" name="beneficiary_ids" value="b_{{ b.id }}"
-                     class="ben-check" onchange="updateCount()">
-            </td>
-            <td class="fw-semibold">{{ b.full_name }}</td>
-            <td><span class="badge" style="background:#e8f5ee;color:#1a6b3a;">مستفيدو المؤسسة</span></td>
-            <td>{{ b.family_size or '—' }}</td>
-            <td>
-              {% if b.has_orphans %}<span class="badge bg-warning text-dark me-1">أيتام</span>{% endif %}
-              {% if b.wife_pregnant %}<span class="badge bg-pink me-1" style="background:#fce4ec;color:#880e4f;">حامل</span>{% endif %}
-              {% if b.wife_nursing %}<span class="badge me-1" style="background:#e3f2fd;color:#1565c0;">مرضعة</span>{% endif %}
-              {% if b.marital_status == 'widowed' %}<span class="badge me-1" style="background:#f3e5f5;color:#6a1b9a;">أرملة</span>{% endif %}
-            </td>
-            <td style="text-align:center;">
-              <input type="checkbox" name="received_ids" value="b_{{ b.id }}" checked
-                     class="rec-check" title="استلم">
-            </td>
-          </tr>
-          {% endfor %}
-
-          {% for b in coop_bens %}
-          <tr class="ben-row"
-              data-name="{{ b.full_name }}"
-              data-orphans="{{ b.has_orphans or 0 }}"
-              data-pregnant="{{ b.wife_pregnant or 0 }}"
-              data-nursing="{{ b.wife_nursing or 0 }}"
-              data-widowed="{{ '1' if b.marital_status=='widowed' else '0' }}"
-              data-camp="{{ b.camp_name }}">
-            <td>
-              <input type="checkbox" name="beneficiary_ids" value="c_{{ b.camp_id }}_{{ b.id }}"
-                     class="ben-check" onchange="updateCount()">
-            </td>
-            <td class="fw-semibold">{{ b.full_name }}</td>
-            <td>
-              <span class="badge" style="background:#fff3e0;color:#e65100;">
-                🏕️ {{ b.camp_name }}
-              </span>
-            </td>
-            <td>{{ b.family_size or '—' }}</td>
-            <td>
-              {% if b.has_orphans %}<span class="badge bg-warning text-dark me-1">أيتام</span>{% endif %}
-              {% if b.wife_pregnant %}<span class="badge me-1" style="background:#fce4ec;color:#880e4f;">حامل</span>{% endif %}
-              {% if b.wife_nursing %}<span class="badge me-1" style="background:#e3f2fd;color:#1565c0;">مرضعة</span>{% endif %}
-              {% if b.marital_status == 'widowed' %}<span class="badge me-1" style="background:#f3e5f5;color:#6a1b9a;">أرملة</span>{% endif %}
-            </td>
-            <td style="text-align:center;">
-              <input type="checkbox" name="received_ids" value="c_{{ b.camp_id }}_{{ b.id }}" checked
-                     class="rec-check" title="استلم">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <span style="font-weight:700;"><i class="fas fa-tents" style="color:#1a6b3a;"></i> ③ المخيمات والمستفيدون</span>
+      <div class="d-flex gap-2 align-items-center">
+        <input type="text" class="form-control form-control-sm" id="searchInput"
+               placeholder="بحث بالاسم..." oninput="filterByName(this.value)" style="width:180px;">
+        <span class="text-muted small">محدد: <strong id="selNum">0</strong></span>
+      </div>
     </div>
   </div>
+  <div class="card-body p-0">
+    {% for camp in camps_data %}
+    <div class="camp-block">
+      <!-- هيدر المخيم -->
+      <div class="camp-header" onclick="toggleCampBody('cb-{{ camp.id }}','chev-{{ camp.id }}')">
+        <div class="d-flex align-items-center gap-3">
+          <input type="checkbox" class="camp-master" id="cm-{{ camp.id }}"
+                 onchange="toggleCamp('{{ camp.id }}',this)" onclick="event.stopPropagation()"
+                 style="width:18px;height:18px;accent-color:#1a6b3a;">
+          <div>
+            <div class="fw-bold" style="color:#0d6832;font-size:.95rem;">🏕️ {{ camp.name }}</div>
+            <div class="text-muted small">{{ camp.manager }}{% if camp.location %} · {{ camp.location }}{% endif %}</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="cst">👥 <strong id="vc-{{ camp.id }}">{{ camp.count_total }}</strong> أسرة</span>
+          {% if camp.count_orphans > 0 %}<span class="cst-sm" style="background:#fffde7;color:#f57f17;">👶 {{ camp.count_orphans }}</span>{% endif %}
+          {% if camp.count_pregnant > 0 %}<span class="cst-sm" style="background:#fce4ec;color:#880e4f;">🤰 {{ camp.count_pregnant }}</span>{% endif %}
+          {% if camp.count_nursing > 0 %}<span class="cst-sm" style="background:#e3f2fd;color:#1565c0;">🍼 {{ camp.count_nursing }}</span>{% endif %}
+          <i class="fas fa-chevron-down" id="chev-{{ camp.id }}" style="color:#aaa;transition:.2s;font-size:.8rem;"></i>
+        </div>
+      </div>
+
+      <!-- قائمة مستفيدي المخيم -->
+      <div id="cb-{{ camp.id }}" style="display:none;border-top:1px solid #f0f0f0;">
+        <div class="d-flex gap-2 p-2" style="background:#fafafa;border-bottom:1px solid #f0f0f0;">
+          <button type="button" class="btn btn-sm" style="background:#1a6b3a;color:#fff;font-size:.77rem;"
+                  onclick="selectAllCamp('{{ camp.id }}')">تحديد الكل</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.77rem;"
+                  onclick="deselectAllCamp('{{ camp.id }}')">إلغاء الكل</button>
+        </div>
+        {% if camp.beneficiaries %}
+        <div style="max-height:320px;overflow-y:auto;">
+        <table class="table table-sm mb-0" style="font-size:.83rem;">
+          <thead style="position:sticky;top:0;background:#e8f5ee;z-index:1;">
+            <tr>
+              <th style="width:36px;"></th>
+              <th>الاسم</th>
+              <th style="text-align:center;">أفراد</th>
+              <th>الفئات</th>
+              <th style="text-align:center;width:75px;">استلم</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in camp.beneficiaries %}
+            <tr class="ben-row"
+                data-camp="{{ camp.id }}"
+                data-name="{{ b.full_name|lower }}"
+                data-orphans="{{ b.has_orphans }}"
+                data-pregnant="{{ b.wife_pregnant }}"
+                data-nursing="{{ b.wife_nursing }}"
+                data-widowed="{{ '1' if b.marital_status=='widowed' else '0' }}">
+              <td>
+                <input type="checkbox" name="beneficiary_ids" value="{{ b.key }}"
+                       class="ben-check" data-camp="{{ camp.id }}"
+                       onchange="updateCount()" style="accent-color:#1a6b3a;width:16px;height:16px;">
+              </td>
+              <td class="fw-semibold">{{ b.full_name }}</td>
+              <td style="text-align:center;color:#1a6b3a;font-weight:700;">{{ b.family_size }}</td>
+              <td>
+                {% if b.has_orphans %}<span class="mb2" style="background:#fffde7;color:#f57f17;">أيتام</span>{% endif %}
+                {% if b.wife_pregnant %}<span class="mb2" style="background:#fce4ec;color:#880e4f;">حامل</span>{% endif %}
+                {% if b.wife_nursing %}<span class="mb2" style="background:#e3f2fd;color:#1565c0;">مرضعة</span>{% endif %}
+                {% if b.marital_status == 'widowed' %}<span class="mb2" style="background:#f3e5f5;color:#6a1b9a;">أرملة</span>{% endif %}
+              </td>
+              <td style="text-align:center;">
+                <input type="checkbox" name="received_ids" value="{{ b.key }}"
+                       class="rec-check" checked style="accent-color:#1a6b3a;width:16px;height:16px;">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted small">لا يوجد مستفيدون مسجلون في هذا المخيم</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 
-<!-- زر الحفظ -->
+<!-- زر التسجيل -->
 <div class="d-flex justify-content-end gap-3 mb-5">
-  <a href="/program/{{ program.id }}" class="btn btn-outline-secondary">
-    <i class="fas fa-times"></i> إلغاء
-  </a>
-  <button type="submit" class="btn" style="background:#1a6b3a;color:#fff;padding:10px 32px;font-weight:700;"
-          onclick="return confirmSubmit()">
+  <a href="/program/{{ program.id }}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> إلغاء</a>
+  <button type="submit" class="btn" style="background:#1a6b3a;color:#fff;padding:10px 36px;font-weight:700;"
+          onclick="return confirmDist()">
     <i class="fas fa-check-circle"></i> تسجيل التوزيع
+    (<span id="submitCount">0</span> مستفيد)
   </button>
 </div>
-
 </form>
+{% endif %}
 
 <style>
-.filter-btn {
-  background: #f8f9fa;
-  color: #555;
-  border: 1px solid #dee2e6;
-  font-size: .82rem;
-}
-.filter-btn.active {
-  background: #1a6b3a;
-  color: #fff;
-  border-color: #1a6b3a;
-}
-.ben-row.hidden { display: none; }
-.rec-check { width: 18px; height: 18px; cursor: pointer; accent-color: #1a6b3a; }
-.ben-check { width: 18px; height: 18px; cursor: pointer; accent-color: #1a6b3a; }
+.cat-btn{padding:7px 16px;border:1.5px solid #dee2e6;border-radius:20px;background:#f8f9fa;color:#555;font-size:.84rem;cursor:pointer;transition:.15s;}
+.cat-btn.active{background:#1a6b3a;color:#fff;border-color:#1a6b3a;}
+.camp-block{border-bottom:1px solid #e9ecef;}
+.camp-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;background:#fff;flex-wrap:wrap;gap:10px;}
+.camp-header:hover{background:#f8fffe;}
+.cst{font-size:.84rem;background:#e8f5ee;color:#1a6b3a;border-radius:12px;padding:3px 10px;}
+.cst-sm{font-size:.75rem;border-radius:10px;padding:2px 8px;}
+.mb2{font-size:.72rem;border-radius:8px;padding:1px 7px;margin-left:2px;}
+.ben-row.hidden{display:none;}
 </style>
 
 <script>
-let currentFilter = 'all';
-let currentCamp   = '';
-let currentSearch = '';
+let currentCat = 'all';
 
-function applyFilter(type, value) {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  event.target.closest('.filter-btn').classList.add('active');
-
-  document.getElementById('targetTypeInput').value = (type === 'category') ? 'category' : (type === 'camp') ? 'camp' : 'individuals';
-  document.getElementById('targetCatInput').value  = (type === 'category') ? value : '';
-
-  currentFilter = type === 'all' ? 'all' : type + ':' + value;
-  currentCamp   = (type === 'camp') ? value : '';
-  filterRows();
+function setCategory(cat, btn) {
+  currentCat = cat;
+  document.getElementById('targetCatInput').value = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
 }
 
-function searchBens(q) {
-  currentSearch = q.trim().toLowerCase();
-  filterRows();
-}
+function filterByName(q) { applyFilters(); }
 
-function filterRows() {
+function applyFilters() {
+  const nameQ = document.getElementById('searchInput').value.toLowerCase().trim();
+  const campCounts = {};
   document.querySelectorAll('.ben-row').forEach(row => {
     let show = true;
-    const name    = (row.dataset.name || '').toLowerCase();
-    const camp    = row.dataset.camp || '';
-    const orphans = row.dataset.orphans === '1';
-    const preg    = row.dataset.pregnant === '1';
-    const nurs    = row.dataset.nursing  === '1';
-    const widow   = row.dataset.widowed  === '1';
-
-    if (currentSearch && !name.includes(currentSearch)) show = false;
-
-    if (show && currentFilter !== 'all') {
-      const [ftype, fval] = currentFilter.split(':');
-      if (ftype === 'category') {
-        if (fval === 'orphans'  && !orphans) show = false;
-        if (fval === 'pregnant' && !preg)    show = false;
-        if (fval === 'nursing'  && !nurs)    show = false;
-        if (fval === 'widows'   && !widow)   show = false;
-      } else if (ftype === 'camp') {
-        if (camp !== fval) show = false;
-      }
+    if (nameQ && !row.dataset.name.includes(nameQ)) show = false;
+    if (show && currentCat !== 'all') {
+      if (currentCat === 'orphans'  && row.dataset.orphans  !== '1') show = false;
+      if (currentCat === 'pregnant' && row.dataset.pregnant !== '1') show = false;
+      if (currentCat === 'nursing'  && row.dataset.nursing  !== '1') show = false;
+      if (currentCat === 'widows'   && row.dataset.widowed  !== '1') show = false;
     }
-
     row.classList.toggle('hidden', !show);
+    const cid = row.dataset.camp;
+    if (!campCounts[cid]) campCounts[cid] = 0;
+    if (show) campCounts[cid]++;
+  });
+  Object.entries(campCounts).forEach(([cid, n]) => {
+    const el = document.getElementById('vc-' + cid);
+    if (el) el.textContent = n;
   });
   updateCount();
 }
 
-function selectAll() {
-  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = true);
+function toggleCampBody(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function toggleCamp(campId, master) {
+  document.querySelectorAll(`.ben-row:not(.hidden) .ben-check[data-camp="${campId}"]`).forEach(c => c.checked = master.checked);
   updateCount();
 }
-function deselectAll() {
-  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = false);
+function selectAllCamp(campId) {
+  document.querySelectorAll(`.ben-row:not(.hidden) .ben-check[data-camp="${campId}"]`).forEach(c => c.checked = true);
   updateCount();
 }
-function toggleAll(master) {
-  document.querySelectorAll('.ben-row:not(.hidden) .ben-check').forEach(c => c.checked = master.checked);
+function deselectAllCamp(campId) {
+  document.querySelectorAll(`.ben-row:not(.hidden) .ben-check[data-camp="${campId}"]`).forEach(c => c.checked = false);
   updateCount();
 }
 function updateCount() {
   const n = document.querySelectorAll('.ben-check:checked').length;
   document.getElementById('selNum').textContent = n;
+  document.getElementById('submitCount').textContent = n;
 }
-function confirmSubmit() {
+function confirmDist() {
   const n = document.querySelectorAll('.ben-check:checked').length;
   if (n === 0) { alert('يرجى اختيار مستفيد واحد على الأقل'); return false; }
-  return confirm(`سيتم تسجيل التوزيع لـ ${n} مستفيد. تأكيد؟`);
+  const aid = document.querySelector('[name=aid_type]').value.trim();
+  const dt  = document.querySelector('[name=dist_date]').value;
+  if (!aid || !dt) { alert('يرجى تعبئة التاريخ ونوع المساعدة'); return false; }
+  return confirm(`تسجيل توزيع "${aid}" لـ ${n} مستفيد؟`);
 }
+
+// افتح أول مخيم تلقائياً
+document.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('.camp-header');
+  if (first) first.click();
+});
 </script>
 {% endblock %}
