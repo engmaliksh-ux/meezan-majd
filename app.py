@@ -5404,11 +5404,14 @@ def api_camp_request_cooperation():
     return jsonify({"ok": True})
 
 
-@app.route("/org/camp-link/<int:link_id>/<action>")
+@app.route("/org/camp-link/<int:link_id>/<action>", methods=["GET", "POST"])
 @login_required
 def org_handle_camp_link(link_id, action):
-    """المؤسسة تقبل أو ترفض طلب تعاون مخيم"""
+    """المؤسسة تقبل أو ترفض/تلغي ربط مخيم"""
     if action not in ("approve", "reject"):
+        return redirect(url_for("beneficiaries"))
+    if request.method == "POST" and not validate_csrf():
+        flash("خطأ في التحقق", "danger")
         return redirect(url_for("beneficiaries"))
     org_id = session["org_id"]
     conn = get_connection()
@@ -5418,7 +5421,7 @@ def org_handle_camp_link(link_id, action):
               (new_status, link_id, org_id))
     conn.commit()
     conn.close()
-    flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم رفض الطلب", "success" if action == "approve" else "warning")
+    flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم إلغاء ربط المخيم", "success" if action == "approve" else "warning")
     return redirect(url_for("beneficiaries"))
 
 
