@@ -155,16 +155,16 @@
         <i class="fas fa-wallet me-1"></i>بند المصروفات التشغيلية
       </span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:8px;">
       {% if session.get('role') in ['admin','accountant','data_entry'] %}
-      <button onclick="document.getElementById('exp-add-form').style.display=
+      <button onclick="event.stopPropagation();document.getElementById('exp-add-form').style.display=
                         document.getElementById('exp-add-form').style.display==='none'?'block':'none'"
               style="background:#f0a500;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-weight:700;font-size:.78rem;cursor:pointer;">
         <i class="fas fa-plus me-1"></i>إضافة بند
       </button>
       {% endif %}
       {% if session.get('role') in ['admin','accountant'] %}
-      <button onclick="document.getElementById('close-period-modal').style.display='flex'"
+      <button onclick="event.stopPropagation();document.getElementById('close-period-modal').style.display='flex'"
               style="background:#dc3545;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-weight:700;font-size:.78rem;cursor:pointer;">
         <i class="fas fa-lock me-1"></i>إغلاق الفترة
       </button>
