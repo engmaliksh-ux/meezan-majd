@@ -600,7 +600,22 @@ def migrate_db():
         amount       REAL    NOT NULL DEFAULT 0,
         notes        TEXT,
         proof_image  TEXT,
+        period_id    INTEGER,
         created_at   TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+
+    # جدول فترات المصروفات (نظام الإغلاق)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS expense_periods (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id      INTEGER NOT NULL,
+        start_date  TEXT    NOT NULL,
+        end_date    TEXT,
+        closed_at   TEXT,
+        closed_by   TEXT,
+        notes       TEXT,
+        created_at  TEXT    DEFAULT (datetime('now','localtime'))
     )
     """)
     conn.commit()
@@ -983,6 +998,26 @@ def init_camp_tables():
         item_name TEXT, quantity TEXT, value TEXT,
         notes TEXT,
         UNIQUE(activity_id, beneficiary_id))""")
+
+    # جدول فترات المصروفات (للقواعد القديمة)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS expense_periods (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id      INTEGER NOT NULL,
+        start_date  TEXT    NOT NULL,
+        end_date    TEXT,
+        closed_at   TEXT,
+        closed_by   TEXT,
+        notes       TEXT,
+        created_at  TEXT    DEFAULT (datetime('now','localtime'))
+    )
+    """)
+
+    # عمود period_id في expense_items
+    try:
+        c.execute("ALTER TABLE expense_items ADD COLUMN period_id INTEGER")
+    except Exception:
+        pass
 
     conn.commit()
 

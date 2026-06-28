@@ -2149,10 +2149,35 @@ def incoming_invoice():
     c2.execute("SELECT name, unit FROM products WHERE org_id=? AND COALESCE(is_temp,0)=0 ORDER BY name", (org_id,))
     existing_products = [dict(r) for r in c2.fetchall()]
     today_str = datetime.now().strftime("%Y-%m-%d")
-    # بنود المصروفات التشغيلية
-    c2.execute("SELECT * FROM expense_items WHERE org_id=? ORDER BY expense_date DESC, id DESC", (org_id,))
-    expense_items = [dict(r) for r in c2.fetchall()]
-    expense_total = sum(e['amount'] or 0 for e in expense_items)
+    # فترات المصروفات التشغيلية مجمّعة
+    try:
+        c2.execute("""
+            SELECT ep.*,
+                   (SELECT COUNT(*) FROM expense_items ei WHERE ei.period_id=ep.id) as items_count,
+                   (SELECT COALESCE(SUM(ei.amount),0) FROM expense_items ei WHERE ei.period_id=ep.id) as total
+            FROM expense_periods ep
+            WHERE ep.org_id=?
+            ORDER BY ep.id DESC
+        """, (org_id,))
+        expense_periods = [dict(r) for r in c2.fetchall()]
+        # الفترة المفتوحة الحالية
+        open_period = next((p for p in expense_periods if not p.get('end_date')), None)
+        # بنود الفترة المفتوحة
+        open_expense_items = []
+        if open_period:
+            c2.execute("SELECT * FROM expense_items WHERE period_id=? ORDER BY expense_date ASC, id ASC", (open_period['id'],))
+            open_expense_items = [dict(r) for r in c2.fetchall()]
+        # المصروفات القديمة بدون فترة (للتوافق مع البيانات القديمة)
+        c2.execute("SELECT * FROM expense_items WHERE org_id=? AND (period_id IS NULL) ORDER BY expense_date DESC, id DESC", (org_id,))
+        legacy_expense_items = [dict(r) for r in c2.fetchall()]
+    except Exception:
+        expense_periods = []
+        open_period = None
+        open_expense_items = []
+        legacy_expense_items = []
+    # للتوافق مع الكود القديم
+    expense_items = open_expense_items
+    expense_total = sum(e['amount'] or 0 for e in open_expense_items)
     conn.close()
     return render_template("incoming_invoices.html",
         summary=summary,
@@ -2160,7 +2185,11 @@ def incoming_invoice():
         existing_products=existing_products,
         today_str=today_str,
         expense_items=expense_items,
-        expense_total=expense_total)
+        expense_total=expense_total,
+        expense_periods=expense_periods,
+        open_period=open_period,
+        open_expense_items=open_expense_items,
+        legacy_expense_items=legacy_expense_items)
 
 
 @app.route("/api/incoming_invoice/<int:id>/detail")
@@ -3101,6 +3130,30 @@ def outgoing_invoice():
 # ══════════════════════════════════════════
 import os as _os
 
+def _get_or_create_expense_period(c, org_id, expense_date=None):
+    """
+    يجلب الفترة المفتوحة الحالية أو ينشئ واحدة جديدة.
+    start_date = أول الشهر الحالي (أو أول الشهر من expense_date).
+    """
+    c.execute("SELECT id FROM expense_periods WHERE org_id=? AND end_date IS NULL ORDER BY id DESC LIMIT 1", (org_id,))
+    row = c.fetchone()
+    if row:
+        return row["id"]
+    # لا توجد فترة مفتوحة — أنشئ واحدة من أول الشهر
+    ref_date = expense_date or datetime.now().strftime("%Y-%m-%d")
+    try:
+        from datetime import date as _d
+        parts = ref_date.split("-")
+        start = f"{parts[0]}-{parts[1]}-01"
+    except Exception:
+        start = datetime.now().strftime("%Y-%m-01")
+    c.execute(
+        "INSERT INTO expense_periods (org_id, start_date) VALUES (?,?)",
+        (org_id, start)
+    )
+    return c.lastrowid
+
+
 @app.route("/expenses/add", methods=["POST"])
 @login_required
 def expense_add():
@@ -3122,9 +3175,10 @@ def expense_add():
         amount = 0.0
     conn = get_connection()
     c    = conn.cursor()
+    period_id = _get_or_create_expense_period(c, org_id, expense_date or None)
     c.execute(
-        "INSERT INTO expense_items (org_id, category, expense_date, amount, notes) VALUES (?,?,?,?,?)",
-        (org_id, category, expense_date or None, amount, notes)
+        "INSERT INTO expense_items (org_id, category, expense_date, amount, notes, period_id) VALUES (?,?,?,?,?,?)",
+        (org_id, category, expense_date or None, amount, notes, period_id)
     )
     new_id = c.lastrowid
     # رفع صورة الإثبات إن وجدت
@@ -3138,6 +3192,63 @@ def expense_add():
     conn.close()
     flash("✅ تم إضافة البند", "success")
     return redirect(url_for("incoming_invoice"))
+
+
+@app.route("/expenses/close-period", methods=["POST"])
+@login_required
+def expense_close_period():
+    if session.get("role") not in ("admin", "accountant"):
+        flash("غير مصرح", "danger")
+        return redirect(url_for("incoming_invoice"))
+    if not validate_csrf():
+        return redirect(url_for("incoming_invoice"))
+    org_id   = session["org_id"]
+    end_date = request.form.get("end_date", "").strip()
+    if not end_date:
+        flash("يرجى تحديد تاريخ الإغلاق", "danger")
+        return redirect(url_for("incoming_invoice"))
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT id FROM expense_periods WHERE org_id=? AND end_date IS NULL ORDER BY id DESC LIMIT 1", (org_id,))
+    row = c.fetchone()
+    if not row:
+        flash("لا توجد فترة مفتوحة للإغلاق", "warning")
+        conn.close()
+        return redirect(url_for("incoming_invoice"))
+    period_id = row["id"]
+    closed_by = session.get("full_name") or session.get("username", "")
+    c.execute(
+        "UPDATE expense_periods SET end_date=?, closed_at=datetime('now','localtime'), closed_by=? WHERE id=?",
+        (end_date, closed_by, period_id)
+    )
+    conn.commit()
+    conn.close()
+    flash(f"✅ تم إغلاق الفترة حتى {end_date}", "success")
+    return redirect(url_for("incoming_invoice"))
+
+
+@app.route("/expenses/period/<int:pid>/print")
+@login_required
+def expense_period_print(pid):
+    org_id = session["org_id"]
+    conn = get_connection()
+    c    = conn.cursor()
+    c.execute("SELECT * FROM expense_periods WHERE id=? AND org_id=?", (pid, org_id))
+    period = c.fetchone()
+    if not period:
+        conn.close()
+        flash("الفترة غير موجودة", "danger")
+        return redirect(url_for("incoming_invoice"))
+    period = dict(period)
+    c.execute("SELECT * FROM expense_items WHERE period_id=? ORDER BY expense_date ASC, id ASC", (pid,))
+    items = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT name FROM organizations WHERE id=?", (org_id,))
+    org_row = c.fetchone()
+    conn.close()
+    period['total'] = sum(i['amount'] or 0 for i in items)
+    org_name = org_row['name'] if org_row else ""
+    return render_template("expense_period_print.html",
+                           period=period, items=items, org_name=org_name)
 
 
 @app.route("/expenses/edit/<int:eid>", methods=["POST"])
