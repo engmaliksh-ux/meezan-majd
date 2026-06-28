@@ -1510,6 +1510,10 @@ def beneficiaries():
 
     # جلب مخيمات التعاون المقبولة مع مستفيديها
     coop_camps = []
+    coop_extra_pregnant = []
+    coop_extra_nursing  = []
+    coop_extra_orphans  = []
+    coop_extra_sick     = []
     try:
         c.execute("""
             SELECT ce.id as entity_id, ce.name, ce.manager_name, ce.mobile,
@@ -1524,13 +1528,59 @@ def beneficiaries():
             c.execute("""
                 SELECT b.id, b.full_name, b.phone, b.id_number, b.family_size,
                        b.gender, b.city, b.neighborhood, b.has_orphans,
-                       b.wife_pregnant, b.wife_nursing
+                       b.wife_pregnant, b.wife_nursing, b.wife_name,
+                       b.guardian_name, b.guardian_whatsapp
                 FROM beneficiaries b
                 WHERE b.camp_entity_id=? AND b.beneficiary_status='in_camp'
                 ORDER BY b.full_name ASC
             """, (cc['entity_id'],))
-            cc['persons'] = [dict(r) for r in c.fetchall()]
+            persons = [dict(r) for r in c.fetchall()]
+            for p in persons:
+                p['camp_name'] = cc['name']
+            cc['persons'] = persons
             coop_camps.append(cc)
+
+            # إضافة للقوائم الخاصة
+            for p in persons:
+                if p.get('wife_pregnant'):
+                    coop_extra_pregnant.append(p)
+                if p.get('wife_nursing'):
+                    coop_extra_nursing.append(p)
+                if p.get('has_orphans'):
+                    c.execute("""SELECT full_name, birth_date FROM beneficiary_family_members
+                                  WHERE beneficiary_id=? AND is_orphan=1""", (p['id'],))
+                    for fm in c.fetchall():
+                        fm = dict(fm)
+                        try:
+                            from datetime import date as _d2
+                            parts = (fm.get('birth_date') or '').split('-')
+                            bd = __import__('datetime').datetime.strptime(fm['birth_date'],'%Y-%m-%d').date()
+                            today2 = _d2.today()
+                            age2 = today2.year - bd.year - ((today2.month,today2.day)<(bd.month,bd.day))
+                        except Exception:
+                            age2 = None
+                        coop_extra_orphans.append({
+                            'name':           fm.get('full_name',''),
+                            'birth_date':     fm.get('birth_date',''),
+                            'age':            age2,
+                            'guardian_name':  p.get('guardian_name','') or p.get('full_name',''),
+                            'guardian_phone': p.get('guardian_whatsapp','') or p.get('phone',''),
+                            'camp_name':      cc['name'],
+                            'parent_name':    p.get('full_name',''),
+                        })
+            # المرضى من مخيمات التعاون
+            if persons:
+                pids = tuple(p['id'] for p in persons)
+                ph = ','.join('?'*len(pids))
+                c.execute(f"""SELECT bh.condition_type, bh.notes, bh.report_path,
+                                     b.full_name, b.phone, b.guardian_name, b.guardian_whatsapp
+                              FROM beneficiary_health bh
+                              JOIN beneficiaries b ON b.id=bh.beneficiary_id
+                              WHERE bh.beneficiary_id IN ({ph})""", pids)
+                for s in c.fetchall():
+                    sd = dict(s)
+                    sd['camp_name'] = cc['name']
+                    coop_extra_sick.append(sd)
     except Exception:
         coop_camps = []
 
@@ -1607,9 +1657,14 @@ def beneficiaries():
                         'camp_name':      p.get('camp_name',''),
                         'parent_name':    p.get('full_name',''),
                     })
+    # إضافة مخيمات التعاون للقوائم الخاصة
+    orphan_list   += coop_extra_orphans
+    pregnant_list += coop_extra_pregnant
+    nursing_list  += coop_extra_nursing
+
     orphan_list.sort(key=lambda x: x.get('name',''))
-    pregnant_list.sort(key=lambda x: x.get('full_name',''))
-    nursing_list.sort(key=lambda x: x.get('full_name',''))
+    pregnant_list.sort(key=lambda x: x.get('wife_name') or x.get('full_name',''))
+    nursing_list.sort(key=lambda x: x.get('wife_name') or x.get('full_name',''))
 
     # قائمة المرضى من beneficiary_health
     try:
@@ -1617,16 +1672,18 @@ def beneficiaries():
         c2 = conn2.cursor()
         c2.execute("""
             SELECT bh.beneficiary_id, bh.condition_type, bh.notes, bh.report_path,
-                   b.full_name, b.camp_name, b.phone
+                   b.full_name, b.camp_name, b.phone,
+                   b.guardian_name, b.guardian_whatsapp
             FROM beneficiary_health bh
             JOIN beneficiaries b ON bh.beneficiary_id = b.id
             WHERE b.org_id = ?
             ORDER BY b.full_name
         """, (org_id,))
         sick_list = [dict(r) for r in c2.fetchall()]
+        sick_list += coop_extra_sick
         conn2.close()
     except Exception:
-        sick_list = []
+        sick_list = coop_extra_sick
 
     return render_template("beneficiaries.html",
                            beneficiaries=data, camps=camps,

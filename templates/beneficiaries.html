@@ -404,17 +404,35 @@ function openCoopCampDetail(idx) {
 {% if pregnant_list %}
 <div class="list-table-wrap">
   <table class="list-table">
-    <thead><tr><th>#</th><th>اسم الأسرة</th><th>اسم الزوجة</th><th>المخيم</th><th>الجوال</th></tr></thead>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم الزوجة الحامل</th>
+        <th>ولي الأمر (الزوج)</th>
+        <th>المخيم</th>
+        <th>جوال التواصل</th>
+      </tr>
+    </thead>
     <tbody>
     {% for p in pregnant_list %}
-    <tr onclick="openPersonModal({{ p.id }})" style="cursor:pointer;">
+    <tr style="cursor:pointer;" onclick="{% if p.id %}openPersonModal({{ p.id }}){% endif %}">
       <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
-      <td style="font-weight:700;font-size:.88rem;">{{ p.full_name }}</td>
-      <td style="font-size:.85rem;">{{ p.wife_name or '—' }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:#fce4ec;border:2px solid #f48fb1;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#c2185b;flex-shrink:0;">
+            <i class="fas fa-baby"></i>
+          </div>
+          <div style="font-weight:800;font-size:.9rem;color:#c2185b;">{{ p.wife_name or '—' }}</div>
+        </div>
+      </td>
+      <td style="font-size:.85rem;color:#555;">{{ p.full_name or '—' }}</td>
       <td style="font-size:.82rem;color:#856404;">
         {% if p.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ p.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
       </td>
-      <td>{% if p.phone %}<a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>{% else %}<span style="color:#ccc;">—</span>{% endif %}</td>
+      <td>
+        {% if p.phone %}<a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
     </tr>
     {% endfor %}
     </tbody>
@@ -430,17 +448,35 @@ function openCoopCampDetail(idx) {
 {% if nursing_list %}
 <div class="list-table-wrap">
   <table class="list-table">
-    <thead><tr><th>#</th><th>اسم الأسرة</th><th>اسم الزوجة</th><th>المخيم</th><th>الجوال</th></tr></thead>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم الزوجة المرضع</th>
+        <th>ولي الأمر (الزوج)</th>
+        <th>المخيم</th>
+        <th>جوال التواصل</th>
+      </tr>
+    </thead>
     <tbody>
     {% for p in nursing_list %}
-    <tr onclick="openPersonModal({{ p.id }})" style="cursor:pointer;">
+    <tr style="cursor:pointer;" onclick="{% if p.id %}openPersonModal({{ p.id }}){% endif %}">
       <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
-      <td style="font-weight:700;font-size:.88rem;">{{ p.full_name }}</td>
-      <td style="font-size:.85rem;">{{ p.wife_name or '—' }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:#fce4ec;border:2px solid #f48fb1;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#c2185b;flex-shrink:0;">
+            <i class="fas fa-heart"></i>
+          </div>
+          <div style="font-weight:800;font-size:.9rem;color:#c2185b;">{{ p.wife_name or '—' }}</div>
+        </div>
+      </td>
+      <td style="font-size:.85rem;color:#555;">{{ p.full_name or '—' }}</td>
       <td style="font-size:.82rem;color:#856404;">
         {% if p.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ p.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
       </td>
-      <td>{% if p.phone %}<a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>{% else %}<span style="color:#ccc;">—</span>{% endif %}</td>
+      <td>
+        {% if p.phone %}<a href="https://wa.me/{{ p.phone }}" target="_blank" style="color:#25d366;font-size:.82rem;"><i class="fab fa-whatsapp me-1"></i>{{ p.phone }}</a>
+        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+      </td>
     </tr>
     {% endfor %}
     </tbody>
@@ -456,14 +492,34 @@ function openCoopCampDetail(idx) {
 {% if sick_list %}
 <div class="list-table-wrap">
   <table class="list-table">
-    <thead><tr><th>#</th><th>الاسم</th><th>نوع الحالة</th><th>ملاحظات</th><th>المخيم</th><th>مرفق طبي</th></tr></thead>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>اسم المريض</th>
+        <th>نوع الحالة</th>
+        <th>ملاحظات</th>
+        <th>ولي الأمر</th>
+        <th>المخيم</th>
+        <th>مرفق طبي</th>
+      </tr>
+    </thead>
     <tbody>
     {% for s in sick_list %}
     <tr>
       <td style="color:#aaa;font-size:.78rem;">{{ loop.index }}</td>
-      <td style="font-weight:700;font-size:.88rem;">{{ s.full_name }}</td>
+      <td>
+        <div style="font-weight:800;font-size:.88rem;color:#e65100;">{{ s.full_name or '—' }}</div>
+      </td>
       <td><span class="status-chip chip-orange">{{ s.condition_type or '—' }}</span></td>
-      <td style="font-size:.82rem;color:#555;max-width:160px;">{{ s.notes or '—' }}</td>
+      <td style="font-size:.82rem;color:#555;max-width:150px;">{{ s.notes or '—' }}</td>
+      <td style="font-size:.82rem;color:#444;">
+        {{ s.guardian_name or '—' }}
+        {% if s.guardian_whatsapp %}
+        <br><a href="https://wa.me/{{ s.guardian_whatsapp }}" target="_blank" style="color:#25d366;font-size:.75rem;"><i class="fab fa-whatsapp me-1"></i>{{ s.guardian_whatsapp }}</a>
+        {% elif s.phone %}
+        <br><a href="https://wa.me/{{ s.phone }}" target="_blank" style="color:#25d366;font-size:.75rem;"><i class="fab fa-whatsapp me-1"></i>{{ s.phone }}</a>
+        {% endif %}
+      </td>
       <td style="font-size:.82rem;color:#856404;">
         {% if s.camp_name %}<i class="fas fa-tents me-1" style="opacity:.5;"></i>{{ s.camp_name }}{% else %}<span style="color:#ccc;">—</span>{% endif %}
       </td>
