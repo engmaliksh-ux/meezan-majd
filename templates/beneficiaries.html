@@ -147,10 +147,10 @@
             <td style="text-align:center;font-weight:700;color:#0d6832;">{{ cc_pers.n }}</td>
             {% if session.get('role') != 'observer' %}
             <td onclick="event.stopPropagation()" style="white-space:nowrap;">
-              <form method="POST" action="/org/camp-link/{{ cc.link_id }}/reject" style="display:inline;">
+              <form method="POST" action="/org/camp-link/{{ cc.link_id }}/remove" style="display:inline;">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn-sm-icon btn-del-mini" title="إلغاء الربط"
-                        onclick="return confirm('إلغاء ربط هذا المخيم؟')">
+                        onclick="return confirm('إلغاء ربط هذا المخيم؟ يمكن للمخيم إعادة إرسال طلب جديد لاحقاً.')">
                   <i class="fas fa-unlink"></i>
                 </button>
               </form>

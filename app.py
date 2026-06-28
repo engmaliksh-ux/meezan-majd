@@ -5407,8 +5407,8 @@ def api_camp_request_cooperation():
 @app.route("/org/camp-link/<int:link_id>/<action>", methods=["GET", "POST"])
 @login_required
 def org_handle_camp_link(link_id, action):
-    """المؤسسة تقبل أو ترفض/تلغي ربط مخيم"""
-    if action not in ("approve", "reject"):
+    """المؤسسة تقبل أو ترفض أو تلغي ربط مخيم"""
+    if action not in ("approve", "reject", "remove"):
         return redirect(url_for("beneficiaries"))
     if request.method == "POST" and not validate_csrf():
         flash("خطأ في التحقق", "danger")
@@ -5416,12 +5416,19 @@ def org_handle_camp_link(link_id, action):
     org_id = session["org_id"]
     conn = get_connection()
     c = conn.cursor()
-    new_status = "approved" if action == "approve" else "rejected"
-    c.execute("UPDATE institution_camp_links SET status=?, resolved_at=datetime('now','localtime') WHERE id=? AND org_id=?",
-              (new_status, link_id, org_id))
-    conn.commit()
-    conn.close()
-    flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم إلغاء ربط المخيم", "success" if action == "approve" else "warning")
+    if action == "remove":
+        # إلغاء الربط = حذف السجل كاملاً حتى يتمكن المخيم من إعادة الطلب مستقبلاً
+        c.execute("DELETE FROM institution_camp_links WHERE id=? AND org_id=?", (link_id, org_id))
+        conn.commit()
+        conn.close()
+        flash("تم إلغاء ربط المخيم — يمكن للمخيم إعادة إرسال طلب تعاون جديد", "warning")
+    else:
+        new_status = "approved" if action == "approve" else "rejected"
+        c.execute("UPDATE institution_camp_links SET status=?, resolved_at=datetime('now','localtime') WHERE id=? AND org_id=?",
+                  (new_status, link_id, org_id))
+        conn.commit()
+        conn.close()
+        flash("تم قبول طلب التعاون ✓" if action == "approve" else "تم رفض الطلب", "success" if action == "approve" else "warning")
     return redirect(url_for("beneficiaries"))
 
 
