@@ -29,14 +29,25 @@ def smart_backup() -> str:
         return ""
 
 
-def get_connection():
-    conn = sqlite3.connect(DB_NAME, timeout=30)
+def _enable_wal_persistent():
+    """تفعيل WAL mode بشكل دائم على ملف الـ DB (يُنفَّذ مرة واحدة فقط عند الإنشاء/الترحيل)."""
     try:
+        conn = sqlite3.connect(DB_NAME, timeout=10)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA wal_autocheckpoint=100")
+        conn.commit()
+        conn.close()
     except Exception:
         pass
+
+
+def get_connection():
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=15000")
+    conn.execute("PRAGMA busy_timeout=20000")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 
@@ -52,15 +63,31 @@ def _db_is_healthy() -> bool:
         return False
 
 
+def _safe_checkpoint():
+    """يدمج ملف WAL في الداتابيز الرئيسية بأمان."""
+    try:
+        conn = sqlite3.connect(DB_NAME, timeout=10)
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+    except Exception:
+        pass
+
+
 def auto_recover() -> str:
     """
     يُنفَّذ عند كل بداية للسيرفر:
-    1. يحذف ملفات الجورنال القديمة لتجنب التلف التلقائي
+    1. يحاول checkpoint لملف WAL (دمجه في الـ DB بدل حذفه)
     2. يتحقق من سلامة DB
-    3. إذا كانت تالفة يستعيد أفضل نسخة احتياطية (الأكبر حجماً)
-    يُرجع رسالة توضح ما حدث.
+    3. إذا فشل checkpoint يحذف ملفات الجورنال
+    4. إذا كانت DB تالفة يستعيد أفضل نسخة احتياطية
     """
-    # دائماً احذف ملفات الجورنال القبل الاتصال
+    # الخطوة 1: checkpoint آمن لدمج WAL (لا نحذفه مباشرة)
+    _safe_checkpoint()
+
+    if _db_is_healthy():
+        return "DB_OK"
+
+    # الخطوة 2: checkpoint فشل أو DB تالفة — احذف ملفات الجورنال
     for ext in ("-journal", "-wal", "-shm"):
         jfile = DB_NAME + ext
         if os.path.exists(jfile):
@@ -70,34 +97,33 @@ def auto_recover() -> str:
                 pass
 
     if _db_is_healthy():
-        return "DB_OK"
+        return "DB_OK_AFTER_JOURNAL_DELETE"
 
-    # DB تالفة — استعادة أفضل نسخة
+    # الخطوة 3: DB تالفة — استعادة أفضل نسخة
     if not os.path.exists(BACKUP_DIR):
         return "DB_CORRUPT_NO_BACKUP"
 
     backups = sorted(
         [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")],
         key=lambda f: os.path.getsize(os.path.join(BACKUP_DIR, f)),
-        reverse=True  # الأكبر حجماً = الأكثر بيانات
+        reverse=True
     )
 
     for bk in backups:
         bk_path = os.path.join(BACKUP_DIR, bk)
         try:
-            # تحقق من سلامة النسخة الاحتياطية أولاً
             tc = sqlite3.connect(bk_path, timeout=5)
             r  = tc.execute("PRAGMA integrity_check").fetchone()
             tc.execute("SELECT COUNT(*) FROM beneficiaries")
             tc.close()
             if not (r and r[0] == "ok"):
                 continue
-            # استعادة
             shutil.copy2(bk_path, DB_NAME)
             for ext in ("-journal", "-wal", "-shm"):
                 jf = DB_NAME + ext
                 if os.path.exists(jf):
-                    os.remove(jf)
+                    try: os.remove(jf)
+                    except: pass
             return f"DB_RESTORED_FROM:{bk}"
         except Exception:
             continue
@@ -182,6 +208,7 @@ def generate_org_code():
 
 
 def init_db():
+    _enable_wal_persistent()
     conn = get_connection()
     c = conn.cursor()
     c.execute("PRAGMA foreign_keys = ON")
