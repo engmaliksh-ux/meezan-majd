@@ -282,9 +282,14 @@ function openCoopCampDetail(idx) {
               {% if p.wife_nursing %}<span class="status-chip chip-pink">مرضع</span>{% endif %}
             </td>
             {% if session.get('role') != 'observer' %}
-            <td onclick="event.stopPropagation()">
+            <td onclick="event.stopPropagation()" style="white-space:nowrap;">
               <a href="{{ url_for('edit_beneficiary',id=p.id) }}" class="btn-sm-icon btn-edit-mini" title="تعديل">
                 <i class="fas fa-pen"></i>
+              </a>
+              <a href="{{ url_for('delete_beneficiary',id=p.id) }}"
+                 class="btn-sm-icon btn-del-mini" title="حذف"
+                 onclick="return confirm('حذف {{ p.full_name }}؟ لا يمكن التراجع.')">
+                <i class="fas fa-trash"></i>
               </a>
             </td>
             {% endif %}
