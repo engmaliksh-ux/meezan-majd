@@ -239,7 +239,7 @@ function openCoopCampDetail(idx) {
       <i class="fas fa-chevron-up" id="unlinked-chev" style="font-size:.72rem;color:#94a3b8;transition:.25s;margin-right:4px;"></i>
     </div>
     <div style="display:flex;align-items:center;gap:12px;" onclick="event.stopPropagation()">
-      <span style="font-size:.82rem;color:#6c7a72;"><strong>{{ ns.unlinked_pers }}</strong> شخص</span>
+      <span style="font-size:.82rem;color:#6c7a72;"><strong>{{ unlinked_persons|length }}</strong> أسرة &nbsp;|&nbsp; <strong>{{ ns.unlinked_pers }}</strong> شخص</span>
       {% if session.get('role') != 'observer' %}
       <a href="/add_beneficiary" class="btn btn-primary btn-sm" style="font-size:.78rem;">
         <i class="fas fa-user-plus me-1"></i>إضافة مستفيد
